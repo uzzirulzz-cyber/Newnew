@@ -142,7 +142,8 @@ function Hero() {
             className="text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl"
           >
             Pakistan&apos;s premier{" "}
-            <span className="pb-text-gradient">digital marketplace</span>
+            <span className="pb-text-silver">digital</span>{" "}
+            <span className="pb-text-gradient">marketplace</span>
           </motion.h1>
 
           <motion.p

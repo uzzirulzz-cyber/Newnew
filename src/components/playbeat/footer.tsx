@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { usePlaybeatStore } from "@/lib/store";
 import { toast } from "sonner";
+import { LogoMark, LogoWordmark } from "./logo";
 
 interface NavLink {
   label: string;
@@ -136,16 +137,11 @@ export function Footer() {
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand + newsletter */}
           <div className="col-span-2 md:col-span-1 lg:col-span-2">
-            <div className="flex items-center gap-2">
-              <div className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-primary to-accent">
-                <Music2
-                  className="size-4 text-primary-foreground"
-                  strokeWidth={2.5}
-                />
-              </div>
-              <span className="text-lg font-bold tracking-tight">
-                Play<span className="pb-text-gradient">Beat</span>
-                <span className="text-accent">.Digital</span>
+            <div className="flex items-center gap-2.5">
+              <LogoMark size={36} />
+              <span className="text-lg font-extrabold tracking-tight lowercase">
+                <LogoWordmark />
+                <span className="text-accent">.digital</span>
               </span>
             </div>
             <p className="mt-3 max-w-sm text-sm text-muted-foreground">

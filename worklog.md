@@ -282,3 +282,44 @@ Work Log:
 
 Stage Summary:
 - Theme now matches playbeat.digital: dark premium bg, gold brand accent, green CTA, trust badges. Hero redesigned to super-UI (centered, trust badges, gold headline, quick cats, featured showcase). Currency system: auto-detects PK region (Asia/Karachi → PKR @ 280/USD), else USD; manually toggleable via header dropdown; reactive across all customer-facing price displays (cards, detail sheet, cart, checkout). Lint clean, browser-verified.
+
+---
+Task ID: 10
+Agent: Main (Z.ai Code)
+Task: Rebrand to playbeat identity (deep navy + gold + silver logo) + redesign sign-in dialog to match reference
+
+Work Log:
+- Analyzed 2 uploaded images via VLM:
+  - ChatGPT Image (1254x1254): playbeat logo — deep navy bg (#0A192F), stylized "P" with gold play triangle (#D4AF37) inside, 3 sound-wave bars (silver/gold/silver), wordmark "playbeat" (play=silver, b=gold, eat=silver). Futuristic, premium, metallic.
+  - pasted_image (632x680): sign-up form — dark bg, yellow logo top, "Create your account" heading, stacked fields with icons, green CTA, trust badges (Secure/Instant delivery/12k+ customers), sign-in link.
+
+**Theme update (globals.css):**
+- Dark mode: background oklch(0.14 0.035 260) (deep navy), card oklch(0.18 0.035 260), green primary CTA, gold accent. Added brand tokens --pb-navy, --pb-navy-deep, --pb-gold, --pb-silver.
+- Updated utilities: .pb-glow (gold+green+navy orbs), .pb-text-silver (silver gradient), .pb-gold-border, .pb-card-glow.
+
+**New Logo component (src/components/playbeat/logo.tsx):**
+- SVG-based LogoMark: rounded navy square with gold border → 3 sound-wave bars (silver/gold/silver) on left → stylized "P" (gold vertical stroke + gold-outlined bowl) → gold play triangle inside the P bowl. Gradients for metallic look.
+- LogoWordmark: "playbeat" lowercase — "play" silver gradient, "b" gold (accent), "eat" silver gradient.
+- Logo composite component (mark + wordmark) with size prop.
+- Replaced inline Music2 logo in header + footer with the new brand logo.
+
+**Sign-in dialog redesign (header.tsx):**
+- Centered layout: playbeat LogoMark (56px) on top → "Welcome back" heading → "Sign in to your playbeat.digital account" subhead.
+- Email field with Mail icon prefix, Password field with Lock icon prefix (h-11 inputs).
+- Green "Sign in →" CTA button (h-11, full width, arrow icon).
+- Trust badges row: Secure (ShieldCheck, green) / Instant delivery (Zap, gold) / 12k+ customers (Trophy, green).
+- Demo accounts box (gold-tinted) with demo@playbeat.io + admin@playbeat.io credentials.
+- "Don't have an account? Sign up" link at bottom.
+- Gold-tinted dialog border (pb-gold-border).
+
+**Hero headline update (marketplace.tsx):**
+- "Pakistan's premier digital marketplace" → "digital" in silver gradient, "marketplace" in gold gradient (matches brand wordmark styling).
+
+**Verification:**
+- VLM: header logo "navy rounded square with gold P, play button, and sound wave bars... wordmark playbeat... deep navy bg... 8/10 premium."
+- VLM: sign-in dialog "circular logo with stylized P... Welcome back heading... green Sign in button... trust badges Secure/Instant delivery/12k+ customers... 8/10."
+- agent-browser: header renders playbeat logo (image + play/b/eat wordmark), no old PlayBeat branding. Sign-in dialog opens with logo + Welcome back + fields + trust badges + demo accounts + Sign up link. Login functional (demo@playbeat.io → "D Demo Customer" avatar). Footer renders new logo.
+- bun run lint: clean (0 errors). Dev log all 200s.
+
+Stage Summary:
+- Rebranded to playbeat identity: custom SVG logo (navy + gold + silver, P with play triangle + sound waves), lowercase "playbeat" wordmark (silver/gold/silver), deep navy theme. Sign-in dialog redesigned to match reference (logo top, Welcome back, icon fields, green CTA, trust badges). Lint clean, browser-verified.

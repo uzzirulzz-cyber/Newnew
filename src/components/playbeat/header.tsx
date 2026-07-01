@@ -15,6 +15,7 @@ import {
   Share2,
   BarChart3,
   Shield,
+  ShieldCheck,
   LayoutDashboard,
   LogIn,
   LogOut,
@@ -28,6 +29,11 @@ import {
   Sparkles,
   Tag,
   TrendingUp,
+  Mail,
+  Lock,
+  ArrowRight,
+  Zap,
+  Trophy,
   type LucideIcon as LucideIconType,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -63,6 +69,7 @@ import { api, type Notification, formatDate } from "@/lib/api-client";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { Logo as PlaybeatLogo, LogoMark } from "./logo";
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof Store }> = [
   { key: "marketplace", label: "Marketplace", icon: Store },
@@ -73,16 +80,7 @@ const TABS: Array<{ key: TabKey; label: string; icon: typeof Store }> = [
 ];
 
 function Logo() {
-  return (
-    <div className="flex items-center gap-2 cursor-pointer select-none">
-      <div className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/20">
-        <Music2 className="size-4 text-primary-foreground" strokeWidth={2.5} />
-      </div>
-      <span className="text-lg font-bold tracking-tight">
-        Play<span className="pb-text-gradient">Beat</span>
-      </span>
-    </div>
-  );
+  return <PlaybeatLogo size={34} />;
 }
 
 function ThemeToggle() {
@@ -252,59 +250,105 @@ function SignInDialog() {
           <span className="hidden sm:inline">Sign in</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Welcome to PlayBeat</DialogTitle>
-          <DialogDescription>
-            Sign in to manage your purchases, reviews and affiliates. Try the
-            demo account below.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="signin-email">Email</Label>
-            <Input
-              id="signin-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="signin-password">Password</Label>
-            <Input
-              id="signin-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            />
-          </div>
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5 font-medium text-foreground">
-              <CheckCircle2 className="size-3.5 text-primary" />
-              Demo accounts
-            </div>
-            <div className="mt-1 font-mono leading-relaxed">
-              <div>demo@playbeat.io / playbeat123</div>
-              <div>admin@playbeat.io / playbeat123</div>
-            </div>
-            <p className="mt-1.5 text-[11px]">
-              Sign in as admin to reveal Vendor, Affiliate, Analytics &amp;
-              Admin controls.
-            </p>
+      <DialogContent className="overflow-hidden border-pb-gold-border/40 bg-card p-0 sm:max-w-md">
+        {/* Logo + header */}
+        <div className="flex flex-col items-center gap-3 px-6 pb-2 pt-8 text-center">
+          <LogoMark size={56} />
+          <div>
+            <DialogTitle className="text-xl font-bold">
+              Welcome back
+            </DialogTitle>
+            <DialogDescription className="mt-1 text-sm">
+              Sign in to your playbeat.digital account
+            </DialogDescription>
           </div>
         </div>
-        <DialogFooter>
-          <Button onClick={handleLogin} disabled={loading} className="w-full">
+
+        <div className="space-y-3.5 px-6 py-5">
+          <div className="space-y-1.5">
+            <Label htmlFor="signin-email" className="text-xs font-medium">
+              Email
+            </Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="signin-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="h-11 pl-9"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="signin-password" className="text-xs font-medium">
+              Password
+            </Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="signin-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                placeholder="Min 6 characters"
+                className="h-11 pl-9"
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleLogin}
+            disabled={loading}
+            className="h-11 w-full gap-2 text-sm font-semibold"
+          >
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
-              "Sign in"
+              <>
+                Sign in
+                <ArrowRight className="size-4" />
+              </>
             )}
           </Button>
-        </DialogFooter>
+
+          {/* Trust badges — matches reference */}
+          <div className="flex items-center justify-center gap-4 pt-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <ShieldCheck className="size-3 text-primary" /> Secure
+            </span>
+            <span className="flex items-center gap-1">
+              <Zap className="size-3 text-accent" /> Instant delivery
+            </span>
+            <span className="flex items-center gap-1">
+              <Trophy className="size-3 text-primary" /> 12k+ customers
+            </span>
+          </div>
+
+          <div className="rounded-lg border border-accent/20 bg-accent/5 p-2.5 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5 font-medium text-foreground">
+              <CheckCircle2 className="size-3 text-accent" />
+              Demo accounts
+            </div>
+            <div className="mt-1 font-mono leading-relaxed">
+              demo@playbeat.io / playbeat123
+              <br />
+              admin@playbeat.io / playbeat123
+            </div>
+          </div>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <button
+              className="font-medium text-accent hover:underline"
+              onClick={() => toast.message("Sign up — coming soon")}
+            >
+              Sign up
+            </button>
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );
