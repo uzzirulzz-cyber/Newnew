@@ -20,6 +20,15 @@ import {
   LogOut,
   Loader2,
   CheckCircle2,
+  Home,
+  Gamepad2,
+  Gift,
+  KeyRound,
+  RefreshCw,
+  Sparkles,
+  Tag,
+  TrendingUp,
+  type LucideIcon as LucideIconType,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -322,12 +331,33 @@ function CartButton() {
   );
 }
 
+// Category nav links — match the playbeatdigital.world storefront layout.
+// Each link drives the Marketplace filter (category slug or sort order).
+const NAV_LINKS: Array<{
+  label: string;
+  category?: string;
+  sort?: string;
+  icon: LucideIconType;
+}> = [
+  { label: "Home", icon: Home },
+  { label: "Games", category: "games", icon: Gamepad2 },
+  { label: "Gift Cards", category: "gift-cards", icon: Gift },
+  { label: "Software", category: "software-licenses", icon: KeyRound },
+  { label: "AI Tools", category: "ai-tools", icon: Sparkles },
+  { label: "Subscriptions", category: "saas-subscriptions", icon: RefreshCw },
+  { label: "Best Value", sort: "price_asc", icon: Tag },
+  { label: "Trending", sort: "popular", icon: TrendingUp },
+];
+
 export function Header() {
   const activeTab = usePlaybeatStore((s) => s.activeTab);
   const setActiveTab = usePlaybeatStore((s) => s.setActiveTab);
   const searchQuery = usePlaybeatStore((s) => s.searchQuery);
   const setSearchQuery = usePlaybeatStore((s) => s.setSearchQuery);
   const user = usePlaybeatStore((s) => s.user);
+  const navCategory = usePlaybeatStore((s) => s.navCategory);
+  const navSort = usePlaybeatStore((s) => s.navSort);
+  const setNavFilter = usePlaybeatStore((s) => s.setNavFilter);
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   // Role-aware tab list: the public storefront only shows Marketplace.
@@ -335,60 +365,101 @@ export function Header() {
   // signed-in user has the matching role.
   const tabs = TABS.filter((t) => visibleTabs(user?.role).includes(t.key));
 
+  const goNav = (link: (typeof NAV_LINKS)[number]) => {
+    setActiveTab("marketplace");
+    setNavFilter(link.category ?? "", link.sort ?? "popular");
+    setMobileOpen(false);
+  };
+
+  // Determine the active nav link for highlight state
+  const isNavActive = (link: (typeof NAV_LINKS)[number]) => {
+    if (link.label === "Home") return !navCategory && (!navSort || navSort === "popular");
+    if (link.category) return navCategory === link.category;
+    if (link.sort) return !navCategory && navSort === link.sort;
+    return false;
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
-        {/* Mobile hamburger — only shown when operator tabs are available */}
-        {tabs.length > 1 && (
-          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="md:hidden"
-                aria-label="Open menu"
-              >
-                <Menu className="size-4" />
-              </Button>
-            </SheetTrigger>
-          <SheetContent side="left" className="w-72">
+        {/* Mobile hamburger — always shown on mobile (category nav + operator tabs) */}
+        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+          <SheetTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label="Open menu"
+            >
+              <Menu className="size-4" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 overflow-y-auto pb-scrollbar">
             <SheetHeader>
               <SheetTitle>
                 <Logo />
               </SheetTitle>
             </SheetHeader>
             <nav className="mt-4 flex flex-col gap-1 p-2">
-              {tabs.map((t) => {
-                const Icon = t.icon;
+              <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Store
+              </p>
+              {NAV_LINKS.map((link) => {
+                const Icon = link.icon;
+                const active = isNavActive(link);
                 return (
                   <button
-                    key={t.key}
-                    onClick={() => {
-                      setActiveTab(t.key);
-                      setMobileOpen(false);
-                    }}
+                    key={link.label}
+                    onClick={() => goNav(link)}
                     className={cn(
                       "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      activeTab === t.key
+                      active
                         ? "bg-primary text-primary-foreground"
-                        : "hover:bg-accent hover:text-accent-foreground"
+                        : "hover:bg-accent hover:text-accent-foreground",
                     )}
                   >
                     <Icon className="size-4" />
-                    {t.label}
+                    {link.label}
                   </button>
                 );
               })}
+              {tabs.length > 1 && (
+                <>
+                  <p className="px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Operator
+                  </p>
+                  {tabs.map((t) => {
+                    const Icon = t.icon;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => {
+                          setActiveTab(t.key);
+                          setMobileOpen(false);
+                        }}
+                        className={cn(
+                          "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          activeTab === t.key
+                            ? "bg-primary text-primary-foreground"
+                            : "hover:bg-accent hover:text-accent-foreground",
+                        )}
+                      >
+                        <Icon className="size-4" />
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </>
+              )}
             </nav>
           </SheetContent>
         </Sheet>
-        )}
 
         <Logo />
 
-        {/* Desktop nav — hidden for anonymous customers (public storefront
-            must not show admin/operator controls). Revealed only when the
-            signed-in user has access to more than the Marketplace. */}
+        {/* Desktop operator tabs — hidden for anonymous customers (public
+            storefront must not show admin/operator controls). Revealed only
+            when the signed-in user has access to more than the Marketplace. */}
         {tabs.length > 1 && (
           <nav className="mx-auto hidden md:flex items-center gap-1 rounded-full border border-border bg-card/40 p-1">
             {tabs.map((t) => {
@@ -402,7 +473,7 @@ export function Header() {
                     "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all",
                     active
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/50",
                   )}
                 >
                   <Icon className="size-3.5" />
@@ -423,6 +494,32 @@ export function Header() {
         </div>
       </div>
 
+      {/* Category nav bar — matches playbeatdigital.world storefront. Always
+          visible on desktop; drives the Marketplace filters. */}
+      <div className="hidden border-t border-border/60 bg-background/60 md:block">
+        <div className="mx-auto flex max-w-7xl items-center gap-1 px-4 sm:px-6">
+          {NAV_LINKS.map((link) => {
+            const Icon = link.icon;
+            const active = isNavActive(link);
+            return (
+              <button
+                key={link.label}
+                onClick={() => goNav(link)}
+                className={cn(
+                  "flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors",
+                  active
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border",
+                )}
+              >
+                <Icon className="size-3.5" />
+                {link.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Search row — only on marketplace */}
       {activeTab === "marketplace" && (
         <div className="border-t border-border/60 bg-background/60">
@@ -431,7 +528,7 @@ export function Header() {
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search AI tools, software, templates, courses..."
+              placeholder="Search game keys, AI tools, gift cards, software..."
               className="h-8 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
             />
             <span className="hidden sm:inline text-xs text-muted-foreground">

@@ -210,7 +210,15 @@ export interface Order {
   couponCode: string | null;
   createdAt: string;
   provider: string | null;
+  paymentStatus?: string;
   items: OrderItem[];
+}
+
+export interface LemonSqueezyCheckout {
+  checkoutUrl: string;
+  order: Order;
+  live: boolean;
+  message: string;
 }
 
 export interface CouponValidation {
@@ -334,6 +342,17 @@ export const api = {
     affiliateCode?: string;
   }) =>
     apiFetch<{ order: Order; message: string }>(`/orders`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  checkoutLemonSqueezy: (payload: {
+    items: Array<{ productId: string }>;
+    customerName: string;
+    customerEmail: string;
+    couponCode?: string;
+    affiliateCode?: string;
+  }) =>
+    apiFetch<LemonSqueezyCheckout>(`/checkout/lemon-squeezy`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),

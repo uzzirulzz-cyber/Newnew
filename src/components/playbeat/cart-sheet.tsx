@@ -40,9 +40,9 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
+  { value: "LEMON_SQUEEZY", label: "Lemon Squeezy (recommended)" },
   { value: "STRIPE", label: "Stripe" },
   { value: "PAYPAL", label: "PayPal" },
-  { value: "LEMON_SQUEEZY", label: "Lemon Squeezy" },
   { value: "PADDLE", label: "Paddle" },
   { value: "CRYPTO", label: "Crypto" },
 ];
@@ -217,7 +217,7 @@ export function CartSheet() {
   const [couponLoading, setCouponLoading] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [provider, setProvider] = React.useState("STRIPE");
+  const [provider, setProvider] = React.useState("LEMON_SQUEEZY");
   const [placing, setPlacing] = React.useState(false);
   const [placedOrder, setPlacedOrder] = React.useState<Order | null>(null);
 
@@ -274,16 +274,39 @@ export function CartSheet() {
     if (cart.length === 0) return;
     setPlacing(true);
     try {
-      const result = await api.placeOrder({
-        items: cart.map((c) => ({ productId: c.product.id })),
-        customerName: name.trim(),
-        customerEmail: email.trim(),
-        couponCode: appliedCoupon?.code,
-        provider,
-      });
-      setPlacedOrder(result.order);
-      toast.success("Order placed!");
-      clearCart();
+      // Lemon Squeezy is the active store gateway — it creates a hosted
+      // checkout session and redirects the customer to complete payment.
+      if (provider === "LEMON_SQUEEZY") {
+        const result = await api.checkoutLemonSqueezy({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+        });
+        // In LIVE mode, redirect to the real Lemon Squeezy hosted checkout.
+        // In DEMO mode the order is already completed locally (instant
+        // delivery), so we just show the confirmation — no redirect to a
+        // non-existent demo URL.
+        if (result.live) {
+          window.open(result.checkoutUrl, "_blank", "noopener,noreferrer");
+          toast.success("Redirecting to Lemon Squeezy to complete payment.");
+        } else {
+          toast.success("Order placed via Lemon Squeezy!");
+        }
+        setPlacedOrder(result.order);
+        clearCart();
+      } else {
+        const result = await api.placeOrder({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+          provider,
+        });
+        setPlacedOrder(result.order);
+        toast.success("Order placed!");
+        clearCart();
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Checkout failed");
     } finally {
@@ -462,8 +485,16 @@ export function CartSheet() {
                 ) : (
                   <CheckCircle2 className="size-4" />
                 )}
-                Place order · {formatMoney(total)}
+                {provider === "LEMON_SQUEEZY"
+                  ? `Checkout with Lemon Squeezy · ${formatMoney(total)}`
+                  : `Place order · ${formatMoney(total)}`}
               </Button>
+              {provider === "LEMON_SQUEEZY" && (
+                <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
+                  <span className="inline-block size-1.5 rounded-full bg-primary" />
+                  Secured by Lemon Squeezy · instant delivery after payment
+                </p>
+              )}
             </div>
           </div>
         )}

@@ -72,6 +72,7 @@ const TYPE_OPTIONS = [
   { value: "AFFILIATE_PRODUCT", label: "Affiliate Offer" },
   { value: "PAYMENT_GATEWAY", label: "Payment Gateway" },
   { value: "GAME", label: "Game" },
+  { value: "GIFT_CARD", label: "Gift Card" },
 ];
 
 function HeroStat({
@@ -455,12 +456,14 @@ function FilterBar({
 
 export function Marketplace() {
   const searchQuery = usePlaybeatStore((s) => s.searchQuery);
+  const navCategory = usePlaybeatStore((s) => s.navCategory);
+  const navSort = usePlaybeatStore((s) => s.navSort);
 
   const [query, setQuery] = React.useState<ProductQuery>({
     search: searchQuery || "",
-    category: "",
+    category: navCategory || "",
     type: undefined,
-    sort: "popular",
+    sort: navSort || "popular",
     page: 1,
     limit: 12,
   });
@@ -472,6 +475,16 @@ export function Marketplace() {
     }, 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
+
+  // React to header nav-driven category/sort changes
+  React.useEffect(() => {
+    setQuery((q) => ({
+      ...q,
+      category: navCategory,
+      sort: navSort,
+      page: 1,
+    }));
+  }, [navCategory, navSort]);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["products", query],

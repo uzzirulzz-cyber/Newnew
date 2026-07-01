@@ -14,6 +14,7 @@ import {
   Share2,
   CreditCard,
   Gamepad2,
+  Gift,
   Package,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Share2,
   CreditCard,
   Gamepad2,
+  Gift,
   Package,
 };
 

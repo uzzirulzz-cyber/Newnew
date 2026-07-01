@@ -26,6 +26,7 @@ const PRODUCT_TYPES = [
   "AFFILIATE_PRODUCT",
   "PAYMENT_GATEWAY",
   "GAME",
+  "GIFT_CARD",
 ] as const;
 
 // gradient color pairs per type (used as fallback cover visuals)
@@ -42,6 +43,7 @@ const TYPE_GRADIENTS: Record<string, [string, string]> = {
   AFFILIATE_PRODUCT: ["#8b5cf6", "#6d28d9"],
   PAYMENT_GATEWAY: ["#0ea5e9", "#0369a1"],
   GAME: ["#f97316", "#c2410c"],
+  GIFT_CARD: ["#ef4444", "#b91c1c"],
 };
 
 const TYPE_ICONS: Record<string, string> = {
@@ -57,6 +59,7 @@ const TYPE_ICONS: Record<string, string> = {
   AFFILIATE_PRODUCT: "Share2",
   PAYMENT_GATEWAY: "CreditCard",
   GAME: "Gamepad2",
+  GIFT_CARD: "Gift",
 };
 
 interface SeedProduct {
@@ -572,6 +575,66 @@ const SEED_PRODUCTS: SeedProduct[] = [
     fileSize: "1.8 GB",
     version: "1.0.3",
   },
+  // ---- Gift Cards ----
+  {
+    title: "Steam Gift Card $50",
+    type: "GIFT_CARD",
+    price: 50,
+    vendorStore: "PlayBeat Digital",
+    categoryName: "Gift Cards",
+    shortDescription: "Steam wallet top-up — redeem instantly worldwide.",
+    description:
+      "A $50 Steam digital gift card. Redeem on any Steam account to add wallet funds for games, DLC, and in-game items. Delivered as a code within seconds of purchase.",
+    tags: ["gift card", "steam", "gaming", "wallet"],
+    licenseType: "Digital code (instant delivery)",
+    fileSize: "Digital code",
+    version: "Global",
+    featured: true,
+  },
+  {
+    title: "Netflix Gift Card $30",
+    type: "GIFT_CARD",
+    price: 30,
+    vendorStore: "PlayBeat Digital",
+    categoryName: "Gift Cards",
+    shortDescription: "Netflix subscription credit — works with any plan.",
+    description:
+      "A $30 Netflix gift card applied to your Netflix account for any subscription plan. No expiry on balances. Delivered as a digital code instantly.",
+    tags: ["gift card", "netflix", "streaming", "subscription"],
+    licenseType: "Digital code (instant delivery)",
+    fileSize: "Digital code",
+    version: "Global",
+  },
+  {
+    title: "Spotify Premium 3-Month Card",
+    type: "GIFT_CARD",
+    price: 29,
+    discountPrice: 25,
+    vendorStore: "PlayBeat Digital",
+    categoryName: "Gift Cards",
+    shortDescription: "3 months of Spotify Premium, ad-free music.",
+    description:
+      "A Spotify Premium gift card giving 3 months of ad-free, offline music streaming. Redeem on any Spotify account. Delivered as a digital code.",
+    tags: ["gift card", "spotify", "music", "premium"],
+    licenseType: "Digital code (instant delivery)",
+    fileSize: "Digital code",
+    version: "Global",
+    featured: true,
+  },
+  {
+    title: "Amazon Gift Card $100",
+    type: "GIFT_CARD",
+    price: 100,
+    vendorStore: "PlayBeat Digital",
+    categoryName: "Gift Cards",
+    shortDescription: "Amazon.com balance — shop millions of products.",
+    description:
+      "A $100 Amazon.com gift card. Redeem to your Amazon account balance and shop millions of products. No expiry. Delivered as a digital code instantly.",
+    tags: ["gift card", "amazon", "shopping"],
+    licenseType: "Digital code (instant delivery)",
+    fileSize: "Digital code",
+    version: "US",
+  },
 ];
 
 interface SeedVendor {
@@ -593,6 +656,7 @@ const SEED_VENDORS: SeedVendor[] = [
   { storeName: "LearnAI Academy", ownerName: "Omar Haddad", email: "omar@learnai.education", description: "Courses on AI & modern engineering.", verified: true },
   { storeName: "PayBridge Labs", ownerName: "Sofia Marin", email: "sofia@paybridge.dev", description: "Payment gateway integrations & checkout SDKs.", verified: true },
   { storeName: "Lumen Games", ownerName: "Kai Nakamura", email: "kai@lumengames.studio", description: "Indie games & game development assets.", verified: true },
+  { storeName: "PlayBeat Digital", ownerName: "PlayBeat Team", email: "info@playbeat.digital", description: "Official PlayBeat gift cards & digital codes.", verified: true },
 ];
 
 const SEED_CATEGORIES = [
@@ -608,6 +672,7 @@ const SEED_CATEGORIES = [
   { name: "Affiliate Offers", icon: "Share2", color: "#8b5cf6", description: "Programs you can promote for commission." },
   { name: "Payment Gateways", icon: "CreditCard", color: "#0ea5e9", description: "Payment processing integrations & checkout SDKs for your storefront." },
   { name: "Games", icon: "Gamepad2", color: "#f97316", description: "Indie games, game assets, and interactive entertainment." },
+  { name: "Gift Cards", icon: "Gift", color: "#ef4444", description: "Digital gift cards for Steam, Netflix, Spotify, Amazon & more." },
 ];
 
 const REVIEW_SEED = [

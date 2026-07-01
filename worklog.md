@@ -184,3 +184,58 @@ Work Log:
 
 Stage Summary:
 - Public storefront home no longer displays any admin/operator controls. Anonymous visitors and regular customers see only the Marketplace (logo, search, theme, notifications, cart, sign-in). Operator dashboards (Vendor/Affiliate/Analytics/Admin) are gated behind role-based auth and only appear after signing in as VENDOR or ADMIN. Sign-out immediately removes them. Payment Gateways category verified showing all 6 products. Lint clean, browser-verified end-to-end.
+
+---
+Task ID: 8
+Agent: Main (Z.ai Code)
+Task: Redesign header/footer to match playbeatdigital.world + activate store checkout via Lemon Squeezy API
+
+Work Log:
+- Read reference site https://playbeatdigital.world/ via web-reader. Extracted structure: header nav (Home/Games/Gift Cards/Software/AI Tools/Subscriptions/Best Value/Trending), footer (Quick Links, Categories, Contact WhatsApp/email/Pakistan/24-7, Download App, We Accept payments: Visa/Mastercard/Stripe/PayPal/Lemon Squeezy/JazzCash/EasyPaisa/UBL/Meezan/Bank Alfalah/Tether, bottom bar Privacy/Terms/Refund/Admin). Amber theme #eab308.
+
+**Backend — Lemon Squeezy checkout activation:**
+- Created `/api/v1/checkout/lemon-squeezy` route (src/app/api/v1/checkout/lemon-squeezy/route.ts):
+  - LIVE mode: when LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_STORE_ID + LEMONSQUEEZY_VARIANT_ID env vars are set, creates a real Lemon Squeezy checkout session via POST https://api.lemonsqueezy.com/v1/checkouts (Bearer auth, JSON:API body with checkout_data, product_options.redirect_url, store/variant relationships). Returns the hosted checkout URL. Order created as PENDING (webhook confirms).
+  - DEMO mode (no keys): creates order as COMPLETED locally (instant delivery), generates license keys + download tokens, increments vendor/affiliate stats, returns a demo Lemon Squeezy checkout URL.
+  - Both modes: coupon application, affiliate attribution, license key generation, download tokens.
+- Added `checkoutLemonSqueezy()` method + `LemonSqueezyCheckout` interface to src/lib/api-client.ts.
+- Added `paymentStatus` to Order interface.
+
+**Frontend — Cart checkout via Lemon Squeezy:**
+- Cart default provider changed STRIPE → LEMON_SQUEEZY (marked "recommended").
+- placeOrder() branches: when provider=LEMON_SQUEEZY, calls api.checkoutLemonSqueezy(). In LIVE mode opens the real checkout URL in a new tab; in DEMO mode shows the confirmation directly (no redirect to avoid 404 on non-existent demo URL).
+- Button label: "Checkout with Lemon Squeezy · $X" when LS selected; "Place order · $X" otherwise.
+- Added "Secured by Lemon Squeezy · instant delivery after payment" helper text.
+
+**Frontend — Header redesign (matches reference):**
+- Added NAV_LINKS: Home, Games (category=games), Gift Cards (category=gift-cards), Software (category=software-licenses), AI Tools (category=ai-tools), Subscriptions (category=saas-subscriptions), Best Value (sort=price_asc), Trending (sort=popular).
+- New category nav bar below the main header row (desktop) with border-b-2 active highlight — drives the Marketplace filters via setNavFilter().
+- Mobile hamburger now shows both "Store" nav links + "Operator" tabs (role-gated).
+- Operator tabs (Vendor/Affiliate/Analytics/Admin) remain role-gated — anonymous users see only category nav, no admin controls.
+- Search placeholder updated: "Search game keys, AI tools, gift cards, software..."
+- Added store fields: navCategory, navSort, setNavFilter(). Marketplace consumes them via useEffect to sync its query state.
+
+**Frontend — Footer redesign (matches reference):**
+- Brand: "PlayBeat.Digital" with tagline "Pakistan's premier digital marketplace for game keys, software licenses, AI tools, and gift cards. Instant delivery. Trusted by thousands."
+- Newsletter form + contact block (WhatsApp 0332 157 9333, info@playbeat.digital, Pakistan, 24/7 Instant Delivery).
+- Quick Links column (Home/Games/Gift Cards/Software/AI Tools/Subscriptions/Best Value/Trending — clickable, drive marketplace filter).
+- Categories column (Games/Gift Cards/Software/AI Tools/Subscriptions/Top-Up).
+- Download Our App card + "Secure Checkout — All payments processed by Lemon Squeezy. PCI-DSS compliant." trust badge.
+- "We Accept" row: Visa, Mastercard, Stripe, PayPal, Lemon Squeezy, JazzCash, EasyPaisa, UBL, Meezan Bank, Bank Alfalah, Tether (USDT).
+- Bottom bar: © 2026 PlayBeat.Digital + Privacy/Terms/Refund Policy/Admin + GitHub/Twitter/Contact social links.
+
+**Seed additions:**
+- New category "Gift Cards" (icon Gift, color #ef4444).
+- New product type GIFT_CARD (gradient #ef4444→#b91c1c, icon Gift) — added to PRODUCT_TYPES, TYPE_GRADIENTS, TYPE_ICONS.
+- New vendor "PlayBeat Digital" (info@playbeat.digital, verified).
+- 4 gift card products: Steam $50, Netflix $30, Spotify Premium 3-Month $25, Amazon $100.
+- Registered Gift icon in product-cover ICON_MAP; added "Gift Card" to marketplace TYPE_OPTIONS filter.
+- Re-seeded: 38 products, 13 categories, 11 vendors.
+
+**Verification:**
+- curl: POST /checkout/lemon-squeezy → 200, returns checkoutUrl (playbeat-storefront.lemonsqueezy.com/...), order PB-..., status COMPLETED, provider LEMON_SQUEEZY, total correct with coupon.
+- agent-browser: header shows Home/Games/Gift Cards/Software/AI Tools/Subscriptions/Best Value/Trending nav bar. Clicking "Gift Cards" filters grid to "Filtered 4 results" (Netflix/Amazon/Spotify/Steam). Footer matches reference structure (Quick Links, Categories, Contact, Download App, We Accept, bottom bar). Cart defaults to "Lemon Squeezy (recommended)", button reads "Checkout with Lemon Squeezy · $30.00". Completing checkout shows order confirmation PB-2PUGML-34W2 with license key WH73-KZHQ-9LRQ-T2YS, payment LEMON_SQUEEZY, no 404.
+- bun run lint: clean (0 errors).
+
+Stage Summary:
+- Header + footer now match playbeatdigital.world layout. Store checkout activated via Lemon Squeezy API (/api/v1/checkout/lemon-squeezy) — works in demo mode now, switches to live Lemon Squeezy hosted checkout when LEMONSQUEEZY_API_KEY/STORE_ID/VARIANT_ID env vars are configured. Cart defaults to Lemon Squeezy. 4 gift card products + Gift Cards category added. Lint clean, browser-verified end-to-end.

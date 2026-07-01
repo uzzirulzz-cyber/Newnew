@@ -67,6 +67,11 @@ interface PlaybeatState {
   searchQuery: string;
   setSearchQuery: (s: string) => void;
 
+  // Navigation-driven marketplace filter (set by header nav links)
+  navCategory: string;
+  navSort: string;
+  setNavFilter: (category: string, sort?: string) => void;
+
   // Auth (lightweight demo)
   user: { id: string; name: string; email: string; role: string } | null;
   setUser: (u: PlaybeatState["user"]) => void;
@@ -139,6 +144,11 @@ export const usePlaybeatStore = create<PlaybeatState>()(
 
       searchQuery: "",
       setSearchQuery: (s) => set({ searchQuery: s }),
+
+      navCategory: "",
+      navSort: "popular",
+      setNavFilter: (category, sort) =>
+        set({ navCategory: category, navSort: sort ?? "popular" }),
 
       user: null,
       setUser: (u) => set({ user: u }),
