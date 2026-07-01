@@ -1,0 +1,283 @@
+// PlayBeat Storefront — Prisma schema
+// SQLite datasource. Lists are stored as JSON strings (SQLite limitation).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// Users, Roles, Vendors
+// ----------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("CUSTOMER") // CUSTOMER | VENDOR | ADMIN
+  avatar       String?
+  bio          String?
+  verified     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  vendor        Vendor?
+  orders        Order[]
+  reviews       Review[]
+  favorites     Favorite[]
+  notifications Notification[]
+  affiliate     Affiliate?
+}
+
+model Vendor {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeName    String
+  slug         String   @unique
+  logo         String?
+  description  String?
+  verified     Boolean  @default(false)
+  totalSales   Int      @default(0)
+  totalRevenue Float    @default(0)
+  rating       Float    @default(0)
+  createdAt    DateTime @default(now())
+
+  products Product[]
+  coupons  Coupon[]
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String?
+  color       String?
+  productCount Int     @default(0)
+  parentId    String?
+  parent      Category? @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  products    Product[]
+  createdAt   DateTime @default(now())
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  title            String
+  slug             String   @unique
+  shortDescription String?
+  description      String
+  type             String // AI_TOOL | SOFTWARE_LICENSE | SAAS_SUBSCRIPTION | DIGITAL_DOWNLOAD | EBOOK | TEMPLATE | GRAPHICS | COURSE | MEMBERSHIP | AFFILIATE_PRODUCT
+  status           String   @default("PUBLISHED") // DRAFT | PENDING | PUBLISHED
+
+  price          Float
+  discountPrice  Float?
+  currency       String   @default("USD")
+  sku            String   @unique
+  stock          Int?
+
+  images       String // JSON array of urls
+  videoUrl     String?
+  tags         String // JSON array of strings
+  licenseType  String?
+  downloadFile String?
+  fileSize     String?
+  version      String?
+  changelog    String? // JSON array of {version, date, notes}
+
+  seoTitle       String?
+  seoDescription String?
+
+  featured    Boolean  @default(false)
+  rating      Float    @default(0)
+  reviewCount Int      @default(0)
+  salesCount  Int      @default(0)
+
+  vendorId  String?
+  vendor    Vendor?   @relation(fields: [vendorId], references: [id])
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reviews     Review[]
+  orderItems  OrderItem[]
+  favorites   Favorite[]
+}
+
+// ----------------------------------------------------------------------------
+// Orders, Payments, Downloads
+// ----------------------------------------------------------------------------
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id])
+
+  status        String   @default("PENDING") // PENDING | PAID | COMPLETED | REFUNDED | CANCELLED
+  subtotal      Float
+  discount      Float    @default(0)
+  total         Float
+  currency      String   @default("USD")
+
+  couponCode    String?
+  customerName  String
+  customerEmail String
+  affiliateCode String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items     OrderItem[]
+  payment   Payment?
+  downloads Download[]
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  price      Float
+  licenseKey String?
+  createdAt  DateTime @default(now())
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  orderId       String   @unique
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider      String // STRIPE | PAYPAL | LEMON_SQUEEZY | PADDLE | CRYPTO
+  amount        Float
+  currency      String   @default("USD")
+  status        String   @default("PENDING") // PENDING | COMPLETED | FAILED | REFUNDED
+  transactionId String?
+  createdAt     DateTime @default(now())
+}
+
+model Download {
+  id            String   @id @default(cuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String
+  downloadCount Int      @default(0)
+  expiresAt     DateTime
+  token         String   @unique
+  createdAt     DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// Reviews, Favorites, Coupons
+// ----------------------------------------------------------------------------
+
+model Review {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  rating      Int
+  title       String?
+  comment     String
+  verified    Boolean  @default(false)
+  status      String   @default("APPROVED") // PENDING | APPROVED | REJECTED
+  vendorReply String?
+  createdAt   DateTime @default(now())
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+}
+
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  type        String // PERCENTAGE | FIXED | FREE_PRODUCT
+  value       Float
+  minPurchase Float    @default(0)
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  expiresAt   DateTime?
+  active      Boolean  @default(true)
+  vendorId    String?
+  vendor      Vendor?  @relation(fields: [vendorId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// Affiliate System
+// ----------------------------------------------------------------------------
+
+model Affiliate {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code             String   @unique
+  commissionRate   Float    @default(10)
+  totalClicks      Int      @default(0)
+  totalConversions Int      @default(0)
+  totalEarnings    Float    @default(0)
+  balance          Float    @default(0)
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now())
+
+  clicks  AffiliateClick[]
+  payouts Payout[]
+}
+
+model AffiliateClick {
+  id          String   @id @default(cuid())
+  affiliateId String
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  ip          String?
+  userAgent   String?
+  converted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model Payout {
+  id          String   @id @default(cuid())
+  affiliateId String
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  amount      Float
+  status      String   @default("PENDING") // PENDING | COMPLETED | FAILED
+  method      String?
+  createdAt   DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// Notifications, Settings
+// ----------------------------------------------------------------------------
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Settings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
