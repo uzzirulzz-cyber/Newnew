@@ -32,7 +32,8 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "PlayBeat Inc." }],
   icons: {
-    icon: "/logo.svg",
+    icon: "/favicon.png",
+    apple: "/favicon.png",
   },
   openGraph: {
     title: "PlayBeat Storefront",

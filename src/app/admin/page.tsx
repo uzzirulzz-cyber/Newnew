@@ -24,19 +24,26 @@ import { AdminConsole } from "@/components/playbeat/admin-console";
 import { api } from "@/lib/api-client";
 import { usePlaybeatStore } from "@/lib/store";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
-const EXEC_EMAILS = [
-  "founder@playbeat.live",
-  "ceo@playbeat.live",
-  "director@playbeat.live",
+/**
+ * Executive admin accounts — embedded directly in the code so the admin
+ * portal works even when the database is unreachable (Neon cold starts).
+ *
+ * The portal first tries the API login (DB-backed). If that fails (DB down,
+ * network error), it falls back to these embedded credentials.
+ */
+const EXEC_ACCOUNTS = [
+  { email: "founder@playbeat.live", password: "playbeat123", name: "Founder", role: "ADMIN" },
+  { email: "ceo@playbeat.live", password: "playbeat123", name: "CEO", role: "ADMIN" },
+  { email: "director@playbeat.live", password: "playbeat123", name: "Director", role: "ADMIN" },
 ];
+
+const EXEC_EMAILS = EXEC_ACCOUNTS.map((a) => a.email);
 
 export default function AdminPage() {
   const user = usePlaybeatStore((s) => s.user);
   const setUser = usePlaybeatStore((s) => s.setUser);
 
-  // Show admin console if already signed in as an exec admin
   const isExecAdmin =
     user?.role === "ADMIN" &&
     EXEC_EMAILS.includes(user.email.toLowerCase());
@@ -76,7 +83,7 @@ function AdminLock({ onUnlock }: { onUnlock: (u: any) => void }) {
 
     const normalizedEmail = email.trim().toLowerCase();
     if (!EXEC_EMAILS.includes(normalizedEmail)) {
-      setError("Access denied. This portal is restricted to executive accounts.");
+      setError("Access denied. This portal is restricted to executive accounts. Use one of the authorized emails listed below.");
       return;
     }
     if (!password) {
@@ -85,6 +92,8 @@ function AdminLock({ onUnlock }: { onUnlock: (u: any) => void }) {
     }
 
     setLoading(true);
+
+    // 1. Try the API login first (DB-backed)
     try {
       const { user } = await api.login(normalizedEmail, password);
       if (user.role !== "ADMIN") {
@@ -93,11 +102,28 @@ function AdminLock({ onUnlock }: { onUnlock: (u: any) => void }) {
         return;
       }
       onUnlock(user);
-    } catch {
-      setError("Invalid credentials. Please verify your email and password.");
-    } finally {
       setLoading(false);
+      return;
+    } catch {
+      // API login failed (DB down, network error) — fall back to embedded check
     }
+
+    // 2. Fallback: verify against embedded credentials
+    const account = EXEC_ACCOUNTS.find(
+      (a) => a.email === normalizedEmail && a.password === password,
+    );
+
+    if (account) {
+      onUnlock({
+        id: `exec_${account.email}`,
+        name: account.name,
+        email: account.email,
+        role: account.role,
+      });
+    } else {
+      setError("Invalid password. The password is: playbeat123");
+    }
+    setLoading(false);
   };
 
   return (
@@ -201,6 +227,22 @@ function AdminLock({ onUnlock }: { onUnlock: (u: any) => void }) {
               )}
             </Button>
           </form>
+
+          {/* Login details — shown so the user knows exactly what to enter */}
+          <div className="mt-6 rounded-lg border border-accent/20 bg-accent/5 p-3">
+            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
+              <ShieldCheck className="size-3 text-accent" />
+              Authorized Login Details
+            </div>
+            <div className="mt-1.5 space-y-0.5 font-mono text-[10px] text-muted-foreground">
+              <div>founder@playbeat.live</div>
+              <div>ceo@playbeat.live</div>
+              <div>director@playbeat.live</div>
+              <div className="pt-1 text-foreground/70">
+                Password: playbeat123
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -212,11 +254,9 @@ function AdminLock({ onUnlock }: { onUnlock: (u: any) => void }) {
         <span className="flex items-center gap-1">
           <Lock className="size-3 text-accent" /> Encrypted
         </span>
-        <span className="flex items-center gap-1">
-          <Badge variant="outline" className="text-[9px] uppercase">
-            Exec Only
-          </Badge>
-        </span>
+        <Badge variant="outline" className="text-[9px] uppercase">
+          Exec Only
+        </Badge>
       </div>
     </motion.div>
   );
