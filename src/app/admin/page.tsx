@@ -201,22 +201,6 @@ function AdminLock({ onUnlock }: { onUnlock: (u: any) => void }) {
               )}
             </Button>
           </form>
-
-          {/* Authorized accounts hint */}
-          <div className="mt-6 rounded-lg border border-accent/20 bg-accent/5 p-3">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-foreground">
-              <ShieldCheck className="size-3 text-accent" />
-              Authorized executive accounts
-            </div>
-            <div className="mt-1.5 space-y-0.5 font-mono text-[10px] text-muted-foreground">
-              {EXEC_EMAILS.map((e) => (
-                <div key={e}>{e}</div>
-              ))}
-              <div className="pt-0.5 text-foreground/70">
-                Password: playbeat123
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 

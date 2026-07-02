@@ -1,0 +1,67 @@
+Name,Description,Price (PKR),Price (USD),Type,Category
+Netflix Premium 1 Month - 4K UHD,"Netflix Premium 1-month subscription — 4K UHD streaming on 4 devices simultaneously. Global account, instant activation.",1386,4.95,Subscription,Streaming
+Netflix + Prime Video 1 Month Combo,"Combo offer: 1 month Netflix + 1 month Prime Video. Watch on any device, HD quality, instant delivery.",1694,6.05,Subscription,Streaming
+Netflix Premium 3 Months,"Netflix Premium 3-month subscription — 4K UHD, 4 simultaneous screens. Global, instant activation.",4004,14.3,Subscription,Streaming
+Netflix Premium 12 Months,"Netflix Premium 12-month subscription — best value. 4K UHD, 4 screens, global account.",13860,49.5,Subscription,Streaming
+Spotify Premium 1 Month,"Spotify Premium 1-month subscription. Ad-free music, offline downloads, unlimited skips. Global account.",770,2.75,Subscription,Streaming
+Spotify Premium 3 Months,"Spotify Premium 3-month subscription. Ad-free, offline, unlimited skips.",2002,7.15,Subscription,Streaming
+Spotify Premium 6 Months,"Spotify Premium 6-month subscription. Ad-free, offline, unlimited skips.",3696,13.2,Subscription,Streaming
+Spotify Premium 12 Months,"Spotify Premium 12-month subscription — best value. Ad-free, offline, unlimited skips.",6776,24.2,Subscription,Streaming
+YouTube Premium 1 Month,"YouTube Premium 1-month subscription. Ad-free videos, background play, YouTube Music Premium.",924,3.3,Subscription,Streaming
+YouTube Premium 12 Months,"YouTube Premium 12-month subscription. Ad-free, background play, YouTube Music.",8624,30.8,Subscription,Streaming
+Disney+ Premium 1 Month,"Disney+ Premium 1-month subscription. 4K UHD, 4 simultaneous screens, global account.",1232,4.4,Subscription,Streaming
+Disney+ Premium 12 Months,"Disney+ Premium 12-month subscription — best value. 4K UHD, 4 screens.",11704,41.8,Subscription,Streaming
+HBO Max 1 Month,"HBO Max 1-month subscription. Stream HBO originals, Warner Bros movies, and more in 4K.",1386,4.95,Subscription,Streaming
+Prime Video 1 Month,"Amazon Prime Video 1-month subscription. Stream movies, TV shows, and Prime exclusives.",770,2.75,Subscription,Streaming
+MAXstream Premium 1 Month,"MAXstream Premium 1-month subscription. Stream movies, TV shows, and live sports.",770,2.75,Subscription,Streaming
+Apple TV+ 1 Month,Apple TV+ 1-month subscription. Stream Apple Originals in 4K HDR.,1078,3.85,Subscription,Streaming
+Crunchyroll Premium 1 Month,"Crunchyroll Premium 1-month subscription. Ad-free anime, simulcasts, offline viewing.",924,3.3,Subscription,Streaming
+ChatGPT Plus 1 Month,"ChatGPT Plus 1-month subscription. GPT-4 access, faster response, priority features. Global account.",4312,15.4,Subscription,AI Tools
+ChatGPT Plus 3 Months,"ChatGPT Plus 3-month subscription. GPT-4, DALL-E, faster responses.",12320,44.0,Subscription,AI Tools
+ChatGPT Plus 12 Months,"ChatGPT Plus 12-month subscription — best value. GPT-4, DALL-E, priority access.",46200,165.0,Subscription,AI Tools
+Claude Pro 1 Month,"Claude Pro 1-month subscription. Claude 3.5 Sonnet, extended conversations, file uploads.",4620,16.5,Subscription,AI Tools
+Midjourney Basic 1 Month,"Midjourney Basic 1-month subscription. 200 image generations, commercial use.",3080,11.0,Subscription,AI Tools
+Gemini Advanced 1 Month,"Google Gemini Advanced 1-month subscription. Ultra model, 2TB storage, AI features.",4312,15.4,Subscription,AI Tools
+NordVPN 1 Year Subscription,"NordVPN 1-year subscription. 5400+ servers in 60 countries, malware protection, 6 connections.",10780,38.5,Subscription,VPN
+NordVPN 2 Year Subscription,"NordVPN 2-year subscription — best value. 5400+ servers, 6 connections, threat protection.",18480,66.0,Subscription,VPN
+Surfshark VPN 1 Month,"Surfshark VPN 1-month subscription. Unlimited devices, 3200+ servers, CleanWeb.",770,2.75,Subscription,VPN
+Surfshark VPN 1 Year,"Surfshark VPN 1-year subscription. Unlimited devices, 3200+ servers in 65 countries.",9240,33.0,Subscription,VPN
+ExpressVPN 1 Year,"ExpressVPN 1-year subscription. 3000+ servers in 94 countries, 8 connections, 24/7 support.",18480,66.0,Subscription,VPN
+IPVanish VPN 1 Year,"IPVanish VPN 1-year subscription. 2000+ servers, unlimited connections, no logs.",7700,27.5,Subscription,VPN
+Google Play $10 Gift Card,"Google Play $10 gift card. Redeem for apps, games, in-app purchases, movies. Digital code, instant delivery.",3542,12.65,Single payment,Gift Cards
+Google Play $25 Gift Card,"Google Play $25 gift card. Redeem for apps, games, movies, books. Digital code.",8316,29.7,Single payment,Gift Cards
+Google Play $50 Gift Card,"Google Play $50 gift card. Redeem for apps, games, in-app purchases. Digital code.",16016,57.2,Single payment,Gift Cards
+Apple Gift Card $25,"Apple Gift Card $25. Use on App Store, iTunes, Apple Music, iCloud. Digital code.",8316,29.7,Single payment,Gift Cards
+Apple Gift Card $50,"Apple Gift Card $50. Use on App Store, iTunes, Apple Music, iCloud, Apple hardware.",16016,57.2,Single payment,Gift Cards
+Apple Gift Card $100,"Apple Gift Card $100. Use on App Store, iTunes, Apple Music, iCloud, hardware.",31416,112.2,Single payment,Gift Cards
+Steam Wallet $10 Gift Card,"Steam Wallet $10 gift card. Add funds to your Steam wallet for games, DLC, in-game items. Global code.",3388,12.1,Single payment,Gift Cards
+Steam Wallet $20 Gift Card,"Steam Wallet $20 gift card. Add funds to Steam wallet. Global code, instant delivery.",6468,23.1,Single payment,Gift Cards
+Steam Wallet $50 Gift Card,Steam Wallet $50 gift card. Add funds to Steam wallet for games and DLC.,15708,56.1,Single payment,Gift Cards
+Steam Wallet $100 Gift Card,Steam Wallet $100 gift card. Add funds to Steam wallet. Best value.,31108,111.1,Single payment,Gift Cards
+Amazon $25 Gift Card,Amazon.com $25 gift card. Shop millions of products. No expiry. Digital code.,8008,28.6,Single payment,Gift Cards
+Amazon $50 Gift Card,Amazon.com $50 gift card. Shop millions of products on Amazon. Digital code.,15708,56.1,Single payment,Gift Cards
+Amazon $100 Gift Card,Amazon.com $100 gift card. Shop millions of products. No expiry. Digital code.,31108,111.1,Single payment,Gift Cards
+PlayStation Store $25 Gift Card,"PlayStation Store $25 gift card. Redeem for PS5/PS4 games, DLC, PS Plus. US account.",8008,28.6,Single payment,Gift Cards
+PlayStation Store $50 Gift Card,"PlayStation Store $50 gift card. Redeem for PS5/PS4 games, DLC, PS Plus.",15708,56.1,Single payment,Gift Cards
+Xbox $25 Gift Card,"Xbox $25 gift card. Redeem on Xbox Store for games, DLC, Game Pass. US account.",8008,28.6,Single payment,Gift Cards
+Xbox $50 Gift Card,"Xbox $50 gift card. Redeem on Xbox Store for games, DLC, Game Pass.",15708,56.1,Single payment,Gift Cards
+Roblox $25 Gift Card,"Roblox $25 gift card. Redeem for Robux or Premium subscription. Digital code, instant delivery.",8008,28.6,Single payment,Gift Cards
+Roblox $50 Gift Card,Roblox $50 gift card. Redeem for Robux or Premium. Digital code.,15708,56.1,Single payment,Gift Cards
+Cyberpunk 2077 (PC) Steam Key,Cyberpunk 2077 for PC. Full game Steam activation key. Cyberpunk action RPG set in Night City.,6776,24.2,Single payment,Game Keys
+Call of Duty: Modern Warfare III (PC),Call of Duty: MW3 for PC. Full game activation key. Steam/Battle.net.,10780,38.5,Single payment,Game Keys
+Red Dead Redemption 2 (PC) Steam Key,Red Dead Redemption 2 for PC. Full game Steam key. Open-world western action-adventure.,7700,27.5,Single payment,Game Keys
+EA FC 25 (PC) Steam Key,EA FC 25 for PC. Full game Steam key. Football simulation.,9240,33.0,Single payment,Game Keys
+GTA V Premium Edition (PC) Steam Key,GTA V Premium Edition for PC. Full game Steam key. Includes GTA Online + Criminal Enterprise Starter Pack.,5544,19.8,Single payment,Game Keys
+Elden Ring (PC) Steam Key,Elden Ring for PC. Full game Steam key. FromSoftware action RPG.,10780,38.5,Single payment,Game Keys
+Baldur's Gate 3 (PC) Steam Key,Baldur's Gate 3 for PC. Full game Steam key. Larian Studios RPG.,12320,44.0,Single payment,Game Keys
+Hogwarts Legacy (PC) Steam Key,Hogwarts Legacy for PC. Full game Steam key. Open-world Harry Potter RPG.,8624,30.8,Single payment,Game Keys
+Starfield (PC) Steam Key,Starfield for PC. Full game Steam key. Bethesda space RPG.,9240,33.0,Single payment,Game Keys
+Helldivers 2 (PC) Steam Key,Helldivers 2 for PC. Full game Steam key. Co-op third-person shooter.,8624,30.8,Single payment,Game Keys
+Microsoft 365 Family 1 Year,"Microsoft 365 Family 1-year subscription. Word, Excel, PowerPoint, Outlook, 1TB OneDrive for 6 users.",13860,49.5,Subscription,Productivity
+Microsoft 365 Personal 1 Year,Microsoft 365 Personal 1-year. Office apps + 1TB OneDrive for 1 user.,10780,38.5,Subscription,Productivity
+Adobe Creative Cloud All Apps 1 Month,"Adobe CC All Apps 1-month. Photoshop, Illustrator, Premiere Pro, After Effects, 20+ apps.",12320,44.0,Subscription,Productivity
+Canva Pro 1 Year,"Canva Pro 1-year subscription. Premium templates, 100M+ stock photos, Brand Kit, background remover.",9240,33.0,Subscription,Productivity
+Notion Plus 1 Year,"Notion Plus 1-year subscription. Unlimited blocks, file uploads, version history.",13860,49.5,Subscription,Productivity
+Grammarly Premium 1 Year,"Grammarly Premium 1-year. Advanced grammar, tone, plagiarism checker, AI writing assistance.",15400,55.0,Subscription,Productivity
+iCloud+ 2TB 1 Year,"iCloud+ 2TB 1-year subscription. 2TB storage, Private Relay, Hide My Email, custom email domain.",18480,66.0,Subscription,Productivity
+Google One 2TB 1 Year,"Google One 2TB 1-year. 2TB across Drive, Gmail, Photos, family sharing, Google Store benefits.",15400,55.0,Subscription,Productivity
