@@ -1,20 +1,25 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/db";
-import { ok, error, applyRateLimit } from "@/lib/api";
-import { serializeProduct } from "@/lib/serializers";
+import { ok, applyRateLimit } from "@/lib/api";
+import { getLemonSqueezyProducts } from "@/lib/lemon-squeezy";
 import { ensureSeeded } from "@/lib/ensure-seed";
 
+/**
+ * GET /api/v1/products/featured
+ *
+ * Returns featured Lemon Squeezy products. When LS is not configured, returns
+ * an empty list.
+ */
 export async function GET(request: NextRequest) {
   const limited = applyRateLimit(request, 60);
   if (limited) return limited;
   await ensureSeeded();
 
-  const items = await db.product.findMany({
-    where: { featured: true, status: "PUBLISHED" },
-    orderBy: { salesCount: "desc" },
-    take: 8,
-    include: { vendor: true, category: true },
-  });
+  const { configured, items } = await getLemonSqueezyProducts();
 
-  return ok({ items: items.map(serializeProduct) });
+  if (!configured) {
+    return ok({ items: [], configured: false });
+  }
+
+  // Show the first 8 LS products as "featured"
+  return ok({ items: items.slice(0, 8), configured: true });
 }

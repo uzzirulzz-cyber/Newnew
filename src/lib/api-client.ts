@@ -122,6 +122,8 @@ export interface Paginated<T> {
   limit: number;
   total: number;
   totalPages: number;
+  configured?: boolean;
+  message?: string;
 }
 
 export interface AffiliateStats {

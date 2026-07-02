@@ -672,33 +672,60 @@ export function Marketplace() {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <Card className="bg-card/60">
-            <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
-              <Package className="size-8 text-muted-foreground" />
+          data?.configured === false ? (
+            <Card className="border-accent/30 bg-card/60">
+              <CardContent className="flex flex-col items-center gap-4 p-12 text-center">
+                <div className="grid size-16 place-items-center rounded-full bg-accent/15">
+                  <Package className="size-8 text-accent" />
+                </div>
+                <div className="max-w-md">
+                  <p className="text-lg font-bold">Connect Lemon Squeezy</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Your storefront is ready, but Lemon Squeezy isn&apos;t
+                    connected yet. Only products listed in your Lemon Squeezy
+                    store will appear here — add the API key to show your real
+                    catalog.
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-background/60 p-3 text-left font-mono text-[11px] text-muted-foreground">
+                  <div># Add to .env</div>
+                  <div>LEMONSQUEEZY_API_KEY=your_key</div>
+                  <div>LEMONSQUEEZY_STORE_ID=your_store_id</div>
+                </div>
+                <Button onClick={() => refetch()} variant="outline">
+                  Retry connection
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="bg-card/60">
+              <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
+                <Package className="size-8 text-muted-foreground" />
 
-              <div>
-                <p className="font-medium">No products found</p>
-                <p className="text-sm text-muted-foreground">
-                  Try adjusting your filters or search keywords.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setQuery({
-                    search: "",
-                    category: "",
-                    type: undefined,
-                    sort: "popular",
-                    page: 1,
-                    limit: 12,
-                  })
-                }
-              >
-                Reset filters
-              </Button>
-            </CardContent>
-          </Card>
+                <div>
+                  <p className="font-medium">No products found</p>
+                  <p className="text-sm text-muted-foreground">
+                    Try adjusting your filters or search keywords.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    setQuery({
+                      search: "",
+                      category: "",
+                      type: undefined,
+                      sort: "popular",
+                      page: 1,
+                      limit: 12,
+                    })
+                  }
+                >
+                  Reset filters
+                </Button>
+              </CardContent>
+            </Card>
+          )
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
             {items.map((p, i) => (

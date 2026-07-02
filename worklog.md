@@ -493,3 +493,26 @@ Work Log:
 
 Stage Summary:
 - WhatsApp updated to 0332 102 9333. Product cards redesigned with full premium feature set (badges, metadata, Buy Now/Add to Cart/Quick View, quick stats, hover effects, 16:9 thumbnails, responsive 5/4/3/2/1 grid). Admin locked landing at /admin (exec-only: founder/ceo/director @playbeat.live / playbeat123). /games and /giftcards routes created. LS product listing route built (needs LEMONSQUEEZY_API_KEY env to activate). Lint clean, all routes 200, browser-verified.
+
+---
+Task ID: 15
+Agent: Main (Z.ai Code)
+Task: Fix storefront to show ONLY Lemon Squeezy products (remove all random seeded products)
+
+Work Log:
+- Investigated: Lemon Squeezy API key is NOT in any env file (.env, .env.local, .env.production) or environment variables. The random products were from my seed.ts (38 products I created). User never asked for them.
+- Created src/lib/lemon-squeezy.ts: getLemonSqueezyProducts() helper that fetches the real LS catalog from https://api.lemonsqueezy.com/v1/products?filter[store_id]=... when LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_STORE_ID are set, maps to storefront shape. Returns {configured:false, items:[]} when not configured.
+- Rewrote /api/v1/products route: now fetches ONLY from Lemon Squeezy. When not configured → returns configured:false + empty items + message. When configured → returns real LS products (with search + sort + pagination). No DB/seeded products returned.
+- Rewrote /api/v1/products/featured route: same LS-only logic.
+- Updated Paginated<T> type to include configured? and message? fields.
+- Updated marketplace.tsx empty state: when data.configured === false, shows a "Connect Lemon Squeezy" card with the env var instructions (LEMONSQUEEZY_API_KEY / LEMONSQUEEZY_STORE_ID) and a "Retry connection" button. No random products shown.
+- The seeded products remain in the DB for admin/analytics demo data (orders, revenue charts) but NEVER appear on the storefront.
+
+**Verification:**
+- curl GET /api/v1/products → configured:false, total:0, message:"Lemon Squeezy is not connected..."
+- curl GET /api/v1/products/featured → configured:false, items:[]
+- agent-browser: storefront shows "All products 0 results" + "Connect Lemon Squeezy" card with env var instructions + "Retry connection" button. No random products visible. VLM confirmed.
+- bun run lint: clean.
+
+Stage Summary:
+- Storefront now shows ONLY Lemon Squeezy products. No random/seeded products appear. When LS is not connected (current state — no API key in env), the storefront shows a "Connect Lemon Squeezy" empty state with instructions. User needs to add LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_STORE_ID to .env to show their real catalog. Lint clean, browser-verified.
