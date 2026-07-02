@@ -8,24 +8,29 @@ export async function GET(request: NextRequest) {
   if (limited) return limited;
   await ensureSeeded();
 
-  const categories = await db.category.findMany({
-    orderBy: { name: "asc" },
-  });
+  try {
+    const categories = await db.category.findMany({
+      orderBy: { name: "asc" },
+    });
 
-  // compute product counts
-  const withCounts = await Promise.all(
-    categories.map(async (c) => ({
-      id: c.id,
-      name: c.name,
-      slug: c.slug,
-      description: c.description,
-      icon: c.icon,
-      color: c.color,
-      productCount: await db.product.count({
-        where: { categoryId: c.id, status: "PUBLISHED" },
-      }),
-    })),
-  );
+    // compute product counts
+    const withCounts = await Promise.all(
+      categories.map(async (c) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        description: c.description,
+        icon: c.icon,
+        color: c.color,
+        productCount: await db.product.count({
+          where: { categoryId: c.id, status: "PUBLISHED" },
+        }),
+      })),
+    );
 
-  return ok({ items: withCounts });
+    return ok({ items: withCounts });
+  } catch (e) {
+    // DB connection issues (e.g. Neon cold starts) should never break the page
+    return ok({ items: [] });
+  }
 }
