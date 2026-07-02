@@ -97,7 +97,17 @@ export function ProductDetailSheet() {
       setTitle("");
       setComment("");
     }
-  }, [slug]);
+    // Track ViewContent with Meta Pixel when a product detail opens
+    if (slug && product && typeof window !== "undefined" && (window as any).fbq) {
+      (window as any).fbq("track", "ViewContent", {
+        content_name: product.title,
+        content_type: "product",
+        content_ids: [product.id],
+        value: product.effectivePrice,
+        currency: product.currency || "USD",
+      });
+    }
+  }, [slug, product]);
 
   const handleAddToCart = (mode: "cart" | "buy") => {
     if (!product) return;

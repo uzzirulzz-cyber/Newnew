@@ -310,6 +310,19 @@ export function CartSheet() {
         toast.success("Order placed!");
         clearCart();
       }
+      // Track purchase with Meta Pixel for ad attribution
+      if (typeof window !== "undefined" && (window as any).fbq) {
+        (window as any).fbq("track", "Purchase", {
+          value: total,
+          currency: currency === "PKR" ? "PKR" : "USD",
+          content_type: "product",
+          contents: cart.map((c) => ({
+            id: c.product.id,
+            quantity: c.quantity,
+            item_price: c.product.effectivePrice,
+          })),
+        });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Checkout failed");
     } finally {

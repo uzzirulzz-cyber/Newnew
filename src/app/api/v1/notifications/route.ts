@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { ok, error, applyRateLimit } from "@/lib/api";
+import { ok, applyRateLimit } from "@/lib/api";
 import { getCurrentUser } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/ensure-seed";
 
@@ -10,27 +10,32 @@ export async function GET(request: NextRequest) {
   if (limited) return limited;
   await ensureSeeded();
 
-  let user = await getCurrentUser(request);
-  // demo fallback: first customer
-  if (!user) {
-    user = (await db.user.findFirst({ where: { role: "CUSTOMER" } })) as any;
+  try {
+    let user = await getCurrentUser(request);
+    // demo fallback: first customer
+    if (!user) {
+      user = (await db.user.findFirst({ where: { role: "CUSTOMER" } })) as any;
+    }
+    if (!user) return ok({ items: [] });
+
+    const notifications = await db.notification.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+    });
+
+    return ok({
+      items: notifications.map((n) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        read: n.read,
+        createdAt: n.createdAt,
+      })),
+    });
+  } catch (e) {
+    // DB connection issues (e.g. Neon cold starts) should never break the page
+    return ok({ items: [] });
   }
-  if (!user) return error("No user available", 404);
-
-  const notifications = await db.notification.findMany({
-    where: { userId: user.id },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
-
-  return ok({
-    items: notifications.map((n) => ({
-      id: n.id,
-      type: n.type,
-      title: n.title,
-      message: n.message,
-      read: n.read,
-      createdAt: n.createdAt,
-    })),
-  });
 }

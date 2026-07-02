@@ -105,6 +105,15 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     addToCart(product);
     toast.success(`${product.title} added to cart`);
     setCartOpen(true);
+    if (typeof window !== "undefined" && (window as any).fbq) {
+      (window as any).fbq("track", "AddToCart", {
+        content_name: product.title,
+        content_ids: [product.id],
+        content_type: "product",
+        value: product.effectivePrice,
+        currency: product.currency || "USD",
+      });
+    }
   };
 
   const handleBuyNow = (e: React.MouseEvent) => {
@@ -112,6 +121,15 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
     if (isAffiliate) {
       toast.info("This is an affiliate offer — use your referral link instead.");
       return;
+    }
+    if (typeof window !== "undefined" && (window as any).fbq) {
+      (window as any).fbq("track", "InitiateCheckout", {
+        content_name: product.title,
+        content_ids: [product.id],
+        content_type: "product",
+        value: product.effectivePrice,
+        currency: product.currency || "USD",
+      });
     }
     // Lemon Squeezy products redirect to the LS hosted checkout
     if (product.buyNowUrl) {

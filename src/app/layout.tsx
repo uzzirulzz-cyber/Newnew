@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/playbeat/theme-provider";
 import { Providers } from "@/components/playbeat/providers";
+import { MetaPixel } from "@/components/playbeat/meta-pixel";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,6 +69,7 @@ export default function RootLayout({
             {children}
             <Toaster />
             <Sonner />
+            <MetaPixel />
           </Providers>
         </ThemeProvider>
       </body>
