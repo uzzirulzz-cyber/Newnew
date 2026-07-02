@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { LogoMark } from "@/components/playbeat/logo";
 import { Header } from "@/components/playbeat/header";
 import { Footer } from "@/components/playbeat/footer";
-import { AdminConsole } from "@/components/playbeat/admin-console";
+import { AdminConsole } from "@/components/playbeat/admin";
 import { api } from "@/lib/api-client";
 import { usePlaybeatStore } from "@/lib/store";
 import { toast } from "sonner";
@@ -38,35 +38,30 @@ const EXEC_ACCOUNT = {
   role: "ADMIN",
 };
 
-// All exec accounts (used when the DB is reachable, to try real login)
-const EXEC_ACCOUNTS = [
-  { email: "founder@playbeat.live", password: "playbeat123", name: "Founder" },
-  { email: "ceo@playbeat.live", password: "playbeat123", name: "CEO" },
-  { email: "director@playbeat.live", password: "playbeat123", name: "Director" },
-];
-
 export default function AdminPage() {
   const user = usePlaybeatStore((s) => s.user);
   const setUser = usePlaybeatStore((s) => s.setUser);
 
   const isExecAdmin = user?.role === "ADMIN";
 
+  // When unlocked, render the admin console FULL-SCREEN (no storefront
+  // header/footer) — the enterprise admin shell has its own sidebar, top
+  // bar, and overall aesthetic.
+  if (isExecAdmin) {
+    return <AdminConsole />;
+  }
+
+  // Locked state — storefront chrome + centered login card
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Header />
       <main className="flex flex-1 items-center justify-center px-4 py-10">
-        {isExecAdmin ? (
-          <div className="w-full">
-            <AdminConsole />
-          </div>
-        ) : (
-          <AdminLock
-            onUnlock={(u) => {
-              setUser(u);
-              toast.success(`Welcome, ${u.name}`);
-            }}
-          />
-        )}
+        <AdminLock
+          onUnlock={(u) => {
+            setUser(u);
+            toast.success(`Welcome, ${u.name}`);
+          }}
+        />
       </main>
       <Footer />
     </div>
