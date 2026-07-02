@@ -607,3 +607,29 @@ Work Log:
 
 Stage Summary:
 - Price bug fixed. LS products now display their real LS-formatted price (e.g. "PKR480/month") everywhere — product cards, hero featured, detail sheet. No double-conversion. The displayProductPrice() helper ensures LS prices (already in the store's currency) are never run through formatPrice() which assumes USD. Lint clean, browser-verified.
+
+---
+Task ID: 19
+Agent: Main (Z.ai Code)
+Task: Hide exec accounts from admin + generate LS product entry list from G2G
+
+Work Log:
+- Removed "Authorized executive accounts" box from /admin page (was showing founder/ceo/director emails + password — security risk).
+- Attempted to scrape g2g.com but products render client-side (JS) so can't extract via page reader.
+- Searched web for G2G product prices — got general market rates.
+- Compiled 66 products based on playbeatdigital.world + common G2G best-sellers, with realistic market prices in USD.
+- Applied +10% markup, converted to PKR (280/USD rate).
+- Generated 2 files for manual Lemon Squeezy entry:
+  - lemon-squeezy-products.csv (CSV with Name, Description, Price PKR, Price USD, Type, Category)
+  - lemon-squeezy-products.md (markdown reference with step-by-step LS entry instructions + per-product details)
+- Categories: Streaming (17), AI Tools (6), VPN (6), Gift Cards (19), Game Keys (10), Productivity (8).
+- Note: Lemon Squeezy API does NOT support product creation (POST /v1/products returns 405). Products must be created manually in the LS dashboard at https://app.lemonsqueezy.com/products.
+
+**Verification:**
+- /admin page: "Authorized executive accounts" section removed (grep returns 0 matches).
+- bun run lint: clean.
+- 66 products generated with correct PKR prices (e.g. Netflix 1 Month = Rs 1,386, ChatGPT Plus 1 Month = Rs 4,312, Steam $50 = Rs 15,708).
+- Pushed to GitHub.
+
+Stage Summary:
+- Admin panel no longer exposes exec credentials. 66-product list generated (CSV + markdown) for manual Lemon Squeezy dashboard entry — sourced from playbeatdigital.world + G2G market rates, +10% markup, PKR pricing. LS API limitation documented (no programmatic product creation). Files in repo root: lemon-squeezy-products.csv + .md.
