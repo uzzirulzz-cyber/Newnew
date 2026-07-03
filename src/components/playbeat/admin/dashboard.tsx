@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   DollarSign,
   Users,
@@ -106,6 +106,7 @@ function ChartTooltip({ active, payload, label }: any) {
 }
 
 export function AdminDashboard() {
+  const qc = useQueryClient();
   const { data: dash, isLoading } = useQuery({
     queryKey: ["admin-analytics"],
     queryFn: () => api.analytics(),
@@ -127,7 +128,7 @@ export function AdminDashboard() {
   const summary = dash?.summary;
   const recentOrders = (ordersData?.items || []).slice(0, 6);
   const notifications = (notifData?.items || []).slice(0, 5);
-  const revenueData = (dash?.revenueTimeseries || []).filter((d) => d.revenue > 0).slice(-14);
+  const revenueData = (dash?.revenueTimeseries || []).slice(-14);
   const trafficData = dash?.trafficSources || [];
   const topProducts = dash?.topProducts || [];
   const topVendors = dash?.topVendors || [];
@@ -157,7 +158,12 @@ export function AdminDashboard() {
         <Button
           variant="outline"
           className="border-white/10 bg-white/5"
-          onClick={() => toast.message("Refreshing dashboard...")}
+          onClick={() => {
+            qc.invalidateQueries({ queryKey: ["admin-analytics"] });
+            qc.invalidateQueries({ queryKey: ["admin-orders"] });
+            qc.invalidateQueries({ queryKey: ["admin-notifications"] });
+            toast.success("Dashboard refreshed");
+          }}
         >
           <Activity className="size-4" /> Refresh
         </Button>
@@ -174,7 +180,7 @@ export function AdminDashboard() {
             <KpiCard
               icon={DollarSign}
               label="Live Revenue"
-              value={summary ? formatPrice(summary.revenue) : "—"}
+              value={summary ? formatPrice(summary.liveRevenue || summary.revenue) : "—"}
               trend={{ value: "+12.5%", up: true }}
               delay={0}
             />
@@ -193,16 +199,15 @@ export function AdminDashboard() {
               delay={0.1}
             />
             <KpiCard
-              icon={RefreshCw}
-              label="Subscriptions"
-              value="247"
-              trend={{ value: "+5.1%", up: true }}
+              icon={Package}
+              label="Products"
+              value={summary ? String(summary.products) : "—"}
               delay={0.15}
             />
             <KpiCard
               icon={CreditCard}
               label="Payment Success"
-              value="98.4%"
+              value={summary ? `${summary.paymentSuccessRate || 0}%` : "—"}
               trend={{ value: "+0.8%", up: true }}
               delay={0.2}
             />
