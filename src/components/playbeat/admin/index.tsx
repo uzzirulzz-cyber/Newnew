@@ -54,6 +54,7 @@ import { AdminJazzCash } from "./jazzcash";
 import { AdminPayments } from "./payments";
 import { AdminReports } from "./reports";
 import { AdminMarketing } from "./marketing";
+import { AdminMedia } from "./media";
 import { SimpleModule } from "./simple-module";
 
 type ModuleKey =
@@ -247,19 +248,6 @@ const SIMPLE_MODULES: Record<
       "Vendor Commission",
       "Monthly Reports",
       "Export PDF / Excel",
-    ],
-  },
-  media: {
-    title: "Media Library",
-    description: "Manage images, videos, documents, and brand assets",
-    icon: ImageIcon,
-    features: [
-      "Images & Videos",
-      "Documents",
-      "Logos & Icons",
-      "Banners",
-      "Image Compression",
-      "CDN Sync",
     ],
   },
   website: {
@@ -500,6 +488,8 @@ export function AdminConsole() {
         return <AdminReports />;
       case "marketing":
         return <AdminMarketing />;
+      case "media":
+        return <AdminMedia />;
       default: {
         const mod = SIMPLE_MODULES[active];
         if (mod) {

@@ -473,6 +473,22 @@ export const api = {
         sandbox: number;
       };
     }>(`/payments/gateways`),
+  // ===== Media Library =====
+  mediaList: () =>
+    apiFetch<{
+      files: Array<{
+        name: string;
+        url: string;
+        size: number;
+        folder: string;
+        type: string;
+        modified: string;
+      }>;
+      total: number;
+      totalSize: number;
+      totalSizeFormatted: string;
+      folders: Array<{ name: string; count: number }>;
+    }>(`/media/list`),
 };
 
 // ===== Utilities =====

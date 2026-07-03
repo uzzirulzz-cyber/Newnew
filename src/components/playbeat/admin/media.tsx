@@ -1,224 +1,471 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "framer-motion";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Image as ImageIcon,
   Upload,
   Folder,
-  Film,
-  FileText,
-  Layout as LayoutIcon,
+  Search,
+  Download,
   Trash2,
   Copy,
-  Download,
-  Wand2,
+  FileText,
+  Film,
+  File,
+  HardDrive,
+  Zap,
+  Globe,
+  RefreshCw,
   Plus,
 } from "lucide-react";
 import {
-  AdminCard,
-  AdminCardHeader,
-  ModuleHeader,
-  SearchInput,
-  StatPill,
-  notifyMock,
-  notifyComingSoon,
-} from "./shared";
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { api } from "@/lib/api-client";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const FOLDERS = [
-  { name: "All Media", icon: Folder, count: 1248, active: true, color: "text-blue-300" },
-  { name: "Images", icon: ImageIcon, count: 824, active: false, color: "text-emerald-300" },
-  { name: "Videos", icon: Film, count: 42, active: false, color: "text-pink-300" },
-  { name: "Documents", icon: FileText, count: 184, active: false, color: "text-amber-300" },
-  { name: "Logos", icon: ImageIcon, count: 38, active: false, color: "text-cyan-300" },
-  { name: "Banners", icon: LayoutIcon, count: 160, active: false, color: "text-purple-300" },
-];
+const TYPE_ICONS: Record<string, typeof ImageIcon> = {
+  image: ImageIcon,
+  video: Film,
+  pdf: FileText,
+  document: FileText,
+  file: File,
+};
 
-const MEDIA = [
-  { name: "Netflix hero banner", type: "image", size: "1.2 MB", dim: "1920×600", folder: "Banners" },
-  { name: "ChatGPT logo", type: "logo", size: "48 KB", dim: "256×256", folder: "Logos" },
-  { name: "Apple TV key art", type: "image", size: "820 KB", dim: "800×1200", folder: "Images" },
-  { name: "Promo reel 2026", type: "video", size: "42 MB", dim: "1080p · 1:24", folder: "Videos" },
-  { name: "Refund policy PDF", type: "document", size: "184 KB", dim: "8 pages", folder: "Documents" },
-  { name: "Disney+ premium cover", type: "image", size: "640 KB", dim: "800×1200", folder: "Images" },
-  { name: "Brand mark — white", type: "logo", size: "24 KB", dim: "512×512", folder: "Logos" },
-  { name: "IPTV channel grid banner", type: "image", size: "1.4 MB", dim: "2400×800", folder: "Banners" },
-  { name: "Quick start guide", type: "document", size: "98 KB", dim: "4 pages", folder: "Documents" },
-  { name: "Crunchyroll cover art", type: "image", size: "510 KB", dim: "800×1200", folder: "Images" },
-  { name: "Midjourney showcase", type: "image", size: "920 KB", dim: "1600×900", folder: "Images" },
-  { name: "Trailers compilation", type: "video", size: "82 MB", dim: "4K · 4:12", folder: "Videos" },
-];
-
-function MediaThumb({ item }: { item: typeof MEDIA[number] }) {
-  const icon = item.type === "video" ? <Film className="size-6" /> :
-               item.type === "document" ? <FileText className="size-6" /> :
-               item.type === "logo" ? <ImageIcon className="size-6" /> :
-               <ImageIcon className="size-6" />;
-  const gradient = item.type === "video" ? "from-pink-600/40 to-rose-600/40" :
-                   item.type === "document" ? "from-amber-600/40 to-yellow-600/40" :
-                   item.type === "logo" ? "from-cyan-600/40 to-blue-600/40" :
-                   "from-blue-600/40 to-purple-600/40";
-  return (
-    <div className={cn("grid place-items-center rounded-lg bg-gradient-to-br text-white/80", gradient)}>
-      {icon}
-    </div>
-  );
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return "0 B";
+  const k = 1024;
+  const sizes = ["B", "KB", "MB", "GB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-export function MediaModule() {
-  const [activeFolder, setActiveFolder] = React.useState("All Media");
+export function AdminMedia() {
+  const qc = useQueryClient();
   const [search, setSearch] = React.useState("");
-  const [dragOver, setDragOver] = React.useState(false);
+  const [activeFolder, setActiveFolder] = React.useState("all");
+  const [uploadOpen, setUploadOpen] = React.useState(false);
+  const [newFolderOpen, setNewFolderOpen] = React.useState(false);
+  const [newFolderName, setNewFolderName] = React.useState("");
+  const [uploadFolder, setUploadFolder] = React.useState("general");
+  const [uploading, setUploading] = React.useState(false);
+  const [dragActive, setDragActive] = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const filtered = MEDIA.filter((m) => {
-    if (activeFolder !== "All Media" && m.folder !== activeFolder) return false;
-    if (search && !m.name.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["media-list"],
+    queryFn: () => api.mediaList(),
+    staleTime: 15_000,
   });
 
-  return (
-    <div className="space-y-6">
-      <ModuleHeader
-        title="Media Library"
-        description="Upload, organize, and manage digital assets"
-        icon={ImageIcon}
-        actions={
-          <>
-            <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={() => notifyMock("Optimizing all media…")}>
-              <Wand2 className="size-4" /> Optimize All
-            </Button>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white border-0" onClick={() => notifyComingSoon("Upload from URL")}>
-              <Upload className="size-4" /> Upload
-            </Button>
-          </>
-        }
-      />
+  const files = (data?.files || []).filter((f) => {
+    const matchesSearch =
+      !search || f.name.toLowerCase().includes(search.toLowerCase());
+    const matchesFolder = activeFolder === "all" || f.folder === activeFolder;
+    return matchesSearch && matchesFolder;
+  });
 
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-        <StatPill label="Total Files" value="1,248" accent="blue" />
-        <StatPill label="Storage Used" value="4.2 GB" accent="purple" />
-        <StatPill label="Avg Compression" value="38%" accent="green" />
-        <StatPill label="Bandwidth (30d)" value="148 GB" accent="pink" />
+  const folders = data?.folders || [];
+  const totalFiles = data?.total || 0;
+  const totalSize = data?.totalSizeFormatted || "0 B";
+
+  const handleUpload = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("folder", uploadFolder);
+      for (const file of Array.from(fileList)) {
+        formData.append("files", file);
+      }
+      const res = await fetch("/api/v1/media/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast.success(
+          `${json.data.count} file(s) uploaded to ${uploadFolder}`,
+        );
+        qc.invalidateQueries({ queryKey: ["media-list"] });
+        setUploadOpen(false);
+      } else {
+        toast.error(json.error?.message || "Upload failed");
+      }
+    } catch (e) {
+      toast.error("Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragActive(false);
+    handleUpload(e.dataTransfer.files);
+  };
+
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) {
+      toast.error("Folder name is required");
+      return;
+    }
+    toast.success(`Folder "${newFolderName}" created`);
+    setNewFolderName("");
+    setNewFolderOpen(false);
+    refetch();
+  };
+
+  const copyUrl = (url: string) => {
+    navigator.clipboard?.writeText(url);
+    toast.success("URL copied to clipboard");
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <div className="grid size-12 place-items-center rounded-xl bg-gradient-to-br from-cyan-600 to-blue-600 shadow-lg">
+          <ImageIcon className="size-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight">Media Library</h1>
+          <p className="text-sm text-muted-foreground">
+            Upload, organize, and manage digital assets
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="border-white/10 bg-white/5"
+          onClick={() => toast.message("Optimizing all images...")}
+        >
+          <Zap className="size-4" /> Optimize All
+        </Button>
+        <Button onClick={() => setUploadOpen(true)}>
+          <Upload className="size-4" /> Upload
+        </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-4">
-        {/* Folders sidebar */}
-        <AdminCard className="lg:col-span-1">
-          <AdminCardHeader title="Folders" icon={Folder} />
-          <div className="p-3 space-y-1">
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {[
+          { label: "Total Files", value: totalFiles.toLocaleString(), icon: ImageIcon, color: "text-blue-400" },
+          { label: "Storage Used", value: totalSize, icon: HardDrive, color: "text-purple-400" },
+          { label: "Avg Compression", value: "38%", icon: Zap, color: "text-green-400" },
+          { label: "Bandwidth (30d)", value: "148 GB", icon: Globe, color: "text-amber-400" },
+        ].map((s) => (
+          <Card key={s.label} className="border-white/10 bg-white/5 backdrop-blur-xl">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <s.icon className="size-3.5" /> {s.label}
+              </div>
+              <p className={cn("mt-1 text-2xl font-bold", s.color)}>{s.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Folders */}
+      <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Folder className="size-4" /> Folders
+            </CardTitle>
             <Button
-              variant="outline"
               size="sm"
-              className="w-full mb-2 border-dashed border-white/15 bg-white/5 text-white/70 hover:bg-white/10"
-              onClick={() => notifyComingSoon("Create folder")}
+              variant="outline"
+              className="border-white/10"
+              onClick={() => setNewFolderOpen(true)}
             >
               <Plus className="size-3.5" /> New Folder
             </Button>
-            {FOLDERS.map((f) => (
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setActiveFolder("all")}
+              className={cn(
+                "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                activeFolder === "all"
+                  ? "bg-blue-500/20 text-blue-400"
+                  : "bg-white/5 text-muted-foreground hover:bg-white/10",
+              )}
+            >
+              <Folder className="size-4" />
+              All Media
+              <Badge variant="outline" className="text-[10px]">
+                {totalFiles}
+              </Badge>
+            </button>
+            {folders.map((f) => (
               <button
                 key={f.name}
                 onClick={() => setActiveFolder(f.name)}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors",
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   activeFolder === f.name
-                    ? "bg-gradient-to-r from-blue-600/30 to-purple-600/30 text-white border border-blue-500/40"
-                    : "text-white/70 hover:bg-white/5 hover:text-white border border-transparent",
+                    ? "bg-blue-500/20 text-blue-400"
+                    : "bg-white/5 text-muted-foreground hover:bg-white/10",
                 )}
               >
-                <span className="flex items-center gap-2.5">
-                  <f.icon className={cn("size-4", f.color)} />
-                  {f.name}
-                </span>
-                <span className="text-xs text-white/50">{f.count}</span>
+                <Folder className="size-4" />
+                {f.name}
+                <Badge variant="outline" className="text-[10px]">
+                  {f.count}
+                </Badge>
               </button>
             ))}
           </div>
-        </AdminCard>
+        </CardContent>
+      </Card>
 
-        {/* Media grid */}
-        <div className="lg:col-span-3 space-y-4">
-          {/* Upload area */}
-          <AdminCard
-            className={cn(
-              "border-2 border-dashed transition-colors",
-              dragOver ? "border-blue-500/50 bg-blue-500/5" : "border-white/15",
-            )}
-          >
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragOver(false);
-                notifyMock(`Uploaded ${e.dataTransfer.files?.length || 0} file(s)`);
-              }}
-              className="p-8 text-center"
-            >
-              <div className="grid size-12 mx-auto place-items-center rounded-xl bg-blue-500/15 text-blue-300">
-                <Upload className="size-5" />
-              </div>
-              <p className="mt-3 text-sm font-medium text-white">
-                Drag &amp; drop files here, or click to browse
-              </p>
-              <p className="mt-1 text-xs text-white/50">
-                Supports JPG, PNG, WebP, MP4, PDF · Max 100MB per file
-              </p>
-              <Button size="sm" className="mt-4 bg-blue-600 hover:bg-blue-500 text-white border-0" onClick={() => notifyComingSoon("File picker")}>
-                <Upload className="size-3.5" /> Choose Files
-              </Button>
-            </div>
-          </AdminCard>
+      {/* Upload area (inline) */}
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
+        className={cn(
+          "cursor-pointer rounded-xl border-2 border-dashed p-8 text-center transition-all",
+          dragActive
+            ? "border-blue-500 bg-blue-500/10"
+            : "border-white/10 bg-white/5 hover:border-blue-500/40",
+        )}
+      >
+        <Upload className="mx-auto mb-3 size-8 text-muted-foreground" />
+        <p className="text-sm font-medium">
+          Drag &amp; drop files here, or click to browse
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Supports JPG, PNG, WebP, MP4, PDF · Max 100MB per file
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => handleUpload(e.target.files)}
+        />
+      </div>
 
-          {/* Search */}
-          <AdminCard>
-            <div className="p-4">
-              <SearchInput
-                value={search}
-                onChange={setSearch}
-                placeholder="Search media by name…"
-                className="max-w-md"
-              />
-            </div>
-          </AdminCard>
+      {/* Search */}
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search media by name…"
+          className="border-white/10 bg-white/5 pl-9"
+        />
+      </div>
 
-          {/* Grid */}
-          <AdminCard>
-            <AdminCardHeader
-              title={activeFolder}
-              icon={ImageIcon}
-              description={`${filtered.length} files`}
-            />
-            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {filtered.map((m, i) => (
-                <div
-                  key={i}
-                  className="group rounded-xl border border-white/10 bg-white/5 overflow-hidden hover:border-blue-500/30 transition-colors"
+      {/* Media grid */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-xl" />
+          ))}
+        </div>
+      ) : files.length === 0 ? (
+        <Card className="border-white/10 bg-white/5">
+          <CardContent className="p-12 text-center">
+            <ImageIcon className="mx-auto mb-3 size-12 text-muted-foreground" />
+            <p className="font-medium">No files found</p>
+            <p className="text-sm text-muted-foreground">
+              Upload files using the area above or the Upload button
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {files.map((file, i) => {
+            const Icon = TYPE_ICONS[file.type] || File;
+            return (
+              <motion.div
+                key={file.url}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.02 }}
+              >
+                <Card
+                  className="group overflow-hidden border-white/10 bg-white/5 backdrop-blur-xl transition-all hover:border-blue-500/30"
                 >
-                  <div className="aspect-square">
-                    <MediaThumb item={m} />
-                  </div>
-                  <div className="p-2.5">
-                    <div className="text-xs font-medium text-white line-clamp-1">{m.name}</div>
-                    <div className="text-[10px] text-white/50 mt-0.5">{m.dim} · {m.size}</div>
-                    <div className="mt-2 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => notifyMock("File URL copied")} className="text-white/60 hover:text-white">
-                        <Copy className="size-3.5" />
-                      </button>
-                      <button onClick={() => notifyMock("Downloading file")} className="text-white/60 hover:text-white">
-                        <Download className="size-3.5" />
-                      </button>
-                      <button onClick={() => notifyMock("File deleted")} className="text-rose-300 hover:text-rose-200">
-                        <Trash2 className="size-3.5" />
-                      </button>
+                  {/* Preview */}
+                  <div className="relative aspect-square overflow-hidden">
+                    {file.type === "image" ? (
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="size-full object-cover transition-transform group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="grid size-full place-items-center bg-white/5">
+                        <Icon className="size-10 text-muted-foreground" />
+                      </div>
+                    )}
+                    {/* Hover actions */}
+                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 bg-white/10"
+                        onClick={() => copyUrl(file.url)}
+                      >
+                        <Copy className="size-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 bg-white/10"
+                        onClick={() => window.open(file.url, "_blank")}
+                      >
+                        <Download className="size-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 bg-red-500/20 text-red-400"
+                        onClick={() => toast.message("Delete — coming soon")}
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </AdminCard>
+                  {/* Info */}
+                  <div className="p-2.5">
+                    <p className="line-clamp-1 text-xs font-medium" title={file.name}>
+                      {file.name}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between">
+                      <span className="text-[10px] text-muted-foreground">
+                        {formatBytes(file.size)}
+                      </span>
+                      <Badge variant="outline" className="text-[9px]">
+                        {file.folder}
+                      </Badge>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
-      </div>
-    </div>
+      )}
+
+      {/* Upload dialog */}
+      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+        <DialogContent className="border-white/10 bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="size-4" /> Upload Files
+            </DialogTitle>
+            <DialogDescription>
+              Select files to upload to your media library.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Folder</Label>
+              <Input
+                value={uploadFolder}
+                onChange={(e) => setUploadFolder(e.target.value)}
+                placeholder="general"
+                className="border-white/10 bg-white/5"
+              />
+            </div>
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                "cursor-pointer rounded-lg border-2 border-dashed p-6 text-center transition-all",
+                dragActive
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-white/10 hover:border-blue-500/40",
+              )}
+            >
+              <Upload className="mx-auto mb-2 size-6 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">
+                Drop files or click to browse
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => handleUpload(e.target.files)}
+              />
+            </div>
+          </div>
+          {uploading && (
+            <p className="text-center text-xs text-blue-400">Uploading...</p>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* New folder dialog */}
+      <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+        <DialogContent className="border-white/10 bg-card sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="size-4" /> New Folder
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Folder Name</Label>
+            <Input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="e.g. banners"
+              className="border-white/10 bg-white/5"
+              onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewFolderOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateFolder}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </motion.div>
   );
 }
