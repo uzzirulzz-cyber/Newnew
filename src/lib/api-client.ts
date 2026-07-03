@@ -432,6 +432,24 @@ export const api = {
       }>;
       error?: string;
     }>(`/wordpress/posts`),
+  // ===== JazzCash =====
+  jazzcashCreate: (payload: {
+    amount: number;
+    description: string;
+    billReference: string;
+    customerEmail?: string;
+    customerMobile?: string;
+  }) =>
+    apiFetch<{
+      gatewayUrl: string;
+      params: Record<string, string>;
+      txnRefNo: string;
+      sandbox: boolean;
+      message: string;
+    }>(`/payments/jazzcash/create`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 // ===== Utilities =====

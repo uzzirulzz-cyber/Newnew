@@ -50,6 +50,7 @@ import { AdminProducts } from "./products";
 import { AdminOrders } from "./orders";
 import { AdminWooCommerce } from "./woocommerce";
 import { AdminWordPress } from "./wordpress";
+import { AdminJazzCash } from "./jazzcash";
 import { SimpleModule } from "./simple-module";
 
 type ModuleKey =
@@ -59,6 +60,7 @@ type ModuleKey =
   | "orders"
   | "woocommerce"
   | "wordpress"
+  | "jazzcash"
   | "subscriptions"
   | "coupons"
   | "users"
@@ -119,6 +121,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "finance", label: "Finance", icon: DollarSign },
       { key: "payments", label: "Payment Gateways", icon: CreditCard },
+      { key: "jazzcash", label: "JazzCash", icon: CreditCard },
       { key: "reports", label: "Reports", icon: FileText },
     ],
   },
@@ -537,6 +540,8 @@ export function AdminConsole() {
         return <AdminWooCommerce />;
       case "wordpress":
         return <AdminWordPress />;
+      case "jazzcash":
+        return <AdminJazzCash />;
       default: {
         const mod = SIMPLE_MODULES[active];
         if (mod) {
