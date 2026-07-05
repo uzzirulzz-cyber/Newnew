@@ -526,9 +526,20 @@ export function AdminConsole() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#0a0a14]">
+    <div className="relative flex min-h-screen bg-[#0a0a14]">
+      {/* Background image with dark overlay */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-20"
+        style={{ backgroundImage: "url(/admin-bg.png)" }}
+        aria-hidden="true"
+      />
+      <div
+        className="pointer-events-none fixed inset-0 z-0 bg-gradient-to-br from-[#0a0a14]/80 via-[#0a0a14]/70 to-[#0a0a14]/90"
+        aria-hidden="true"
+      />
+
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-white/10 bg-black/40 backdrop-blur-xl lg:block">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-white/10 bg-black/60 backdrop-blur-xl lg:block">
         <SidebarContent active={active} onSelect={select} />
       </aside>
 
@@ -540,9 +551,9 @@ export function AdminConsole() {
       </Sheet>
 
       {/* Main content */}
-      <div className="flex flex-1 flex-col lg:pl-64">
+      <div className="relative z-10 flex flex-1 flex-col lg:pl-64">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-white/10 bg-black/40 px-4 backdrop-blur-xl sm:px-6">
+        <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-white/10 bg-black/60 px-4 backdrop-blur-xl sm:px-6">
           {/* Mobile hamburger */}
           <Button
             variant="ghost"
