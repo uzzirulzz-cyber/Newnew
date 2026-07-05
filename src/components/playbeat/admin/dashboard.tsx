@@ -223,21 +223,18 @@ export function AdminDashboard() {
               icon={DollarSign}
               label="Live Revenue"
               value={summary ? formatPrice((summary as any).liveRevenue || summary.revenue) : "—"}
-              trend={{ value: "+12.5%", up: true }}
               delay={0}
             />
             <KpiCard
               icon={Users}
               label="Customers"
               value={summary ? String(summary.customers) : "—"}
-              trend={{ value: "+8.2%", up: true }}
               delay={0.05}
             />
             <KpiCard
               icon={ShoppingCart}
               label="Orders"
               value={summary ? String(summary.orders) : "—"}
-              trend={{ value: "+15.3%", up: true }}
               delay={0.1}
             />
             <KpiCard
@@ -250,14 +247,12 @@ export function AdminDashboard() {
               icon={CreditCard}
               label="Payment Success"
               value={summary ? `${(summary as any).paymentSuccessRate || 0}%` : "—"}
-              trend={{ value: "+0.8%", up: true }}
               delay={0.2}
             />
             <KpiCard
               icon={TrendingUp}
               label="Conversion Rate"
               value={summary ? `${summary.conversionRate}%` : "—"}
-              trend={{ value: "-0.3%", up: false }}
               delay={0.25}
             />
           </>
