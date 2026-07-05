@@ -189,7 +189,7 @@ export function AdminMarketing() {
   // Fetch real affiliate data
   const { data: affData } = useQuery({
     queryKey: ["marketing-affiliates"],
-    queryFn: () => api.affiliateStats(),
+    queryFn: () => api.affiliates(),
     staleTime: 60_000,
   });
 

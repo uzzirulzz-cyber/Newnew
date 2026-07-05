@@ -236,7 +236,7 @@ export function AdminReports() {
   });
   const { data: ordersData } = useQuery({
     queryKey: ["report-orders"],
-    queryFn: () => api.orders(),
+    queryFn: () => api.adminOrders(),
     staleTime: 60_000,
   });
   const { data: usersData } = useQuery({

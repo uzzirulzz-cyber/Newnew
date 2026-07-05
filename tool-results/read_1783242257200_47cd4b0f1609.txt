@@ -1,0 +1,779 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion } from "framer-motion";
+     5→import { useQuery } from "@tanstack/react-query";
+     6→import {
+     7→  ShoppingCart as WooCommerceIcon,
+     8→  ShoppingCart,
+     9→  Search,
+    10→  Package,
+    11→  TrendingUp,
+    12→  DollarSign,
+    13→  RefreshCw,
+    14→  ExternalLink,
+    15→  AlertCircle,
+    16→  Settings,
+    17→} from "lucide-react";
+    18→import {
+    19→  Card,
+    20→  CardContent,
+    21→  CardHeader,
+    22→  CardTitle,
+    23→} from "@/components/ui/card";
+    24→import { Input } from "@/components/ui/input";
+    25→import { Badge } from "@/components/ui/badge";
+    26→import { Button } from "@/components/ui/button";
+    27→import { Skeleton } from "@/components/ui/skeleton";
+    28→import { api } from "@/lib/api-client";
+    29→import { toast } from "sonner";
+    30→import { cn } from "@/lib/utils";
+    31→
+    32→const STATUS_COLORS: Record<string, string> = {
+    33→  completed: "bg-green-500/15 text-green-400",
+    34→  processing: "bg-blue-500/15 text-blue-400",
+    35→  pending: "bg-amber-500/15 text-amber-400",
+    36→  cancelled: "bg-red-500/15 text-red-400",
+    37→  refunded: "bg-purple-500/15 text-purple-400",
+    38→  failed: "bg-red-500/15 text-red-400",
+    39→  publish: "bg-green-500/15 text-green-400",
+    40→  draft: "bg-gray-500/15 text-gray-400",
+    41→  instock: "bg-green-500/15 text-green-400",
+    42→  outofstock: "bg-red-500/15 text-red-400",
+    43→  onbackorder: "bg-amber-500/15 text-amber-400",
+    44→};
+    45→
+    46→function stripHtml(html: string): string {
+    47→  return html.replace(/<[^>]*>/g, "").trim();
+    48→}
+    49→
+    50→export function AdminWooCommerce() {
+    51→  const [tab, setTab] = React.useState<"products" | "orders">("products");
+    52→  const [search, setSearch] = React.useState("");
+    53→
+    54→  const productsQ = useQuery({
+    55→    queryKey: ["wc-products"],
+    56→    queryFn: () => api.woocommerceProducts(),
+    57→    staleTime: 60_000,
+    58→  });
+    59→  const ordersQ = useQuery({
+    60→    queryKey: ["wc-orders"],
+    61→    queryFn: () => api.woocommerceOrders(),
+    62→    staleTime: 60_000,
+    63→  });
+    64→
+    65→  const configured = productsQ.data?.configured ?? false;
+    66→  const error = productsQ.data?.error || ordersQ.data?.error;
+    67→  const products = (productsQ.data?.items || []).filter((p) =>
+    68→    !search || p.name.toLowerCase().includes(search.toLowerCase()),
+    69→  );
+    70→  const orders = (ordersQ.data?.items || []).filter(
+    71→    (o) =>
+    72→      !search ||
+    73→      o.number.includes(search) ||
+    74→      `${o.billing.first_name} ${o.billing.last_name}`
+    75→        .toLowerCase()
+    76→        .includes(search.toLowerCase()),
+    77→  );
+    78→
+    79→  const totalRevenue = orders
+    80→    .filter((o) => o.status === "completed")
+    81→    .reduce((s, o) => s + parseFloat(o.total || "0"), 0);
+    82→
+    83→  return (
+    84→    <motion.div
+    85→      initial={{ opacity: 0, y: 12 }}
+    86→      animate={{ opacity: 1, y: 0 }}
+    87→      className="space-y-6"
+    88→    >
+    89→      {/* Header */}
+    90→      <div className="flex items-center gap-4">
+    91→        <div className="grid size-12 place-items-center rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg">
+    92→          <WooCommerceIcon className="size-6 text-white" />
+    93→        </div>
+    94→        <div className="flex-1">
+    95→          <h1 className="text-2xl font-bold tracking-tight">WooCommerce</h1>
+    96→          <p className="text-sm text-muted-foreground">
+    97→            Sync products, orders, and customers from your WooCommerce store
+    98→          </p>
+    99→        </div>
+   100→        <Button
+   101→          variant="outline"
+   102→          className="border-white/10 bg-white/5"
+   103→          onClick={() => {
+   104→            productsQ.refetch();
+   105→            ordersQ.refetch();
+   106→            toast.success("Syncing WooCommerce data...");
+   107→          }}
+   108→        >
+   109→          <RefreshCw className="size-4" /> Sync
+   110→        </Button>
+   111→      </div>
+   112→
+   113→      {/* Not configured state — Setup Wizard */}
+   114→      {!configured && !productsQ.isLoading && (
+   115→        <WooCommerceSetupWizard />
+   116→      )}
+   117→
+   118→      {/* Always show setup wizard link for re-configuration */}
+   119→      {configured && (
+   120→        <Card className="border-white/10 bg-white/5">
+   121→          <CardContent className="flex items-center justify-between gap-3 p-3">
+   122→            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   123→              <Settings className="size-3.5" />
+   124→              Connected to: <code className="text-blue-400">{productsQ.data?.configured ? "configured store" : "—"}</code>
+   125→            </div>
+   126→            <a
+   127→              href="https://woocommerce.com/woocommerce/"
+   128→              target="_blank"
+   129→              rel="noopener noreferrer"
+   130→              className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300"
+   131→            >
+   132→              <ExternalLink className="size-3" />
+   133→             woocommerce.com
+   134→            </a>
+   135→          </CardContent>
+   136→        </Card>
+   137→      )}
+   138→
+   139→      {/* Error state */}
+   140→      {configured && error && (
+   141→        <Card className="border-red-500/20 bg-red-500/5">
+   142→          <CardContent className="flex items-center gap-3 p-4">
+   143→            <AlertCircle className="size-5 text-red-400" />
+   144→            <p className="text-sm text-red-400">{error}</p>
+   145→          </CardContent>
+   146→        </Card>
+   147→      )}
+   148→
+   149→      {/* Stats */}
+   150→      {configured && (
+   151→        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+   152→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   153→            <CardContent className="p-4">
+   154→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   155→                <Package className="size-3.5" /> Products
+   156→              </div>
+   157→              <p className="mt-1 text-2xl font-bold text-blue-400">
+   158→                {productsQ.data?.items.length || 0}
+   159→              </p>
+   160→            </CardContent>
+   161→          </Card>
+   162→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   163→            <CardContent className="p-4">
+   164→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   165→                <ShoppingCart className="size-3.5" /> Orders
+   166→              </div>
+   167→              <p className="mt-1 text-2xl font-bold text-purple-400">
+   168→                {ordersQ.data?.items.length || 0}
+   169→              </p>
+   170→            </CardContent>
+   171→          </Card>
+   172→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   173→            <CardContent className="p-4">
+   174→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   175→                <DollarSign className="size-3.5" /> Revenue
+   176→              </div>
+   177→              <p className="mt-1 text-2xl font-bold text-green-400">
+   178→                {totalRevenue > 0 ? `$${totalRevenue.toFixed(2)}` : "—"}
+   179→              </p>
+   180→            </CardContent>
+   181→          </Card>
+   182→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   183→            <CardContent className="p-4">
+   184→              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   185→                <TrendingUp className="size-3.5" /> Completed
+   186→              </div>
+   187→              <p className="mt-1 text-2xl font-bold text-amber-400">
+   188→                {orders.filter((o) => o.status === "completed").length}
+   189→              </p>
+   190→            </CardContent>
+   191→          </Card>
+   192→        </div>
+   193→      )}
+   194→
+   195→      {/* Tabs */}
+   196→      {configured && (
+   197→        <div className="flex gap-2">
+   198→          {(["products", "orders"] as const).map((t) => (
+   199→            <button
+   200→              key={t}
+   201→              onClick={() => setTab(t)}
+   202→              className={cn(
+   203→                "rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors",
+   204→                tab === t
+   205→                  ? "bg-purple-500/20 text-purple-400"
+   206→                  : "bg-white/5 text-muted-foreground hover:bg-white/10",
+   207→              )}
+   208→            >
+   209→              {t}
+   210→            </button>
+   211→          ))}
+   212→        </div>
+   213→      )}
+   214→
+   215→      {/* Search */}
+   216→      {configured && (
+   217→        <div className="relative max-w-md">
+   218→          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+   219→          <Input
+   220→            value={search}
+   221→            onChange={(e) => setSearch(e.target.value)}
+   222→            placeholder={`Search ${tab}...`}
+   223→            className="border-white/10 bg-white/5 pl-9"
+   224→          />
+   225→        </div>
+   226→      )}
+   227→
+   228→      {/* Products table */}
+   229→      {configured && tab === "products" && (
+   230→        <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   231→          <CardContent className="p-0">
+   232→            <div className="overflow-x-auto">
+   233→              <table className="w-full text-sm">
+   234→                <thead>
+   235→                  <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-muted-foreground">
+   236→                    <th className="p-4">Product</th>
+   237→                    <th className="p-4">Price</th>
+   238→                    <th className="p-4">Status</th>
+   239→                    <th className="p-4">Stock</th>
+   240→                    <th className="p-4">Type</th>
+   241→                    <th className="p-4 text-right">Link</th>
+   242→                  </tr>
+   243→                </thead>
+   244→                <tbody>
+   245→                  {productsQ.isLoading ? (
+   246→                    Array.from({ length: 6 }).map((_, i) => (
+   247→                      <tr key={i} className="border-b border-white/5">
+   248→                        {Array.from({ length: 6 }).map((_, j) => (
+   249→                          <td key={j} className="p-4">
+   250→                            <Skeleton className="h-6 w-full" />
+   251→                          </td>
+   252→                        ))}
+   253→                      </tr>
+   254→                    ))
+   255→                  ) : products.length === 0 ? (
+   256→                    <tr>
+   257→                      <td colSpan={6} className="p-8 text-center text-muted-foreground">
+   258→                        No products found
+   259→                      </td>
+   260→                    </tr>
+   261→                  ) : (
+   262→                    products.map((p) => (
+   263→                      <tr
+   264→                        key={p.id}
+   265→                        className="border-b border-white/5 transition-colors hover:bg-white/5"
+   266→                      >
+   267→                        <td className="p-4">
+   268→                          <div className="flex items-center gap-3">
+   269→                            {p.images?.[0]?.src ? (
+   270→                              <img
+   271→                                src={p.images[0].src}
+   272→                                alt={p.name}
+   273→                                className="size-10 rounded-lg object-cover"
+   274→                              />
+   275→                            ) : (
+   276→                              <div className="grid size-10 place-items-center rounded-lg bg-white/5">
+   277→                                <Package className="size-4 text-muted-foreground" />
+   278→                              </div>
+   279→                            )}
+   280→                            <div className="min-w-0">
+   281→                              <p className="line-clamp-1 font-medium">{p.name}</p>
+   282→                              <p className="text-xs text-muted-foreground">
+   283→                                {p.categories?.[0]?.name || "Uncategorized"}
+   284→                              </p>
+   285→                            </div>
+   286→                          </div>
+   287→                        </td>
+   288→                        <td className="p-4">
+   289→                          {p.sale_price ? (
+   290→                            <div>
+   291→                              <span className="font-bold text-green-400">
+   292→                                ${p.sale_price}
+   293→                              </span>
+   294→                              <span className="ml-1 text-xs text-muted-foreground line-through">
+   295→                                ${p.regular_price}
+   296→                              </span>
+   297→                            </div>
+   298→                          ) : (
+   299→                            <span className="font-bold">
+   300→                              {p.price ? `$${p.price}` : "—"}
+   301→                            </span>
+   302→                          )}
+   303→                        </td>
+   304→                        <td className="p-4">
+   305→                          <Badge className={STATUS_COLORS[p.status] || "bg-gray-500/15"}>
+   306→                            {p.status}
+   307→                          </Badge>
+   308→                        </td>
+   309→                        <td className="p-4">
+   310→                          <Badge className={STATUS_COLORS[p.stock_status] || "bg-gray-500/15"}>
+   311→                            {p.stock_status?.replace(/([A-Z])/g, " $1").trim() || "—"}
+   312→                          </Badge>
+   313→                        </td>
+   314→                        <td className="p-4 capitalize text-muted-foreground">
+   315→                          {p.type}
+   316→                        </td>
+   317→                        <td className="p-4 text-right">
+   318→                          <Button
+   319→                            size="icon"
+   320→                            variant="ghost"
+   321→                            className="size-7"
+   322→                            onClick={() => window.open(p.permalink, "_blank")}
+   323→                          >
+   324→                            <ExternalLink className="size-3.5" />
+   325→                          </Button>
+   326→                        </td>
+   327→                      </tr>
+   328→                    ))
+   329→                  )}
+   330→                </tbody>
+   331→              </table>
+   332→            </div>
+   333→          </CardContent>
+   334→        </Card>
+   335→      )}
+   336→
+   337→      {/* Orders table */}
+   338→      {configured && tab === "orders" && (
+   339→        <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   340→          <CardContent className="p-0">
+   341→            <div className="overflow-x-auto">
+   342→              <table className="w-full text-sm">
+   343→                <thead>
+   344→                  <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-muted-foreground">
+   345→                    <th className="p-4">Order #</th>
+   346→                    <th className="p-4">Customer</th>
+   347→                    <th className="p-4">Items</th>
+   348→                    <th className="p-4">Total</th>
+   349→                    <th className="p-4">Payment</th>
+   350→                    <th className="p-4">Status</th>
+   351→                    <th className="p-4">Date</th>
+   352→                  </tr>
+   353→                </thead>
+   354→                <tbody>
+   355→                  {ordersQ.isLoading ? (
+   356→                    Array.from({ length: 6 }).map((_, i) => (
+   357→                      <tr key={i} className="border-b border-white/5">
+   358→                        {Array.from({ length: 7 }).map((_, j) => (
+   359→                          <td key={j} className="p-4">
+   360→                            <Skeleton className="h-6 w-full" />
+   361→                          </td>
+   362→                        ))}
+   363→                      </tr>
+   364→                    ))
+   365→                  ) : orders.length === 0 ? (
+   366→                    <tr>
+   367→                      <td colSpan={7} className="p-8 text-center text-muted-foreground">
+   368→                        No orders found
+   369→                      </td>
+   370→                    </tr>
+   371→                  ) : (
+   372→                    orders.map((o) => (
+   373→                      <tr
+   374→                        key={o.id}
+   375→                        className="border-b border-white/5 transition-colors hover:bg-white/5"
+   376→                      >
+   377→                        <td className="p-4 font-mono text-xs font-medium">
+   378→                          #{o.number}
+   379→                        </td>
+   380→                        <td className="p-4">
+   381→                          <p className="font-medium">
+   382→                            {o.billing.first_name} {o.billing.last_name}
+   383→                          </p>
+   384→                          <p className="text-xs text-muted-foreground">
+   385→                            {o.billing.email}
+   386→                          </p>
+   387→                        </td>
+   388→                        <td className="p-4 text-xs text-muted-foreground">
+   389→                          {o.line_items?.length || 0} item(s)
+   390→                        </td>
+   391→                        <td className="p-4 font-bold">
+   392→                          {o.total} {o.currency}
+   393→                        </td>
+   394→                        <td className="p-4 text-xs text-muted-foreground">
+   395→                          {o.payment_method_title || "—"}
+   396→                        </td>
+   397→                        <td className="p-4">
+   398→                          <Badge className={STATUS_COLORS[o.status] || "bg-gray-500/15"}>
+   399→                            {o.status}
+   400→                          </Badge>
+   401→                        </td>
+   402→                        <td className="p-4 text-xs text-muted-foreground">
+   403→                          {new Date(o.date_created).toLocaleDateString()}
+   404→                        </td>
+   405→                      </tr>
+   406→                    ))
+   407→                  )}
+   408→                </tbody>
+   409→              </table>
+   410→            </div>
+   411→          </CardContent>
+   412→        </Card>
+   413→      )}
+   414→    </motion.div>
+   415→  );
+   416→}
+   417→
+   418→// ─── Setup Wizard Component ──────────────────────────────────────────────
+   419→function WooCommerceSetupWizard() {
+   420→  const [step, setStep] = React.useState<1 | 2 | 3>(1);
+   421→  const [storeUrl, setStoreUrl] = React.useState("");
+   422→  const [consumerKey, setConsumerKey] = React.useState("");
+   423→  const [consumerSecret, setConsumerSecret] = React.useState("");
+   424→  const [testing, setTesting] = React.useState(false);
+   425→  const [testResult, setTestResult] = React.useState<any>(null);
+   426→
+   427→  const handleTest = async () => {
+   428→    if (!storeUrl || !consumerKey || !consumerSecret) {
+   429→      toast.error("Fill in all three fields first");
+   430→      return;
+   431→    }
+   432→    setTesting(true);
+   433→    setTestResult(null);
+   434→    try {
+   435→      const result = await api.woocommerceTest({
+   436→        storeUrl,
+   437→        consumerKey,
+   438→        consumerSecret,
+   439→      });
+   440→      setTestResult(result);
+   441→      toast.success(`✓ Connected! Found ${result.productCount} products.`);
+   442→      setStep(3);
+   443→    } catch (e) {
+   444→      const msg = e instanceof Error ? e.message : "Connection failed";
+   445→      setTestResult({ error: msg });
+   446→      toast.error(msg);
+   447→    } finally {
+   448→      setTesting(false);
+   449→    }
+   450→  };
+   451→
+   452→  const envSnippet = `WOOCOMMERCE_STORE_URL=${storeUrl || "https://your-store.com"}
+   453→WOOCOMMERCE_CONSUMER_KEY=${consumerKey || "ck_xxxxx"}
+   454→WOOCOMMERCE_CONSUMER_SECRET=${consumerSecret ? "cs_xxxxx" : "cs_xxxxx"}`;
+   455→
+   456→  return (
+   457→    <div className="space-y-4">
+   458→      {/* Hero card with link to woocommerce.com */}
+   459→      <Card className="border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-blue-500/10">
+   460→        <CardContent className="flex items-center gap-4 p-6">
+   461→          <div className="grid size-14 place-items-center rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 shadow-lg">
+   462→            <ShoppingCart className="size-7 text-white" />
+   463→          </div>
+   464→          <div className="flex-1">
+   465→            <p className="text-lg font-bold">Connect Your WooCommerce Store</p>
+   466→            <p className="text-sm text-muted-foreground">
+   467→              Sync products, orders, and customers from your WooCommerce store in real-time.
+   468→              Don&apos;t have one yet?
+   469→            </p>
+   470→          </div>
+   471→          <a
+   472→            href="https://woocommerce.com/woocommerce/"
+   473→            target="_blank"
+   474→            rel="noopener noreferrer"
+   475→            className="inline-flex items-center gap-2 rounded-lg bg-purple-500/20 px-4 py-2 text-sm font-medium text-purple-300 ring-1 ring-purple-500/30 transition-colors hover:bg-purple-500/30"
+   476→          >
+   477→            <ExternalLink className="size-4" />
+   478→            Get WooCommerce
+   479→          </a>
+   480→        </CardContent>
+   481→      </Card>
+   482→
+   483→      {/* Step indicator */}
+   484→      <div className="flex items-center justify-between gap-2">
+   485→        {[
+   486→          { n: 1, label: "Get API Keys" },
+   487→          { n: 2, label: "Test Connection" },
+   488→          { n: 3, label: "Save & Sync" },
+   489→        ].map((s, i) => (
+   490→          <div key={s.n} className="flex flex-1 items-center">
+   491→            <div
+   492→              className={cn(
+   493→                "grid size-8 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors",
+   494→                step >= s.n
+   495→                  ? "bg-purple-500 text-white"
+   496→                  : "bg-white/5 text-slate-400",
+   497→              )}
+   498→            >
+   499→              {step > s.n ? "✓" : s.n}
+   500→            </div>
+   501→            <span
+   502→              className={cn(
+   503→                "ml-2 text-xs font-medium",
+   504→                step >= s.n ? "text-purple-300" : "text-slate-400",
+   505→              )}
+   506→            >
+   507→              {s.label}
+   508→            </span>
+   509→            {i < 2 && (
+   510→              <div
+   511→                className={cn(
+   512→                  "mx-2 h-0.5 flex-1",
+   513→                  step > s.n ? "bg-purple-500" : "bg-white/10",
+   514→                )}
+   515→              />
+   516→            )}
+   517→          </div>
+   518→        ))}
+   519→      </div>
+   520→
+   521→      {/* Step 1: Get API Keys */}
+   522→      {step === 1 && (
+   523→        <Card className="border-white/10 bg-white/5">
+   524→          <CardHeader>
+   525→            <CardTitle className="text-base">Step 1 — Generate WooCommerce API Keys</CardTitle>
+   526→          </CardHeader>
+   527→          <CardContent className="space-y-4">
+   528→            <p className="text-sm text-muted-foreground">
+   529→              Log in to your WordPress admin and follow these steps:
+   530→            </p>
+   531→            <ol className="space-y-3 text-sm">
+   532→              <li className="flex gap-3">
+   533→                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-purple-500/20 text-xs font-bold text-purple-400">1</span>
+   534→                <div>
+   535→                  Log in to your WordPress admin at <code className="rounded bg-black/40 px-1.5 py-0.5 text-xs text-blue-400">https://your-store.com/wp-admin</code>
+   536→                </div>
+   537→              </li>
+   538→              <li className="flex gap-3">
+   539→                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-purple-500/20 text-xs font-bold text-purple-400">2</span>
+   540→                <div>
+   541→                  Go to <strong>WooCommerce → Settings → Advanced → REST API</strong>
+   542→                </div>
+   543→              </li>
+   544→              <li className="flex gap-3">
+   545→                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-purple-500/20 text-xs font-bold text-purple-400">3</span>
+   546→                <div>
+   547→                  Click <strong>&quot;Add key&quot;</strong> and fill in:
+   548→                  <ul className="mt-1 ml-4 list-disc text-xs text-muted-foreground">
+   549→                    <li><strong>Description:</strong> PlayBeat Digital Sync</li>
+   550→                    <li><strong>User:</strong> Admin (or your account)</li>
+   551→                    <li><strong>Permissions:</strong> <span className="text-amber-400 font-semibold">Read/Write</span></li>
+   552→                  </ul>
+   553→                </div>
+   554→              </li>
+   555→              <li className="flex gap-3">
+   556→                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-purple-500/20 text-xs font-bold text-purple-400">4</span>
+   557→                <div>
+   558→                  Click <strong>&quot;Generate API key&quot;</strong>
+   559→                </div>
+   560→              </li>
+   561→              <li className="flex gap-3">
+   562→                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-purple-500/20 text-xs font-bold text-purple-400">5</span>
+   563→                <div>
+   564→                  Copy the <strong>Consumer key</strong> (starts with <code className="text-blue-400">ck_</code>) and <strong>Consumer secret</strong> (starts with <code className="text-blue-400">cs_</code>)
+   565→                  <p className="mt-1 text-xs text-amber-400">⚠️ Save the secret now — WooCommerce won&apos;t show it again after you leave the page.</p>
+   566→                </div>
+   567→              </li>
+   568→            </ol>
+   569→            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
+   570→              <p className="font-semibold text-blue-400">Don&apos;t have a WooCommerce store yet?</p>
+   571→              <p className="mt-1">
+   572→                WooCommerce is the most popular open-source eCommerce platform for WordPress.
+   573→                It powers millions of online stores worldwide.
+   574→              </p>
+   575→              <a
+   576→                href="https://woocommerce.com/woocommerce/"
+   577→                target="_blank"
+   578→                rel="noopener noreferrer"
+   579→                className="mt-2 inline-flex items-center gap-1 text-blue-400 underline hover:text-blue-300"
+   580→              >
+   581→                <ExternalLink className="size-3" />
+   582→                Visit woocommerce.com to get started →
+   583→              </a>
+   584→            </div>
+   585→            <Button onClick={() => setStep(2)} className="w-full">
+   586→              I have my API keys → Continue
+   587→            </Button>
+   588→          </CardContent>
+   589→        </Card>
+   590→      )}
+   591→
+   592→      {/* Step 2: Test Connection */}
+   593→      {step === 2 && (
+   594→        <Card className="border-white/10 bg-white/5">
+   595→          <CardHeader>
+   596→            <CardTitle className="text-base">Step 2 — Test Connection</CardTitle>
+   597→            <p className="text-sm text-muted-foreground">
+   598→              Paste your credentials below. We&apos;ll test the connection WITHOUT saving —
+   599→              you&apos;ll see your products appear instantly if it works.
+   600→            </p>
+   601→          </CardHeader>
+   602→          <CardContent className="space-y-4">
+   603→            <div className="space-y-1.5">
+   604→              <label className="text-xs font-medium">Store URL</label>
+   605→              <Input
+   606→                value={storeUrl}
+   607→                onChange={(e) => setStoreUrl(e.target.value)}
+   608→                placeholder="https://your-store.com"
+   609→                className="font-mono text-sm"
+   610→              />
+   611→            </div>
+   612→            <div className="space-y-1.5">
+   613→              <label className="text-xs font-medium">Consumer Key</label>
+   614→              <Input
+   615→                value={consumerKey}
+   616→                onChange={(e) => setConsumerKey(e.target.value)}
+   617→                placeholder="ck_xxxxxxxxxxxxxxxxxxxx"
+   618→                className="font-mono text-sm"
+   619→              />
+   620→            </div>
+   621→            <div className="space-y-1.5">
+   622→              <label className="text-xs font-medium">Consumer Secret</label>
+   623→              <Input
+   624→                type="password"
+   625→                value={consumerSecret}
+   626→                onChange={(e) => setConsumerSecret(e.target.value)}
+   627→                placeholder="cs_xxxxxxxxxxxxxxxxxxxx"
+   628→                className="font-mono text-sm"
+   629→              />
+   630→            </div>
+   631→
+   632→            <div className="flex gap-2">
+   633→              <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+   634→                ← Back
+   635→              </Button>
+   636→              <Button
+   637→                onClick={handleTest}
+   638→                disabled={testing || !storeUrl || !consumerKey || !consumerSecret}
+   639→                className="flex-1 gap-2"
+   640→              >
+   641→                {testing ? (
+   642→                  <>
+   643→                    <RefreshCw className="size-4 animate-spin" />
+   644→                    Testing…
+   645→                  </>
+   646→                ) : (
+   647→                  <>Test Connection</>
+   648→                )}
+   649→              </Button>
+   650→            </div>
+   651→
+   652→            {/* Test result */}
+   653→            {testResult?.error && (
+   654→              <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3 text-sm">
+   655→                <p className="flex items-center gap-2 font-semibold text-red-400">
+   656→                  <AlertCircle className="size-4" /> Connection failed
+   657→                </p>
+   658→                <p className="mt-1 text-xs text-red-300">{testResult.error}</p>
+   659→              </div>
+   660→            )}
+   661→
+   662→            {testResult?.success && (
+   663→              <div className="space-y-3">
+   664→                <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-4">
+   665→                  <p className="flex items-center gap-2 font-bold text-green-400">
+   666→                    ✓ Connected successfully!
+   667→                  </p>
+   668→                  <p className="mt-1 text-xs text-muted-foreground">
+   669→                    {testResult.message}
+   670→                  </p>
+   671→                  {testResult.storeInfo && (
+   672→                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+   673→                      <div>
+   674→                        <span className="text-muted-foreground">WC Version:</span>{" "}
+   675→                        <span className="font-medium">{testResult.storeInfo.version || "—"}</span>
+   676→                      </div>
+   677→                      <div>
+   678→                        <span className="text-muted-foreground">WP Version:</span>{" "}
+   679→                        <span className="font-medium">{testResult.storeInfo.wordpressVersion || "—"}</span>
+   680→                      </div>
+   681→                      <div>
+   682→                        <span className="text-muted-foreground">Currency:</span>{" "}
+   683→                        <span className="font-medium">{testResult.storeInfo.currency || "—"}</span>
+   684→                      </div>
+   685→                      <div>
+   686→                        <span className="text-muted-foreground">Country:</span>{" "}
+   687→                        <span className="font-medium">{testResult.storeInfo.country || "—"}</span>
+   688→                      </div>
+   689→                    </div>
+   690→                  )}
+   691→                </div>
+   692→
+   693→                {/* Sample products */}
+   694→                {testResult.sampleProducts?.length > 0 && (
+   695→                  <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+   696→                    <p className="text-xs font-semibold text-slate-300">
+   697→                      Sample products from your store:
+   698→                    </p>
+   699→                    <div className="mt-2 space-y-1.5">
+   700→                      {testResult.sampleProducts.slice(0, 3).map((p: any) => (
+   701→                        <div key={p.id} className="flex items-center justify-between rounded bg-white/5 px-2 py-1.5 text-xs">
+   702→                          <span className="font-medium">{p.name}</span>
+   703→                          <div className="flex items-center gap-2">
+   704→                            <span className="text-blue-400">${p.price || "0"}</span>
+   705→                            <Badge
+   706→                              className={cn(
+   707→                                "text-[9px]",
+   708→                                p.status === "publish"
+   709→                                  ? "bg-green-500/15 text-green-400"
+   710→                                  : "bg-gray-500/15 text-gray-400",
+   711→                              )}
+   712→                            >
+   713→                              {p.status}
+   714→                            </Badge>
+   715→                          </div>
+   716→                        </div>
+   717→                      ))}
+   718→                    </div>
+   719→                  </div>
+   720→                )}
+   721→              </div>
+   722→            )}
+   723→          </CardContent>
+   724→        </Card>
+   725→      )}
+   726→
+   727→      {/* Step 3: Save & Sync */}
+   728→      {step === 3 && (
+   729→        <Card className="border-green-500/30 bg-green-500/5">
+   730→          <CardHeader>
+   731→            <CardTitle className="flex items-center gap-2 text-base">
+   732→              <Package className="size-4 text-green-400" /> Step 3 — Save to .env & Activate
+   733→            </CardTitle>
+   734→            <p className="text-sm text-muted-foreground">
+   735→              Your connection works! Add these lines to your <code>.env</code> file
+   736→              and restart the dev server to start syncing.
+   737→            </p>
+   738→          </CardHeader>
+   739→          <CardContent className="space-y-4">
+   740→            <div className="rounded-lg border border-white/10 bg-black/40 p-3">
+   741→              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+   742→                Add to .env:
+   743→              </p>
+   744→              <pre className="overflow-x-auto text-[11px] text-green-400">
+   745→{envSnippet}
+   746→              </pre>
+   747→            </div>
+   748→
+   749→            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3 text-xs text-muted-foreground">
+   750→              <p className="font-semibold text-blue-400">After saving .env:</p>
+   751→              <ol className="mt-1 ml-4 list-decimal space-y-0.5">
+   752→                <li>Restart the dev server (Ctrl+C, then <code>bun run dev</code>)</li>
+   753→                <li>Come back to this page and click <strong>Sync</strong> at the top</li>
+   754→                <li>Your WooCommerce products and orders will appear in the tabs below</li>
+   755→              </ol>
+   756→            </div>
+   757→
+   758→            <div className="flex gap-2">
+   759→              <Button variant="outline" onClick={() => setStep(2)} className="flex-1">
+   760→                ← Back to Test
+   761→              </Button>
+   762→              <Button
+   763→                onClick={() => {
+   764→                  navigator.clipboard?.writeText(envSnippet);
+   765→                  toast.success(".env snippet copied to clipboard");
+   766→                }}
+   767→                className="flex-1 gap-2"
+   768→              >
+   769→                <ShoppingCart className="size-4" />
+   770→                Copy .env Snippet
+   771→              </Button>
+   772→            </div>
+   773→          </CardContent>
+   774→        </Card>
+   775→      )}
+   776→    </div>
+   777→  );
+   778→}
+   779→

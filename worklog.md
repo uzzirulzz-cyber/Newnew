@@ -883,3 +883,254 @@ Stage Summary:
   - ⚙️ Admin: fully functional with real data
 - The category navigation in the header (Games, Gift Cards, Software, AI Tools, Subscriptions, Best Value, Trending) now actually filters products by category slug.
 - Root cause was a combination of: no-op seed function + missing category filter in products API + overwritten .env file.
+
+---
+Task ID: AUDIT-2
+Agent: General-purpose audit sub-agent
+Task: Audit all 25 admin modules for broken functionality (follow-up to AUDIT-1)
+
+Scope:
+- Cross-checked every `api.*()` call in `src/components/playbeat/admin/*.tsx` against `src/lib/api-client.ts` (33 methods defined).
+- Cross-checked every direct `fetch(...)` against routes in `src/app/api/v1/` (29 routes exist).
+- Read every admin module file in full and recorded: localStorage-only state, fake/hardcoded data, toast-only buttons, missing endpoints, silent error swallowing.
+
+# 1. CRITICAL BUGS (buttons/actions that completely fail)
+
+### C1. Marketing module is hard-broken — wrong API method name
+- **File:** `src/components/playbeat/admin/marketing.tsx:192`
+- **Code:** `queryFn: () => api.affiliateStats(),`
+- **Problem:** `api.affiliateStats` does NOT exist in `src/lib/api-client.ts`. The actual method is `api.affiliates()` (api-client.ts:332). Calling this throws `TypeError: api.affiliateStats is not a function`. TanStack Query catches it, and the UI silently falls back to the hardcoded fake affiliate stats (marketing.tsx:360-363). User has no idea the API call is failing.
+- **Fix:** Change `api.affiliateStats()` → `api.affiliates()`.
+
+### C2. Media upload silently fails — endpoint does not exist
+- **File:** `src/components/playbeat/admin/media.tsx:100`
+- **Code:** `const res = await fetch("/api/v1/media/upload", { method: "POST", body: formData });`
+- **Problem:** Only `/api/v1/media/list/route.ts` exists. There is NO `/api/v1/media/upload/route.ts`. The fetch returns a 404 HTML page; `res.json()` throws; the catch block shows generic "Upload failed" toast (media.tsx:115). User does not know the endpoint is missing. Same applies to "New Folder" (media.tsx:137-146 — only toast, no API call) and "Delete" file (media.tsx:364 — `toast.message("Delete — coming soon")`).
+- **Fix:** Implement `POST /api/v1/media/upload` (multipart, writes to /public/media or S3), `POST /api/v1/media/folders`, `DELETE /api/v1/media/files/:name`.
+
+### C3. Admin Orders shows ONLY the logged-in user's orders, not all orders
+- **File:** `src/components/playbeat/admin/orders.tsx:41` calls `api.orders()`.
+- **Endpoint:** `src/app/api/v1/orders/route.ts:21` filters by `where: { userId: user.id }`.
+- **Problem:** Admin sees only their own orders (typically zero or a handful), not platform-wide orders. Dashboard "Recent Orders" (dashboard.tsx:118) and Reports module (reports.tsx:239) share the same bug — all three show only the admin's own orders.
+- **Fix:** Add `GET /api/v1/admin/orders` (returns all orders, requires ADMIN role) and `api.adminOrders()`; switch dashboard, orders, reports to use it.
+
+### C4. All 12 dedicated module files exist but are BYPASSED — users see "coming soon" placeholder instead
+- **File:** `src/components/playbeat/admin/index.tsx:442-484` `renderModule()` switch.
+- **Problem:** The switch only renders: dashboard, users, products, orders, woocommerce, wordpress, jazzcash, payments, reports, marketing, media, settings, mobile. Every other key falls through to `SimpleModule` (index.tsx:471-480), which is just a "Full module coming soon" placeholder (simple-module.tsx:73-88). The dedicated files for these 12 modules exist but are dead code:
+  - `analytics.tsx` (326 lines) — exports `AnalyticsModule`, never imported
+  - `coupons.tsx` (389 lines) — exports `CouponsModule`, never imported
+  - `finance.tsx` (276 lines) — exports `FinanceModule`, never imported
+  - `iptv.tsx` (229 lines) — exports `IptvModule`, never imported
+  - `support.tsx` (249 lines) — exports `SupportModule`, never imported
+  - `subscriptions.tsx` (256 lines) — exports `SubscriptionsModule` (export name unverified), never imported
+  - `ai-tools.tsx` (202 lines) — exports `AiToolsModule` (unverified), never imported
+  - `developer.tsx` (298 lines) — exports `DeveloperModule`, never imported
+  - `integrations.tsx` (165 lines) — exports `IntegrationsModule`, never imported
+  - `security.tsx` (311 lines) — exports `SecurityModule`, never imported
+  - `seo.tsx` (297 lines) — exports `SeoModule`, never imported
+  - `website-builder.tsx` (226 lines) — exports `WebsiteBuilderModule`, never imported
+- **Fix:** Add 12 cases to the `renderModule()` switch in index.tsx, OR delete the dead files. Note: even if routed, these files use hardcoded data + toast-only actions (see Section 2), so they need backend work before being useful.
+
+### C5. User management actions are all toast-only — no PATCH/DELETE endpoint
+- **File:** `src/components/playbeat/admin/users.tsx:216-230`
+- **Code:** All four menu items (View, Edit, Suspend, Delete) call `toast.message(...)` only.
+- **Backend:** `/api/v1/admin/users/route.ts` has ONLY a `GET` handler. No `PATCH /api/v1/admin/users/:id`, no `DELETE /api/v1/admin/users/:id`. No `api.adminUpdateUser()` / `api.adminDeleteUser()` methods in api-client.ts.
+- **Fix:** Add PATCH/DELETE routes + `api.adminUpdateUser(id, patch)` / `api.adminDeleteUser(id)`; wire the four menu items to call them.
+
+### C6. Orders actions (View / Invoice / Refund) are all toast-only — no endpoints
+- **File:** `src/components/playbeat/admin/orders.tsx:180-199`
+- **Code:** All three buttons call `toast.message(...)`.
+- **Backend:** No `GET /api/v1/orders/:id`, no `POST /api/v1/orders/:id/refund`, no invoice download endpoint.
+- **Fix:** Add `api.adminOrder(id)`, `api.refundOrder(id)`, `api.downloadInvoice(id)`; implement matching routes.
+
+### C7. Product actions (View, Bulk Upload, Add, Edit, Delete) are all toast-only
+- **File:** `src/components/playbeat/admin/products.tsx:93, 149`
+- **Code:** "Bulk Upload" → `toast.message("Bulk upload — coming soon")` (line 93). Eye/View → `toast.message(\`Viewing ${p.title}\`)` (line 149). No Add/Edit/Delete buttons exist.
+- **Backend:** `/api/v1/products/route.ts` is GET-only. No POST/PATCH/DELETE.
+- **Note:** LS API also doesn't support product creation (see Task 19 in worklog). This is by design for LS-synced products, but the UI shouldn't show a "Bulk Upload" button that does nothing.
+- **Fix:** Either remove the Bulk Upload button, or wire it to a DB-backed product override table.
+
+### C8. Settings "Save All" button does NOT save anything
+- **File:** `src/components/playbeat/admin/settings.tsx:168-174`
+- **Code:**
+  ```ts
+  const handleSave = () => {
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      toast.success("All settings saved successfully");
+    }, 800);
+  };
+  ```
+- **Problem:** Pure fake — no fetch, no API call. All 9 settings tabs (General, Branding, SMTP, SMS, Storage, CDN, Languages, Currency, Taxes) live in React state and reset on page refresh. There is no `/api/v1/admin/settings` route and no `api.saveSettings()` method.
+- **Fix:** Add `GET /api/v1/admin/settings` + `PUT /api/v1/admin/settings` (Settings table already exists in Prisma schema per Task 1). Wire `handleSave` to call it.
+
+### C9. JazzCash config form values don't persist (and don't load)
+- **File:** `src/components/playbeat/admin/jazzcash.tsx:32-35, 183`
+- **Code:** `merchantId`, `password`, `salt`, `sandbox` are local `useState` starting at `""`. "Save Configuration" button (line 181-186) only shows `toast.message("Save the .env vars and restart the server to activate")`. The Mode status card (line 105) shows the local `sandbox` toggle, NOT the actual server-side sandbox setting.
+- **Fix:** Persist to `/api/v1/admin/jazzcash/config` (or write through to .env) and load on mount.
+
+### C10. Payments module — toggles and gateway settings don't persist
+- **File:** `src/components/playbeat/admin/payments.tsx:117-124, 320-358`
+- **Code:** `handleActivateToggle` (line 117) just toasts. The 4 global Gateway Settings switches (`threeDSecure`, `autoCapture`, `failedRetry`, `testMode`) live in local `globalSettings` state (lines 103-108) and only `toast.success(...)` on toggle — no API call, no persistence.
+- **Fix:** Add `/api/v1/admin/payments/config` for global settings; persist gateway activation status (currently derived from .env at the API layer — would need a DB override table).
+
+### C11. Marketing campaigns are 100% local state — send doesn't actually send
+- **File:** `src/components/playbeat/admin/marketing.tsx:174, 225-270`
+- **Code:**
+  - `campaigns` initialized from `INITIAL_CAMPAIGNS` hardcoded array (line 174).
+  - `handleCreateCampaign` (line 225): adds to local array + toast. Does NOT POST to any endpoint.
+  - `handleSendCampaign` (line 247): updates local state, sets `sent` to `Math.floor(Math.random() * 5000) + 2000` — FAKE DATA, no email/SMS/push is actually sent.
+  - `handleDeleteCampaign` (line 267): local state removal only.
+  - Edit pencil button (line 517): `toast.message(\`Editing ${c.name}\`)` — no-op.
+  - Marketing Settings automations (line 564-571): local state + toast, no persistence.
+- **Fix:** Implement `/api/v1/admin/campaigns` (GET/POST/DELETE), `/api/v1/admin/campaigns/:id/send`, and `/api/v1/admin/automations` (PUT).
+
+### C12. Mobile App module — 100% local state, fake upload, fake push
+- **File:** `src/components/playbeat/admin/mobile-app.tsx:74, 90-122`
+- **Code:**
+  - `INITIAL_BUILDS` hardcoded (line 52-71).
+  - `handleUpload` (line 90): no actual file upload — build size is `(20 + Math.random() * 10).toFixed(1) MB` (line 100), `downloadUrl: "#"`. Adds to local state + toast.
+  - `handleSendPush` (line 110): `setTimeout(1000)` + toast. NO actual push notification is sent.
+  - `handleDeleteBuild` (line 124) and `handleActivateBuild` (line 129): local state only.
+  - "Download" button (line 361): `toast.message("Download starting...")` — no-op.
+  - App Configuration inputs use `defaultValue` with no `onChange` (lines 390-417) — values can't even be edited.
+  - "Total Installs" 0 and "Avg Rating" 0 ★ are hardcoded (lines 169-170).
+- **Fix:** Implement `/api/v1/admin/mobile/builds` (GET/POST/DELETE), `/api/v1/admin/mobile/push` (POST → FCM/APNs), `/api/v1/admin/mobile/config` (PUT).
+
+### C13. Reports module — date range filter is a no-op, IPTV/Subscription/Affiliate reports use fake data
+- **File:** `src/components/playbeat/admin/reports.tsx:227-228, 347-389, 441-446`
+- **Code:**
+  - `startDate` and `endDate` are captured (line 227-228) but NEVER passed to `generateReport` — the date inputs are visually present but functionally dead.
+  - IPTV report rows: hardcoded zeros with "IPTV not configured" note (line 347-353).
+  - Subscription report rows: hardcoded `—`/0 (line 357-365).
+  - Affiliate report rows: hardcoded `{Total Clicks: 1840, Conversions: 312, Total Earnings: $8,420.50}` marked "From demo data" (line 367-389).
+  - Top stats card (line 471-487): "Reports Generated (30d) 148", "Scheduled 12", "Scheduled Failed 2", "Total Exports 384" — all hardcoded fake.
+  - "Last Generated: 5 hours ago" etc. on each report card (lines 40-104) — hardcoded fake.
+  - Catch block (line 434-438): shows generic "Failed to generate report" — swallows the actual error.
+- **Fix:** Pass date range to a real `/api/v1/admin/reports/:type` endpoint; remove fake demo data; surface actual error in the catch.
+
+# 2. localStorage-ONLY MODULES (changes don't persist to DB)
+
+The admin panel uses NO `localStorage` directly, but uses React `useState` exclusively in these modules — which is WORSE than localStorage because data is lost on every page refresh:
+
+| Module | File | What needs a backend |
+|---|---|---|
+| Settings | settings.tsx | `PUT /api/v1/admin/settings` (Settings Prisma model already exists) |
+| Coupons (file) | coupons.tsx | `GET/POST/PATCH/DELETE /api/v1/admin/coupons` (currently only `/coupons/validate` exists) |
+| Subscriptions (file) | subscriptions.tsx | `GET/POST/PATCH/DELETE /api/v1/admin/subscriptions` |
+| Marketing | marketing.tsx | `GET/POST/DELETE /api/v1/admin/campaigns`, `POST /api/v1/admin/campaigns/:id/send`, `PUT /api/v1/admin/automations` |
+| Mobile App | mobile-app.tsx | `POST /api/v1/admin/mobile/builds`, `POST /api/v1/admin/mobile/push`, `PUT /api/v1/admin/mobile/config` |
+| JazzCash (config form) | jazzcash.tsx | `GET/PUT /api/v1/admin/jazzcash/config` |
+| Payments (settings) | payments.tsx | `GET/PUT /api/v1/admin/payments/config` |
+| IPTV (file) | iptv.tsx | `GET/POST /api/v1/admin/iptv/channels`, `/servers`, `/playlists` |
+| Support (file) | support.tsx | `GET/POST/PATCH /api/v1/admin/support/tickets`, `/faqs` |
+| AI Tools (file) | ai-tools.tsx | `POST /api/v1/admin/ai-tools/:tool` (calls OpenAI/Anthropic) |
+| Developer (file) | developer.tsx | `GET/POST/DELETE /api/v1/admin/api-keys`, `/webhooks` |
+| Integrations (file) | integrations.tsx | `GET/POST /api/v1/admin/integrations/:id/toggle` |
+| Security (file) | security.tsx | `GET/PUT /api/v1/admin/security/2fa`, `/ip-whitelist`, `/firewall` |
+| SEO (file) | seo.tsx | `GET/PUT /api/v1/admin/seo/robots`, `/redirects`, `/sitemap` |
+| Website Builder (file) | website-builder.tsx | `GET/PUT /api/v1/admin/pages`, `/sections` |
+| Analytics (file) | analytics.tsx | `GET /api/v1/admin/analytics/traffic` (currently only `/analytics/dashboard` exists) |
+| Finance (file) | finance.tsx | `GET /api/v1/admin/finance/expenses`, `/commissions`, `/payouts` |
+
+# 3. MISSING ENDPOINTS (called or implied but not implemented)
+
+| Called from | Method | Path | Status |
+|---|---|---|---|
+| media.tsx:100 | POST | `/api/v1/media/upload` | ❌ MISSING (404 → "Upload failed") |
+| media.tsx:137 | POST | `/api/v1/media/folders` | ❌ MISSING (button only toasts) |
+| media.tsx:364 | DELETE | `/api/v1/media/files/:name` | ❌ MISSING (button only toasts) |
+| users.tsx:216-230 | PATCH/DELETE | `/api/v1/admin/users/:id` | ❌ MISSING (actions are toast-only) |
+| orders.tsx:180-199 | GET/POST | `/api/v1/orders/:id`, `/refund`, `/invoice` | ❌ MISSING (actions are toast-only) |
+| products.tsx:149 | GET | `/api/v1/products/:id` (admin view) | ❌ Not surfaced (only the public slug route exists) |
+| settings.tsx:168 | PUT | `/api/v1/admin/settings` | ❌ MISSING (Save button is fake) |
+| jazzcash.tsx:181 | PUT | `/api/v1/admin/jazzcash/config` | ❌ MISSING (Save button is fake) |
+| payments.tsx:117, 354 | PUT | `/api/v1/admin/payments/config` | ❌ MISSING (toggles don't persist) |
+| marketing.tsx:241, 248, 269 | POST/DELETE | `/api/v1/admin/campaigns` | ❌ MISSING (all local state) |
+| mobile-app.tsx:90, 110 | POST | `/api/v1/admin/mobile/builds`, `/push` | ❌ MISSING (all local state) |
+| — | GET | `/api/v1/admin/orders` | ❌ MISSING (admin currently reuses `/orders` which is user-scoped) |
+
+# 4. PLACEHOLDER / FAKE DATA (hardcoded instead of real DB data)
+
+| Module | File:Line | Fake data |
+|---|---|---|
+| Dashboard | dashboard.tsx:152-157 | Traffic Sources — hardcoded `[Direct 32, Organic 28, Affiliate 18, Social 14, Email 8]`. Not from DB. |
+| Dashboard | dashboard.tsx:184, 191, 198, 211, 218 | KPI trend percentages (`+12.5%`, `+8.2%`, `+15.3%`, `+0.8%`, `-0.3%`) — hardcoded in JSX, not computed. |
+| Dashboard | dashboard.tsx:317-321 | System Status row — every service shows "Operational" hardcoded. No health check. |
+| Dashboard | dashboard.tsx:342-357 | Quick Actions (Add Product, Create Coupon, Send Newsletter, View Reports) — all `toast.message("...coming soon")`. |
+| Dashboard | dashboard.tsx (top bar) | index.tsx:518-522 search input has no `onChange` — typing does nothing. |
+| Media | media.tsx:187 | "Avg Compression 38%" — hardcoded. |
+| Media | media.tsx:188 | "Bandwidth (30d) 148 GB" — hardcoded. |
+| Reports | reports.tsx:347-353 | IPTV report — all zeros, marked "IPTV not configured". |
+| Reports | reports.tsx:357-365 | Subscription report — all `—`/0. |
+| Reports | reports.tsx:367-389 | Affiliate report — hardcoded demo numbers (`1840 clicks`, `312 conv`, `$8,420.50`). |
+| Reports | reports.tsx:471-487 | Top stats card — "148 generated, 12 scheduled, 2 failed, 384 exports" — all fake. |
+| Reports | reports.tsx:40-104 | `lastGenerated: "5 hours ago"` etc. on each card — hardcoded. |
+| Analytics (file, bypassed) | analytics.tsx:50-96, 114-119 | All 6 KPIs, visitors chart, funnel, devices, browsers, countries, keywords — 100% hardcoded. |
+| Finance (file, bypassed) | finance.tsx:49-71, 97-102 | Expenses, profit data, commissions, all KPIs — 100% hardcoded. |
+| IPTV (file, bypassed) | iptv.tsx:32-59, 84-87 | Categories, servers, channels, all stats — 100% hardcoded. |
+| Support (file, bypassed) | support.tsx:37-60, 86-89 | Tickets, FAQs, live chat, all stats — 100% hardcoded. |
+| Subscriptions (file, bypassed) | subscriptions.tsx:40-90 | All 4 plans with subscribers/revenue — 100% hardcoded. |
+| AI Tools (file, bypassed) | ai-tools.tsx:27-80 | Tool list with hardcoded "uses" counts. |
+| Developer (file, bypassed) | developer.tsx:41-64 | API keys, webhooks, endpoints — all hardcoded. |
+| Integrations (file, bypassed) | integrations.tsx:39-50 | 10 integrations with hardcoded `connected: true/false`. |
+| Security (file, bypassed) | security.tsx:43-65 | Audit logs, login history, firewall rules — all hardcoded. |
+| SEO (file, bypassed) | seo.tsx:46-57 | Redirects, broken links — hardcoded. |
+| Website Builder (file, bypassed) | website-builder.tsx:31-51 | Pages, CMS sections — hardcoded. |
+| Coupons (file, bypassed) | coupons.tsx:66-74, 128 | 7 fake coupons, "Avg Discount 22%" — hardcoded. |
+| Marketing | marketing.tsx:82-138, 299, 360-363 | 5 fake campaigns, "12,480 subscribers", fallback affiliate stats — all fake. |
+| Mobile App | mobile-app.tsx:52-71, 169-170 | 2 fake builds, "0 installs", "0 ★" — fake. |
+| Payments | payments.tsx:170 | "Total Gateways 8" default when summary is null — but `summary.total` from API should always be present, so this is just a fallback. |
+
+# 5. PER-MODULE STATUS (all 25 admin modules)
+
+| # | Module | Status | Notes |
+|---|---|---|---|
+| 1 | Dashboard | ⚠️ Partial | KPIs + revenue chart + recent orders + top products are real (`api.analytics()`, `api.orders()`, `api.notifications()`). But: traffic sources is hardcoded fake, system status is hardcoded "Operational", trend %s are hardcoded, quick actions are toast-only, top-bar search has no handler. Plus orders shown are admin's own only (C3). |
+| 2 | Settings | ❌ Broken | "Save All" is fake (C8). All 9 tabs are local React state. Nothing persists. Resets on refresh. No backend. |
+| 3 | Products | ⚠️ Partial | Grid + search + LS external link work (`api.products()`). But View is toast-only, Bulk Upload is toast-only, no Add/Edit/Delete. No POST/PATCH/DELETE backend. |
+| 4 | Orders | ⚠️ Partial | Table + search + status tabs render, BUT shows only admin's own orders (C3). View/Invoice/Refund are all toast-only (C6). No PATCH/refund backend. |
+| 5 | Payments | ⚠️ Partial | Gateway list reads real `api.paymentGateways()`. But activate toggle, configure dialog (clipboard only), global settings switches, "Add Gateway", "Transactions" — all toast-only or local state. Nothing persists (C10). |
+| 6 | JazzCash | ⚠️ Partial | Test Payment works (real `api.jazzcashCreate()` → redirects to JazzCash). But config form values are local state, "Save Configuration" is fake (C9), Mode card shows local state not server truth. |
+| 7 | Users | ⚠️ Partial | Table + search + role filter + role counts work (`api.adminUsers()`). But all 4 actions (View/Edit/Suspend/Delete) are toast-only (C5). No PATCH/DELETE backend. |
+| 8 | Coupons | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, all data is hardcoded + local state (Section 2). Only `/coupons/validate` exists in API. |
+| 9 | Analytics | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, 100% hardcoded data (no API calls). |
+| 10 | Reports | ⚠️ Partial | Sales/Revenue/Customer/Product/Refund/Tax exports work (real `api.analytics()`/`api.orders()`/`api.adminUsers()`/`api.products()` data, client-side CSV/Excel/PDF generation). But: date range filter is a no-op (C13), IPTV/Subscription/Affiliate reports are fake (C13), top stats card fake, last-generated timestamps fake, catch block swallows errors. Plus orders are admin's own only (C3). |
+| 11 | Finance | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, 100% hardcoded data. |
+| 12 | Marketing | ❌ Broken | Affiliate section would work IF `api.affiliateStats()` existed — but it doesn't (C1). Campaigns are 100% local state + fake random send counts (C11). Edit/Automations/Manage-Affiliates all toast-only. |
+| 13 | Media | ⚠️ Partial | File list + folders + search read real `api.mediaList()`. Copy URL + Download (open in new tab) work. But upload silently 404s (C2), New Folder is fake (C2), Delete is toast-only (C2), Optimize All is toast-only, two stat cards are hardcoded. |
+| 14 | Mobile App | ❌ Broken | 100% local state, fake upload with random size, fake push (setTimeout + toast), no actual file upload, config inputs can't be edited (defaultValue), all stats hardcoded (C12). |
+| 15 | AI Tools | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, no AI generation backend, all toast-only. |
+| 16 | Integrations | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, toggle is local state, all hardcoded. |
+| 17 | SEO | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, robots.txt editor / redirects / sitemap all local state, no backend. |
+| 18 | Security | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, audit logs / login history / firewall rules all hardcoded. 2FA + IP whitelist local state only. |
+| 19 | Support | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, tickets / FAQs / live chat all hardcoded. Reply box has no send backend. |
+| 20 | Subscriptions | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, all 4 plans hardcoded with fake subscriber counts. |
+| 21 | WooCommerce | ✅ Functional | Real `api.woocommerceProducts()` + `api.woocommerceOrders()` + `api.woocommerceTest()` setup wizard. Sync, search, product/order tables all work. Only nit: no create/update — read-only (acceptable for sync). |
+| 22 | WordPress | ✅ Functional | Real `api.wordpressPlugins()` (live WP.org API with 5-min cache) + `api.wordpressPosts()`. Search, browse tabs, plugin cards, blog posts all work. Download button opens real WP.org download URL. |
+| 23 | Website Builder | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, pages/sections all hardcoded, Preview/New Page toast-only, section visibility toggle is local state. |
+| 24 | IPTV | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, channels/servers/categories all hardcoded, Upload M3U + Add Xtream toast-only. |
+| 25 | Developer | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, API keys / webhooks / endpoints all hardcoded, no key rotation or webhook creation backend. |
+
+# Summary Scorecard
+
+- ✅ Fully functional: **2 / 25** (WooCommerce, WordPress)
+- ⚠️ Partial (real read, broken/fake write): **8 / 25** (Dashboard, Products, Orders, Payments, JazzCash, Users, Reports, Media)
+- ❌ Broken (all fake, all local, or dead-code-bypassed): **15 / 25** (Settings, Coupons, Analytics, Finance, Marketing, Mobile App, AI Tools, Integrations, SEO, Security, Support, Subscriptions, Website Builder, IPTV, Developer)
+
+# Top 5 Priority Fixes (highest impact, lowest effort)
+
+1. **C1 — Marketing `api.affiliateStats()` typo** → change to `api.affiliates()`. One-line fix, un-breaks the entire affiliate section.
+2. **C3 — Admin Orders shows admin's own orders** → add `GET /api/v1/admin/orders` returning all orders; switch dashboard/orders/reports to use it. Affects 3 modules at once.
+3. **C2 — Media upload 404** → implement `POST /api/v1/media/upload`. Without this, the entire upload UI is broken.
+4. **C4 — 12 bypassed modules** → either route them in `index.tsx` or delete the dead files. Currently the sidebar promises features that 100% show "coming soon".
+5. **C8 — Settings Save All is fake** → wire to `PUT /api/v1/admin/settings`. Settings Prisma model already exists from Task 1; this is mostly backend glue.
+
+# Silent Error Swallowing Patterns
+
+- `media.tsx:115` — upload catch shows generic "Upload failed" instead of "Endpoint /api/v1/media/upload not implemented (404)".
+- `reports.tsx:435` — report generation catch shows generic "Failed to generate report" instead of actual error.
+- `marketing.tsx:192` — `api.affiliateStats()` runtime TypeError caught silently by TanStack Query; UI falls back to fake hardcoded stats with no user-visible error.
+- `orders/route.ts:52-54`, `admin/users/route.ts:42-45`, `analytics/dashboard/route.ts:38-40, 161-191` — DB errors return empty/fallback data with `console.error` only. User sees empty lists with no indication the DB is down.
+

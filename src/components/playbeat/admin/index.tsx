@@ -57,6 +57,18 @@ import { AdminMarketing } from "./marketing";
 import { AdminMedia } from "./media";
 import { AdminSettings } from "./settings";
 import { AdminMobileApp } from "./mobile-app";
+import { SupportModule } from "./support";
+import { FinanceModule } from "./finance";
+import { AiToolsModule } from "./ai-tools";
+import { DeveloperModule } from "./developer";
+import { IntegrationsModule } from "./integrations";
+import { SecurityModule } from "./security";
+import { SeoModule } from "./seo";
+import { WebsiteBuilderModule } from "./website-builder";
+import { IptvModule } from "./iptv";
+import { CouponsModule } from "./coupons";
+import { SubscriptionsModule } from "./subscriptions";
+import { AnalyticsModule } from "./analytics";
 import { SimpleModule } from "./simple-module";
 
 type ModuleKey =
@@ -466,7 +478,33 @@ export function AdminConsole() {
       case "settings":
         return <AdminSettings />;
       case "mobile":
+      case "mobile-app":
         return <AdminMobileApp />;
+      case "support":
+        return <SupportModule />;
+      case "finance":
+        return <FinanceModule />;
+      case "ai-tools":
+      case "ai":
+        return <AiToolsModule />;
+      case "developer":
+        return <DeveloperModule />;
+      case "integrations":
+        return <IntegrationsModule />;
+      case "security":
+        return <SecurityModule />;
+      case "seo":
+        return <SeoModule />;
+      case "website-builder":
+        return <WebsiteBuilderModule />;
+      case "iptv":
+        return <IptvModule />;
+      case "coupons":
+        return <CouponsModule />;
+      case "subscriptions":
+        return <SubscriptionsModule />;
+      case "analytics":
+        return <AnalyticsModule />;
       default: {
         const mod = SIMPLE_MODULES[active];
         if (mod) {

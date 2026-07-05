@@ -115,7 +115,7 @@ export function AdminDashboard() {
 
   const { data: ordersData } = useQuery({
     queryKey: ["admin-orders"],
-    queryFn: () => api.orders(),
+    queryFn: () => api.adminOrders(),
     staleTime: 30_000,
   });
 

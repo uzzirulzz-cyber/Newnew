@@ -333,6 +333,31 @@ export const api = {
   analytics: () => apiFetch<AnalyticsDashboard>(`/analytics/dashboard`),
   notifications: () => apiFetch<{ items: Notification[] }>(`/notifications`),
   adminUsers: () => apiFetch<{ items: AdminUser[] }>(`/admin/users`),
+  adminOrders: (params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    search?: string;
+    sort?: string;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    if (params?.sort) qs.set("sort", params.sort);
+    const q = qs.toString();
+    return apiFetch<{ items: Order[]; page: number; limit: number; total: number; totalPages: number }>(
+      `/admin/orders${q ? `?${q}` : ""}`,
+    );
+  },
+  adminSettingsGet: () =>
+    apiFetch<{ settings: Record<string, any> }>(`/admin/settings`),
+  adminSettingsPut: (payload: Record<string, any>) =>
+    apiFetch<{ saved: string[]; message: string }>(`/admin/settings`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
   validateCoupon: (code: string, subtotal: number) =>
     apiFetch<CouponValidation>(`/coupons/validate`, {
       method: "POST",

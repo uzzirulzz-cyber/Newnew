@@ -165,13 +165,76 @@ export function AdminSettings() {
     ],
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
+    try {
+      // Save all 9 setting groups to the DB
+      await api.adminSettingsPut({
+        general,
+        branding,
+        smtp,
+        sms,
+        storage,
+        cdn,
+        languages,
+        currency,
+        taxes,
+      });
+      // Also keep localStorage in sync (for the storefront hook)
+      try {
+        const now = new Date().toISOString();
+        const all = { general, branding, smtp, sms, storage, cdn, languages, currency, taxes };
+        localStorage.setItem("admin-settings", JSON.stringify(all));
+        localStorage.setItem("admin-settings-saved-at", now);
+        setLastSaved(now);
+      } catch {}
+      refreshSiteSettings();
       toast.success("All settings saved successfully");
-    }, 800);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  // Load persisted settings from DB on mount (fall back to localStorage)
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const result = await api.adminSettingsGet();
+        const s = result.settings || {};
+        if (s.general) setGeneral((g) => ({ ...g, ...s.general }));
+        if (s.branding) setBranding((b) => ({ ...b, ...s.branding }));
+        if (s.smtp) setSmtp((sm) => ({ ...sm, ...s.smtp }));
+        if (s.sms) setSms((sm) => ({ ...sm, ...s.sms }));
+        if (s.storage) setStorage((st) => ({ ...st, ...s.storage }));
+        if (s.cdn) setCdn((c) => ({ ...c, ...s.cdn }));
+        if (s.languages) setLanguages((l) => ({ ...l, ...s.languages }));
+        if (s.currency) setCurrency((c) => ({ ...c, ...s.currency }));
+        if (s.taxes) setTaxes((t) => ({ ...t, ...s.taxes }));
+        return;
+      } catch {
+        // DB not available — fall back to localStorage
+      }
+      try {
+        const raw = localStorage.getItem("admin-settings");
+        const savedAt = localStorage.getItem("admin-settings-saved-at");
+        if (savedAt) setLastSaved(savedAt);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved.general) setGeneral((g) => ({ ...g, ...saved.general }));
+          if (saved.branding) setBranding((b) => ({ ...b, ...saved.branding }));
+          if (saved.smtp) setSmtp((s) => ({ ...s, ...saved.smtp }));
+          if (saved.sms) setSms((s) => ({ ...s, ...saved.sms }));
+          if (saved.storage) setStorage((s) => ({ ...s, ...saved.storage }));
+          if (saved.cdn) setCdn((c) => ({ ...c, ...saved.cdn }));
+          if (saved.languages) setLanguages((l) => ({ ...l, ...saved.languages }));
+          if (saved.currency) setCurrency((c) => ({ ...c, ...saved.currency }));
+          if (saved.taxes) setTaxes((t) => ({ ...t, ...saved.taxes }));
+        }
+      } catch {}
+    })();
+  }, []);
 
   const toggleLanguage = (code: string) => {
     setLanguages((prev) => ({

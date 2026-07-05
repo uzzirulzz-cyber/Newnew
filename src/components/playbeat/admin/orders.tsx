@@ -38,7 +38,7 @@ export function AdminOrders() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-orders-list"],
-    queryFn: () => api.orders(),
+    queryFn: () => api.adminOrders(),
     staleTime: 30_000,
   });
 
