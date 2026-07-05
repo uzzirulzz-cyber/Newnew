@@ -23,10 +23,10 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (status) where.status = status;
     if (category) {
-      where.category = { equals: category, mode: "insensitive" };
+      where.category = { equals: category };
     }
     if (search) {
-      where.name = { contains: search, mode: "insensitive" };
+      where.name = { contains: search };
     }
 
     const channels = await db.iptvChannel.findMany({

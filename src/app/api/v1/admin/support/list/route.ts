@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
     if (priority) where.priority = priority;
     if (search) {
       where.OR = [
-        { ticketNumber: { contains: search, mode: "insensitive" } },
-        { subject: { contains: search, mode: "insensitive" } },
-        { customerName: { contains: search, mode: "insensitive" } },
+        { ticketNumber: { contains: search } },
+        { subject: { contains: search } },
+        { customerName: { contains: search } },
       ];
     }
 

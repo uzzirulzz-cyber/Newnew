@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     if (type) where.type = type;
     if (folder) where.folder = folder;
     if (search) {
-      where.name = { contains: search, mode: "insensitive" };
+      where.name = { contains: search };
     }
 
     const files = await db.mediaFile.findMany({

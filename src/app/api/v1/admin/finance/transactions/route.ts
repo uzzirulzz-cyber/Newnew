@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
     if (type) where.type = type;
     if (search) {
       where.OR = [
-        { transactionId: { contains: search, mode: "insensitive" } },
-        { customerName: { contains: search, mode: "insensitive" } },
+        { transactionId: { contains: search } },
+        { customerName: { contains: search } },
       ];
     }
 

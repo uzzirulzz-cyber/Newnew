@@ -32,9 +32,9 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status.toUpperCase();
     if (search) {
       where.OR = [
-        { orderNumber: { contains: search, mode: "insensitive" } },
-        { customerEmail: { contains: search, mode: "insensitive" } },
-        { customerName: { contains: search, mode: "insensitive" } },
+        { orderNumber: { contains: search } },
+        { customerEmail: { contains: search } },
+        { customerName: { contains: search } },
       ];
     }
 
