@@ -1,0 +1,2002 @@
+     1→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+     2→import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+     3→import { TrendingUp, Users, MousePointer, Clock } from "lucide-react";
+     4→
+     5→const trafficData = [
+     6→  { date: "Jun 29", sessions: 4200, users: 3100, pageviews: 11200 },
+     7→  { date: "Jun 30", sessions: 5100, users: 3800, pageviews: 13600 },
+     8→  { date: "Jul 1", sessions: 4800, users: 3500, pageviews: 12400 },
+     9→  { date: "Jul 2", sessions: 6200, users: 4700, pageviews: 16800 },
+    10→  { date: "Jul 3", sessions: 5800, users: 4400, pageviews: 15200 },
+    11→  { date: "Jul 4", sessions: 7100, users: 5300, pageviews: 19300 },
+    12→  { date: "Jul 5", sessions: 6700, users: 4900, pageviews: 18100 },
+    13→];
+    14→
+    15→const deviceData = [
+    16→  { name: "Mobile", value: 58, color: "oklch(0.55 0.22 260)" },
+    17→  { name: "Desktop", value: 32, color: "oklch(0.65 0.18 160)" },
+    18→  { name: "Tablet", value: 10, color: "oklch(0.7 0.2 40)" },
+    19→];
+    20→
+    21→const topPages = [
+    22→  { page: "/home", views: 12400, bounce: "42%" },
+    23→  { page: "/products", views: 8700, bounce: "38%" },
+    24→  { page: "/checkout", views: 5200, bounce: "21%" },
+    25→  { page: "/blog", views: 4100, bounce: "65%" },
+    26→  { page: "/contact", views: 2900, bounce: "58%" },
+    27→];
+    28→
+    29→export default function Analytics() {
+    30→  return (
+    31→    <div className="space-y-6">
+    32→      <div>
+    33→        <h1 className="text-2xl font-bold">Analytics</h1>
+    34→        <p className="text-muted-foreground text-sm mt-1">Track your website and app performance.</p>
+    35→      </div>
+    36→
+    37→      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    38→        {[
+    39→          { title: "Total Sessions", value: "39,900", change: "+14%", icon: <MousePointer size={18} className="text-blue-500" />, bg: "bg-blue-50 dark:bg-blue-950" },
+    40→          { title: "Unique Users", value: "29,700", change: "+11%", icon: <Users size={18} className="text-green-500" />, bg: "bg-green-50 dark:bg-green-950" },
+    41→          { title: "Page Views", value: "106,600", change: "+18%", icon: <TrendingUp size={18} className="text-purple-500" />, bg: "bg-purple-50 dark:bg-purple-950" },
+    42→          { title: "Avg. Session", value: "3m 42s", change: "+5%", icon: <Clock size={18} className="text-orange-500" />, bg: "bg-orange-50 dark:bg-orange-950" },
+    43→        ].map((stat) => (
+    44→          <Card key={stat.title}>
+    45→            <CardContent className="p-5">
+    46→              <div className="flex items-start justify-between">
+    47→                <div>
+    48→                  <p className="text-xs text-muted-foreground">{stat.title}</p>
+    49→                  <p className="text-xl font-bold mt-1">{stat.value}</p>
+    50→                  <p className="text-xs text-green-500 mt-1">{stat.change} this week</p>
+    51→                </div>
+    52→                <div className={`p-2.5 rounded-lg ${stat.bg}`}>{stat.icon}</div>
+    53→              </div>
+    54→            </CardContent>
+    55→          </Card>
+    56→        ))}
+    57→      </div>
+    58→
+    59→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    60→        <Card className="lg:col-span-2">
+    61→          <CardHeader className="pb-2"><CardTitle className="text-base">Traffic Overview</CardTitle></CardHeader>
+    62→          <CardContent>
+    63→            <ResponsiveContainer width="100%" height={240}>
+    64→              <LineChart data={trafficData}>
+    65→                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+    66→                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+    67→                <YAxis tick={{ fontSize: 11 }} />
+    68→                <Tooltip />
+    69→                <Line type="monotone" dataKey="sessions" stroke="oklch(0.55 0.22 260)" strokeWidth={2} dot={false} name="Sessions" />
+    70→                <Line type="monotone" dataKey="users" stroke="oklch(0.65 0.18 160)" strokeWidth={2} dot={false} name="Users" />
+    71→              </LineChart>
+    72→            </ResponsiveContainer>
+    73→          </CardContent>
+    74→        </Card>
+    75→        <Card>
+    76→          <CardHeader className="pb-2"><CardTitle className="text-base">Device Breakdown</CardTitle></CardHeader>
+    77→          <CardContent>
+    78→            <ResponsiveContainer width="100%" height={180}>
+    79→              <PieChart>
+    80→                <Pie data={deviceData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value">
+    81→                  {deviceData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+    82→                </Pie>
+    83→                <Tooltip formatter={(v: number) => [`${v}%`]} />
+    84→              </PieChart>
+    85→            </ResponsiveContainer>
+    86→            <div className="space-y-2 mt-2">
+    87→              {deviceData.map((d) => (
+    88→                <div key={d.name} className="flex items-center justify-between text-xs">
+    89→                  <div className="flex items-center gap-2">
+    90→                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+    91→                    <span>{d.name}</span>
+    92→                  </div>
+    93→                  <span className="font-medium">{d.value}%</span>
+    94→                </div>
+    95→              ))}
+    96→            </div>
+    97→          </CardContent>
+    98→        </Card>
+    99→      </div>
+   100→
+   101→      <Card>
+   102→        <CardHeader className="pb-2"><CardTitle className="text-base">Top Pages</CardTitle></CardHeader>
+   103→        <CardContent>
+   104→          <div className="overflow-x-auto">
+   105→            <table className="w-full text-sm">
+   106→              <thead>
+   107→                <tr className="text-left border-b">
+   108→                  <th className="pb-2 font-medium text-muted-foreground">Page</th>
+   109→                  <th className="pb-2 font-medium text-muted-foreground text-right">Views</th>
+   110→                  <th className="pb-2 font-medium text-muted-foreground text-right">Bounce Rate</th>
+   111→                </tr>
+   112→              </thead>
+   113→              <tbody>
+   114→                {topPages.map((p) => (
+   115→                  <tr key={p.page} className="border-b last:border-0">
+   116→                    <td className="py-2.5 font-mono text-xs">{p.page}</td>
+   117→                    <td className="py-2.5 text-right">{p.views.toLocaleString()}</td>
+   118→                    <td className="py-2.5 text-right text-muted-foreground">{p.bounce}</td>
+   119→                  </tr>
+   120→                ))}
+   121→              </tbody>
+   122→            </table>
+   123→          </div>
+   124→        </CardContent>
+   125→      </Card>
+   126→    </div>
+   127→  );
+   128→} analytics import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+   129→import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+   130→import { TrendingUp, Users, MousePointer, Clock } from "lucide-react";
+   131→
+   132→const trafficData = [
+   133→  { date: "Jun 29", sessions: 4200, users: 3100, pageviews: 11200 },
+   134→  { date: "Jun 30", sessions: 5100, users: 3800, pageviews: 13600 },
+   135→  { date: "Jul 1", sessions: 4800, users: 3500, pageviews: 12400 },
+   136→  { date: "Jul 2", sessions: 6200, users: 4700, pageviews: 16800 },
+   137→  { date: "Jul 3", sessions: 5800, users: 4400, pageviews: 15200 },
+   138→  { date: "Jul 4", sessions: 7100, users: 5300, pageviews: 19300 },
+   139→  { date: "Jul 5", sessions: 6700, users: 4900, pageviews: 18100 },
+   140→];
+   141→
+   142→const deviceData = [
+   143→  { name: "Mobile", value: 58, color: "oklch(0.55 0.22 260)" },
+   144→  { name: "Desktop", value: 32, color: "oklch(0.65 0.18 160)" },
+   145→  { name: "Tablet", value: 10, color: "oklch(0.7 0.2 40)" },
+   146→];
+   147→
+   148→const topPages = [
+   149→  { page: "/home", views: 12400, bounce: "42%" },
+   150→  { page: "/products", views: 8700, bounce: "38%" },
+   151→  { page: "/checkout", views: 5200, bounce: "21%" },
+   152→  { page: "/blog", views: 4100, bounce: "65%" },
+   153→  { page: "/contact", views: 2900, bounce: "58%" },
+   154→];
+   155→
+   156→export default function Analytics() {
+   157→  return (
+   158→    <div className="space-y-6">
+   159→      <div>
+   160→        <h1 className="text-2xl font-bold">Analytics</h1>
+   161→        <p className="text-muted-foreground text-sm mt-1">Track your website and app performance.</p>
+   162→      </div>
+   163→
+   164→      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   165→        {[
+   166→          { title: "Total Sessions", value: "39,900", change: "+14%", icon: <MousePointer size={18} className="text-blue-500" />, bg: "bg-blue-50 dark:bg-blue-950" },
+   167→          { title: "Unique Users", value: "29,700", change: "+11%", icon: <Users size={18} className="text-green-500" />, bg: "bg-green-50 dark:bg-green-950" },
+   168→          { title: "Page Views", value: "106,600", change: "+18%", icon: <TrendingUp size={18} className="text-purple-500" />, bg: "bg-purple-50 dark:bg-purple-950" },
+   169→          { title: "Avg. Session", value: "3m 42s", change: "+5%", icon: <Clock size={18} className="text-orange-500" />, bg: "bg-orange-50 dark:bg-orange-950" },
+   170→        ].map((stat) => (
+   171→          <Card key={stat.title}>
+   172→            <CardContent className="p-5">
+   173→              <div className="flex items-start justify-between">
+   174→                <div>
+   175→                  <p className="text-xs text-muted-foreground">{stat.title}</p>
+   176→                  <p className="text-xl font-bold mt-1">{stat.value}</p>
+   177→                  <p className="text-xs text-green-500 mt-1">{stat.change} this week</p>
+   178→                </div>
+   179→                <div className={`p-2.5 rounded-lg ${stat.bg}`}>{stat.icon}</div>
+   180→              </div>
+   181→            </CardContent>
+   182→          </Card>
+   183→        ))}
+   184→      </div>
+   185→
+   186→      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   187→        <Card className="lg:col-span-2">
+   188→          <CardHeader className="pb-2"><CardTitle className="text-base">Traffic Overview</CardTitle></CardHeader>
+   189→          <CardContent>
+   190→            <ResponsiveContainer width="100%" height={240}>
+   191→              <LineChart data={trafficData}>
+   192→                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+   193→                <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+   194→                <YAxis tick={{ fontSize: 11 }} />
+   195→                <Tooltip />
+   196→                <Line type="monotone" dataKey="sessions" stroke="oklch(0.55 0.22 260)" strokeWidth={2} dot={false} name="Sessions" />
+   197→                <Line type="monotone" dataKey="users" stroke="oklch(0.65 0.18 160)" strokeWidth={2} dot={false} name="Users" />
+   198→              </LineChart>
+   199→            </ResponsiveContainer>
+   200→          </CardContent>
+   201→        </Card>
+   202→        <Card>
+   203→          <CardHeader className="pb-2"><CardTitle className="text-base">Device Breakdown</CardTitle></CardHeader>
+   204→          <CardContent>
+   205→            <ResponsiveContainer width="100%" height={180}>
+   206→              <PieChart>
+   207→                <Pie data={deviceData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value">
+   208→                  {deviceData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+   209→                </Pie>
+   210→                <Tooltip formatter={(v: number) => [`${v}%`]} />
+   211→              </PieChart>
+   212→            </ResponsiveContainer>
+   213→            <div className="space-y-2 mt-2">
+   214→              {deviceData.map((d) => (
+   215→                <div key={d.name} className="flex items-center justify-between text-xs">
+   216→                  <div className="flex items-center gap-2">
+   217→                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
+   218→                    <span>{d.name}</span>
+   219→                  </div>
+   220→                  <span className="font-medium">{d.value}%</span>
+   221→                </div>
+   222→              ))}
+   223→            </div>
+   224→          </CardContent>
+   225→        </Card>
+   226→      </div>
+   227→
+   228→      <Card>
+   229→        <CardHeader className="pb-2"><CardTitle className="text-base">Top Pages</CardTitle></CardHeader>
+   230→        <CardContent>
+   231→          <div className="overflow-x-auto">
+   232→            <table className="w-full text-sm">
+   233→              <thead>
+   234→                <tr className="text-left border-b">
+   235→                  <th className="pb-2 font-medium text-muted-foreground">Page</th>
+   236→                  <th className="pb-2 font-medium text-muted-foreground text-right">Views</th>
+   237→                  <th className="pb-2 font-medium text-muted-foreground text-right">Bounce Rate</th>
+   238→                </tr>
+   239→              </thead>
+   240→              <tbody>
+   241→                {topPages.map((p) => (
+   242→                  <tr key={p.page} className="border-b last:border-0">
+   243→                    <td className="py-2.5 font-mono text-xs">{p.page}</td>
+   244→                    <td className="py-2.5 text-right">{p.views.toLocaleString()}</td>
+   245→                    <td className="py-2.5 text-right text-muted-foreground">{p.bounce}</td>
+   246→                  </tr>
+   247→                ))}
+   248→              </tbody>
+   249→            </table>
+   250→          </div>
+   251→        </CardContent>
+   252→      </Card>
+   253→    </div>
+   254→  );
+   255→} products import { useState } from "react";
+   256→import { useQuery, useMutation } from "convex/react";
+   257→import { api } from "@/convex/_generated/api.js";
+   258→import { Authenticated } from "convex/react";
+   259→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+   260→import { Button } from "@/components/ui/button.tsx";
+   261→import { Input } from "@/components/ui/input.tsx";
+   262→import { Badge } from "@/components/ui/badge.tsx";
+   263→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   264→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+   265→import { Label } from "@/components/ui/label.tsx";
+   266→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+   267→import { Textarea } from "@/components/ui/textarea.tsx";
+   268→import { Plus, Search, Package, Edit, Trash2 } from "lucide-react";
+   269→import { toast } from "sonner";
+   270→import type { Id } from "@/convex/_generated/dataModel.d.ts";
+   271→
+   272→const statusColors: Record<string, string> = {
+   273→  active: "bg-green-100 text-green-700",
+   274→  draft: "bg-yellow-100 text-yellow-700",
+   275→  archived: "bg-gray-100 text-gray-500",
+   276→};
+   277→
+   278→function ProductsInner() {
+   279→  const [search, setSearch] = useState("");
+   280→  const [status, setStatus] = useState("all");
+   281→  const [showCreate, setShowCreate] = useState(false);
+   282→  const [editId, setEditId] = useState<Id<"products"> | null>(null);
+   283→  const [form, setForm] = useState({ name: "", description: "", price: "", stock: "", category: "", imageUrl: "", status: "active" as "active" | "draft" | "archived", sku: "" });
+   284→
+   285→  const products = useQuery(api.products.list, { search: search || undefined, status: status === "all" ? undefined : status });
+   286→  const create = useMutation(api.products.create);
+   287→  const update = useMutation(api.products.update);
+   288→  const remove = useMutation(api.products.remove);
+   289→
+   290→  const resetForm = () => setForm({ name: "", description: "", price: "", stock: "", category: "", imageUrl: "", status: "active", sku: "" });
+   291→
+   292→  const handleSubmit = async () => {
+   293→    if (!form.name || !form.price) { toast.error("Name and price are required"); return; }
+   294→    try {
+   295→      if (editId) {
+   296→        await update({ id: editId, name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, imageUrl: form.imageUrl, status: form.status, sku: form.sku });
+   297→        toast.success("Product updated");
+   298→        setEditId(null);
+   299→      } else {
+   300→        await create({ name: form.name, description: form.description, price: Number(form.price), stock: Number(form.stock), category: form.category, imageUrl: form.imageUrl, status: form.status, sku: form.sku });
+   301→        toast.success("Product created");
+   302→      }
+   303→      resetForm();
+   304→      setShowCreate(false);
+   305→    } catch { toast.error("Failed to save product"); }
+   306→  };
+   307→
+   308→  const handleEdit = (p: NonNullable<typeof products>[number]) => {
+   309→    setForm({ name: p.name, description: p.description ?? "", price: String(p.price), stock: String(p.stock), category: p.category ?? "", imageUrl: p.imageUrl ?? "", status: p.status, sku: p.sku ?? "" });
+   310→    setEditId(p._id);
+   311→    setShowCreate(true);
+   312→  };
+   313→
+   314→  const handleDelete = async (id: Id<"products">) => {
+   315→    if (!confirm("Delete this product?")) return;
+   316→    await remove({ id });
+   317→    toast.success("Product deleted");
+   318→  };
+   319→
+   320→  return (
+   321→    <div className="space-y-6">
+   322→      <div className="flex items-center justify-between flex-wrap gap-3">
+   323→        <div><h1 className="text-2xl font-bold">Products</h1><p className="text-muted-foreground text-sm mt-1">Manage your product catalog</p></div>
+   324→        <Button onClick={() => { resetForm(); setEditId(null); setShowCreate(true); }} className="gap-2"><Plus size={16} />Add Product</Button>
+   325→      </div>
+   326→
+   327→      <div className="flex gap-3 flex-wrap">
+   328→        <div className="relative flex-1 min-w-48">
+   329→          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+   330→          <Input placeholder="Search products..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+   331→        </div>
+   332→        <Select value={status} onValueChange={setStatus}>
+   333→          <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+   334→          <SelectContent>
+   335→            <SelectItem value="all">All Status</SelectItem>
+   336→            <SelectItem value="active">Active</SelectItem>
+   337→            <SelectItem value="draft">Draft</SelectItem>
+   338→            <SelectItem value="archived">Archived</SelectItem>
+   339→          </SelectContent>
+   340→        </Select>
+   341→      </div>
+   342→
+   343→      {!products ? (
+   344→        <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+   345→      ) : products.length === 0 ? (
+   346→        <Card><CardContent className="py-12 text-center"><Package size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No products found</p><Button className="mt-4" onClick={() => setShowCreate(true)}>Add your first product</Button></CardContent></Card>
+   347→      ) : (
+   348→        <div className="overflow-x-auto rounded-lg border bg-card">
+   349→          <table className="w-full text-sm">
+   350→            <thead className="border-b bg-muted/40">
+   351→              <tr>
+   352→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Product</th>
+   353→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Category</th>
+   354→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Price</th>
+   355→                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Stock</th>
+   356→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+   357→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+   358→              </tr>
+   359→            </thead>
+   360→            <tbody>
+   361→              {products.map((p) => (
+   362→                <tr key={p._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+   363→                  <td className="px-4 py-3">
+   364→                    <div className="flex items-center gap-3">
+   365→                      {p.imageUrl ? <img src={p.imageUrl} alt={p.name} className="w-9 h-9 rounded-md object-cover" /> : <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center"><Package size={14} className="text-muted-foreground" /></div>}
+   366→                      <div><p className="font-medium">{p.name}</p>{p.sku && <p className="text-xs text-muted-foreground">SKU: {p.sku}</p>}</div>
+   367→                    </div>
+   368→                  </td>
+   369→                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">{p.category ?? "—"}</td>
+   370→                  <td className="px-4 py-3 text-right font-semibold">${p.price.toFixed(2)}</td>
+   371→                  <td className="px-4 py-3 text-right hidden sm:table-cell">{p.stock}</td>
+   372→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[p.status]}`}>{p.status}</span></td>
+   373→                  <td className="px-4 py-3 text-right">
+   374→                    <div className="flex items-center justify-end gap-1">
+   375→                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(p)}><Edit size={13} /></Button>
+   376→                      <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDelete(p._id)}><Trash2 size={13} /></Button>
+   377→                    </div>
+   378→                  </td>
+   379→                </tr>
+   380→              ))}
+   381→            </tbody>
+   382→          </table>
+   383→        </div>
+   384→      )}
+   385→
+   386→      <Dialog open={showCreate} onOpenChange={(o) => { setShowCreate(o); if (!o) { resetForm(); setEditId(null); } }}>
+   387→        <DialogContent className="max-w-lg">
+   388→          <DialogHeader><DialogTitle>{editId ? "Edit Product" : "Add Product"}</DialogTitle></DialogHeader>
+   389→          <div className="space-y-3">
+   390→            <div><Label>Name *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Product name" /></div>
+   391→            <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" rows={3} /></div>
+   392→            <div className="grid grid-cols-2 gap-3">
+   393→              <div><Label>Price *</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="0.00" /></div>
+   394→              <div><Label>Stock</Label><Input type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} placeholder="0" /></div>
+   395→            </div>
+   396→            <div className="grid grid-cols-2 gap-3">
+   397→              <div><Label>SKU</Label><Input value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="SKU-001" /></div>
+   398→              <div><Label>Category</Label><Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Electronics" /></div>
+   399→            </div>
+   400→            <div><Label>Image URL</Label><Input value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://..." /></div>
+   401→            <div><Label>Status</Label>
+   402→              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as "active" | "draft" | "archived" })}>
+   403→                <SelectTrigger><SelectValue /></SelectTrigger>
+   404→                <SelectContent>
+   405→                  <SelectItem value="active">Active</SelectItem>
+   406→                  <SelectItem value="draft">Draft</SelectItem>
+   407→                  <SelectItem value="archived">Archived</SelectItem>
+   408→                </SelectContent>
+   409→              </Select>
+   410→            </div>
+   411→          </div>
+   412→          <DialogFooter>
+   413→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+   414→            <Button onClick={handleSubmit}>{editId ? "Save Changes" : "Create Product"}</Button>
+   415→          </DialogFooter>
+   416→        </DialogContent>
+   417→      </Dialog>
+   418→    </div>
+   419→  );
+   420→}
+   421→
+   422→export default function Products() {
+   423→  return <Authenticated><ProductsInner /></Authenticated>;
+   424→} order import { useState } from "react";
+   425→import { useQuery, useMutation } from "convex/react";
+   426→import { api } from "@/convex/_generated/api.js";
+   427→import { Authenticated } from "convex/react";
+   428→import { Card, CardContent } from "@/components/ui/card.tsx";
+   429→import { Button } from "@/components/ui/button.tsx";
+   430→import { Input } from "@/components/ui/input.tsx";
+   431→import { Badge } from "@/components/ui/badge.tsx";
+   432→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   433→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+   434→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+   435→import { Label } from "@/components/ui/label.tsx";
+   436→import { Search, ShoppingCart, Plus, Eye } from "lucide-react";
+   437→import { toast } from "sonner";
+   438→import type { Id } from "@/convex/_generated/dataModel.d.ts";
+   439→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+   440→
+   441→const statusColors: Record<string, string> = {
+   442→  pending: "bg-yellow-100 text-yellow-700",
+   443→  processing: "bg-blue-100 text-blue-700",
+   444→  shipped: "bg-purple-100 text-purple-700",
+   445→  delivered: "bg-green-100 text-green-700",
+   446→  cancelled: "bg-red-100 text-red-700",
+   447→  refunded: "bg-gray-100 text-gray-600",
+   448→};
+   449→const paymentColors: Record<string, string> = {
+   450→  paid: "bg-green-100 text-green-700",
+   451→  pending: "bg-yellow-100 text-yellow-700",
+   452→  failed: "bg-red-100 text-red-700",
+   453→  refunded: "bg-gray-100 text-gray-600",
+   454→};
+   455→
+   456→function OrdersInner() {
+   457→  const [search, setSearch] = useState("");
+   458→  const [status, setStatus] = useState("all");
+   459→  const [viewOrder, setViewOrder] = useState<Doc<"orders"> | null>(null);
+   460→  const [showCreate, setShowCreate] = useState(false);
+   461→  const [form, setForm] = useState({ customerName: "", customerEmail: "", total: "", status: "pending" as Doc<"orders">["status"], paymentStatus: "pending" as Doc<"orders">["paymentStatus"], paymentMethod: "", shippingAddress: "" });
+   462→
+   463→  const orders = useQuery(api.orders.list, { search: search || undefined, status: status === "all" ? undefined : status });
+   464→  const create = useMutation(api.orders.create);
+   465→  const updateStatus = useMutation(api.orders.updateStatus);
+   466→
+   467→  const handleCreate = async () => {
+   468→    if (!form.customerName || !form.customerEmail) { toast.error("Customer info required"); return; }
+   469→    try {
+   470→      const count = orders?.length ?? 0;
+   471→      await create({ orderNumber: `ORD-${String(count + 1).padStart(5, "0")}`, customerName: form.customerName, customerEmail: form.customerEmail, items: [], subtotal: Number(form.total), total: Number(form.total), status: form.status, paymentStatus: form.paymentStatus, paymentMethod: form.paymentMethod, shippingAddress: form.shippingAddress });
+   472→      toast.success("Order created");
+   473→      setShowCreate(false);
+   474→      setForm({ customerName: "", customerEmail: "", total: "", status: "pending", paymentStatus: "pending", paymentMethod: "", shippingAddress: "" });
+   475→    } catch { toast.error("Failed to create order"); }
+   476→  };
+   477→
+   478→  return (
+   479→    <div className="space-y-6">
+   480→      <div className="flex items-center justify-between flex-wrap gap-3">
+   481→        <div><h1 className="text-2xl font-bold">Orders</h1><p className="text-muted-foreground text-sm mt-1">Manage customer orders</p></div>
+   482→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />New Order</Button>
+   483→      </div>
+   484→
+   485→      <div className="flex gap-3 flex-wrap">
+   486→        <div className="relative flex-1 min-w-48"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search orders..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+   487→        <Select value={status} onValueChange={setStatus}>
+   488→          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   489→          <SelectContent>
+   490→            <SelectItem value="all">All Status</SelectItem>
+   491→            <SelectItem value="pending">Pending</SelectItem>
+   492→            <SelectItem value="processing">Processing</SelectItem>
+   493→            <SelectItem value="shipped">Shipped</SelectItem>
+   494→            <SelectItem value="delivered">Delivered</SelectItem>
+   495→            <SelectItem value="cancelled">Cancelled</SelectItem>
+   496→          </SelectContent>
+   497→        </Select>
+   498→      </div>
+   499→
+   500→      {!orders ? (
+   501→        <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   502→      ) : orders.length === 0 ? (
+   503→        <Card><CardContent className="py-12 text-center"><ShoppingCart size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No orders found</p></CardContent></Card>
+   504→      ) : (
+   505→        <div className="overflow-x-auto rounded-lg border bg-card">
+   506→          <table className="w-full text-sm">
+   507→            <thead className="border-b bg-muted/40">
+   508→              <tr>
+   509→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Order</th>
+   510→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Customer</th>
+   511→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
+   512→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+   513→                <th className="text-center px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Payment</th>
+   514→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+   515→              </tr>
+   516→            </thead>
+   517→            <tbody>
+   518→              {orders.map((o) => (
+   519→                <tr key={o._id} className="border-b last:border-0 hover:bg-muted/30 transition-colors">
+   520→                  <td className="px-4 py-3 font-mono text-xs font-semibold">{o.orderNumber}</td>
+   521→                  <td className="px-4 py-3 hidden md:table-cell"><p className="font-medium">{o.customerName}</p><p className="text-xs text-muted-foreground">{o.customerEmail}</p></td>
+   522→                  <td className="px-4 py-3 text-right font-semibold">${o.total.toFixed(2)}</td>
+   523→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[o.status] ?? "bg-muted text-muted-foreground"}`}>{o.status}</span></td>
+   524→                  <td className="px-4 py-3 text-center hidden sm:table-cell"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${paymentColors[o.paymentStatus] ?? "bg-muted text-muted-foreground"}`}>{o.paymentStatus}</span></td>
+   525→                  <td className="px-4 py-3 text-right">
+   526→                    <div className="flex items-center justify-end gap-1">
+   527→                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setViewOrder(o)}><Eye size={13} /></Button>
+   528→                      <Select onValueChange={async (v) => { await updateStatus({ id: o._id, status: v as Doc<"orders">["status"] }); toast.success("Status updated"); }}>
+   529→                        <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Update" /></SelectTrigger>
+   530→                        <SelectContent>
+   531→                          <SelectItem value="pending">Pending</SelectItem>
+   532→                          <SelectItem value="processing">Processing</SelectItem>
+   533→                          <SelectItem value="shipped">Shipped</SelectItem>
+   534→                          <SelectItem value="delivered">Delivered</SelectItem>
+   535→                          <SelectItem value="cancelled">Cancelled</SelectItem>
+   536→                        </SelectContent>
+   537→                      </Select>
+   538→                    </div>
+   539→                  </td>
+   540→                </tr>
+   541→              ))}
+   542→            </tbody>
+   543→          </table>
+   544→        </div>
+   545→      )}
+   546→
+   547→      <Dialog open={!!viewOrder} onOpenChange={(o) => !o && setViewOrder(null)}>
+   548→        <DialogContent>
+   549→          <DialogHeader><DialogTitle>Order {viewOrder?.orderNumber}</DialogTitle></DialogHeader>
+   550→          {viewOrder && (
+   551→            <div className="space-y-3 text-sm">
+   552→              <div className="grid grid-cols-2 gap-2">
+   553→                <div><p className="text-muted-foreground">Customer</p><p className="font-medium">{viewOrder.customerName}</p></div>
+   554→                <div><p className="text-muted-foreground">Email</p><p className="font-medium">{viewOrder.customerEmail}</p></div>
+   555→                <div><p className="text-muted-foreground">Total</p><p className="font-bold">${viewOrder.total.toFixed(2)}</p></div>
+   556→                <div><p className="text-muted-foreground">Payment</p><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${paymentColors[viewOrder.paymentStatus]}`}>{viewOrder.paymentStatus}</span></div>
+   557→              </div>
+   558→              {viewOrder.shippingAddress && <div><p className="text-muted-foreground">Shipping Address</p><p>{viewOrder.shippingAddress}</p></div>}
+   559→              {viewOrder.notes && <div><p className="text-muted-foreground">Notes</p><p>{viewOrder.notes}</p></div>}
+   560→            </div>
+   561→          )}
+   562→        </DialogContent>
+   563→      </Dialog>
+   564→
+   565→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+   566→        <DialogContent>
+   567→          <DialogHeader><DialogTitle>New Order</DialogTitle></DialogHeader>
+   568→          <div className="space-y-3">
+   569→            <div><Label>Customer Name *</Label><Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="John Smith" /></div>
+   570→            <div><Label>Customer Email *</Label><Input value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} placeholder="john@example.com" /></div>
+   571→            <div><Label>Total ($)</Label><Input type="number" value={form.total} onChange={(e) => setForm({ ...form, total: e.target.value })} placeholder="0.00" /></div>
+   572→            <div><Label>Payment Method</Label><Input value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })} placeholder="Credit Card" /></div>
+   573→            <div><Label>Shipping Address</Label><Input value={form.shippingAddress} onChange={(e) => setForm({ ...form, shippingAddress: e.target.value })} placeholder="123 Main St..." /></div>
+   574→          </div>
+   575→          <DialogFooter>
+   576→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+   577→            <Button onClick={handleCreate}>Create Order</Button>
+   578→          </DialogFooter>
+   579→        </DialogContent>
+   580→      </Dialog>
+   581→    </div>
+   582→  );
+   583→}
+   584→
+   585→export default function Orders() {
+   586→  return <Authenticated><OrdersInner /></Authenticated>;
+   587→} subscriptions import { useState } from "react";
+   588→import { useQuery, useMutation } from "convex/react";
+   589→import { api } from "@/convex/_generated/api.js";
+   590→import { Authenticated } from "convex/react";
+   591→import { Card, CardContent } from "@/components/ui/card.tsx";
+   592→import { Button } from "@/components/ui/button.tsx";
+   593→import { Input } from "@/components/ui/input.tsx";
+   594→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   595→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+   596→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+   597→import { Label } from "@/components/ui/label.tsx";
+   598→import { CreditCard, Plus } from "lucide-react";
+   599→import { toast } from "sonner";
+   600→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+   601→
+   602→const statusColors: Record<string, string> = {
+   603→  active: "bg-green-100 text-green-700",
+   604→  cancelled: "bg-red-100 text-red-700",
+   605→  past_due: "bg-orange-100 text-orange-700",
+   606→  trial: "bg-blue-100 text-blue-700",
+   607→};
+   608→
+   609→function SubscriptionsInner() {
+   610→  const [status, setStatus] = useState("all");
+   611→  const [showCreate, setShowCreate] = useState(false);
+   612→  const [form, setForm] = useState({ customerName: "", customerEmail: "", plan: "Basic", price: "", billingCycle: "monthly" as "monthly" | "yearly", status: "active" as Doc<"subscriptions">["status"] });
+   613→
+   614→  const subscriptions = useQuery(api.subscriptions.list, { status: status === "all" ? undefined : status });
+   615→  const create = useMutation(api.subscriptions.create);
+   616→  const updateStatus = useMutation(api.subscriptions.updateStatus);
+   617→
+   618→  const handleCreate = async () => {
+   619→    if (!form.customerName || !form.customerEmail) { toast.error("Customer info required"); return; }
+   620→    const now = new Date();
+   621→    const next = new Date(now);
+   622→    if (form.billingCycle === "monthly") next.setMonth(next.getMonth() + 1);
+   623→    else next.setFullYear(next.getFullYear() + 1);
+   624→    try {
+   625→      await create({ customerName: form.customerName, customerEmail: form.customerEmail, plan: form.plan, price: Number(form.price), billingCycle: form.billingCycle, status: form.status, startDate: now.toISOString(), nextBillingDate: next.toISOString() });
+   626→      toast.success("Subscription created");
+   627→      setShowCreate(false);
+   628→    } catch { toast.error("Failed to create subscription"); }
+   629→  };
+   630→
+   631→  return (
+   632→    <div className="space-y-6">
+   633→      <div className="flex items-center justify-between flex-wrap gap-3">
+   634→        <div><h1 className="text-2xl font-bold">Subscriptions</h1><p className="text-muted-foreground text-sm mt-1">Manage recurring plans</p></div>
+   635→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />New Subscription</Button>
+   636→      </div>
+   637→
+   638→      <Select value={status} onValueChange={setStatus}>
+   639→        <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   640→        <SelectContent>
+   641→          <SelectItem value="all">All Status</SelectItem>
+   642→          <SelectItem value="active">Active</SelectItem>
+   643→          <SelectItem value="trial">Trial</SelectItem>
+   644→          <SelectItem value="past_due">Past Due</SelectItem>
+   645→          <SelectItem value="cancelled">Cancelled</SelectItem>
+   646→        </SelectContent>
+   647→      </Select>
+   648→
+   649→      {!subscriptions ? (
+   650→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   651→      ) : subscriptions.length === 0 ? (
+   652→        <Card><CardContent className="py-12 text-center"><CreditCard size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No subscriptions</p></CardContent></Card>
+   653→      ) : (
+   654→        <div className="overflow-x-auto rounded-lg border bg-card">
+   655→          <table className="w-full text-sm">
+   656→            <thead className="border-b bg-muted/40">
+   657→              <tr>
+   658→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+   659→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Plan</th>
+   660→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Price</th>
+   661→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+   662→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Next Billing</th>
+   663→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+   664→              </tr>
+   665→            </thead>
+   666→            <tbody>
+   667→              {subscriptions.map((s) => (
+   668→                <tr key={s._id} className="border-b last:border-0 hover:bg-muted/30">
+   669→                  <td className="px-4 py-3"><p className="font-medium">{s.customerName}</p><p className="text-xs text-muted-foreground">{s.customerEmail}</p></td>
+   670→                  <td className="px-4 py-3 hidden md:table-cell"><p>{s.plan}</p><p className="text-xs text-muted-foreground capitalize">{s.billingCycle}</p></td>
+   671→                  <td className="px-4 py-3 text-right font-semibold">${s.price.toFixed(2)}</td>
+   672→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[s.status]}`}>{s.status.replace("_", " ")}</span></td>
+   673→                  <td className="px-4 py-3 text-xs hidden lg:table-cell">{new Date(s.nextBillingDate).toLocaleDateString()}</td>
+   674→                  <td className="px-4 py-3 text-right">
+   675→                    <Select onValueChange={async (v) => { await updateStatus({ id: s._id, status: v as Doc<"subscriptions">["status"] }); toast.success("Updated"); }}>
+   676→                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Action" /></SelectTrigger>
+   677→                      <SelectContent>
+   678→                        <SelectItem value="active">Activate</SelectItem>
+   679→                        <SelectItem value="cancelled">Cancel</SelectItem>
+   680→                        <SelectItem value="past_due">Mark Past Due</SelectItem>
+   681→                        <SelectItem value="trial">Set Trial</SelectItem>
+   682→                      </SelectContent>
+   683→                    </Select>
+   684→                  </td>
+   685→                </tr>
+   686→              ))}
+   687→            </tbody>
+   688→          </table>
+   689→        </div>
+   690→      )}
+   691→
+   692→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+   693→        <DialogContent>
+   694→          <DialogHeader><DialogTitle>New Subscription</DialogTitle></DialogHeader>
+   695→          <div className="space-y-3">
+   696→            <div><Label>Customer Name *</Label><Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="John Smith" /></div>
+   697→            <div><Label>Customer Email *</Label><Input value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} placeholder="john@example.com" /></div>
+   698→            <div className="grid grid-cols-2 gap-3">
+   699→              <div><Label>Plan</Label><Input value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} placeholder="Basic" /></div>
+   700→              <div><Label>Price/cycle ($)</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="9.99" /></div>
+   701→            </div>
+   702→            <div><Label>Billing Cycle</Label>
+   703→              <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v as "monthly" | "yearly" })}>
+   704→                <SelectTrigger><SelectValue /></SelectTrigger>
+   705→                <SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent>
+   706→              </Select>
+   707→            </div>
+   708→          </div>
+   709→          <DialogFooter>
+   710→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+   711→            <Button onClick={handleCreate}>Create</Button>
+   712→          </DialogFooter>
+   713→        </DialogContent>
+   714→      </Dialog>
+   715→    </div>
+   716→  );
+   717→}
+   718→
+   719→export default function Subscriptions() {
+   720→  return <Authenticated><SubscriptionsInner /></Authenticated>;
+   721→} coupons import { useState } from "react";
+   722→import { useQuery, useMutation } from "convex/react";
+   723→import { api } from "@/convex/_generated/api.js";
+   724→import { Authenticated } from "convex/react";
+   725→import { Card, CardContent } from "@/components/ui/card.tsx";
+   726→import { Button } from "@/components/ui/button.tsx";
+   727→import { Input } from "@/components/ui/input.tsx";
+   728→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   729→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+   730→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+   731→import { Label } from "@/components/ui/label.tsx";
+   732→import { CreditCard, Plus } from "lucide-react";
+   733→import { toast } from "sonner";
+   734→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+   735→
+   736→const statusColors: Record<string, string> = {
+   737→  active: "bg-green-100 text-green-700",
+   738→  cancelled: "bg-red-100 text-red-700",
+   739→  past_due: "bg-orange-100 text-orange-700",
+   740→  trial: "bg-blue-100 text-blue-700",
+   741→};
+   742→
+   743→function SubscriptionsInner() {
+   744→  const [status, setStatus] = useState("all");
+   745→  const [showCreate, setShowCreate] = useState(false);
+   746→  const [form, setForm] = useState({ customerName: "", customerEmail: "", plan: "Basic", price: "", billingCycle: "monthly" as "monthly" | "yearly", status: "active" as Doc<"subscriptions">["status"] });
+   747→
+   748→  const subscriptions = useQuery(api.subscriptions.list, { status: status === "all" ? undefined : status });
+   749→  const create = useMutation(api.subscriptions.create);
+   750→  const updateStatus = useMutation(api.subscriptions.updateStatus);
+   751→
+   752→  const handleCreate = async () => {
+   753→    if (!form.customerName || !form.customerEmail) { toast.error("Customer info required"); return; }
+   754→    const now = new Date();
+   755→    const next = new Date(now);
+   756→    if (form.billingCycle === "monthly") next.setMonth(next.getMonth() + 1);
+   757→    else next.setFullYear(next.getFullYear() + 1);
+   758→    try {
+   759→      await create({ customerName: form.customerName, customerEmail: form.customerEmail, plan: form.plan, price: Number(form.price), billingCycle: form.billingCycle, status: form.status, startDate: now.toISOString(), nextBillingDate: next.toISOString() });
+   760→      toast.success("Subscription created");
+   761→      setShowCreate(false);
+   762→    } catch { toast.error("Failed to create subscription"); }
+   763→  };
+   764→
+   765→  return (
+   766→    <div className="space-y-6">
+   767→      <div className="flex items-center justify-between flex-wrap gap-3">
+   768→        <div><h1 className="text-2xl font-bold">Subscriptions</h1><p className="text-muted-foreground text-sm mt-1">Manage recurring plans</p></div>
+   769→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />New Subscription</Button>
+   770→      </div>
+   771→
+   772→      <Select value={status} onValueChange={setStatus}>
+   773→        <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+   774→        <SelectContent>
+   775→          <SelectItem value="all">All Status</SelectItem>
+   776→          <SelectItem value="active">Active</SelectItem>
+   777→          <SelectItem value="trial">Trial</SelectItem>
+   778→          <SelectItem value="past_due">Past Due</SelectItem>
+   779→          <SelectItem value="cancelled">Cancelled</SelectItem>
+   780→        </SelectContent>
+   781→      </Select>
+   782→
+   783→      {!subscriptions ? (
+   784→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   785→      ) : subscriptions.length === 0 ? (
+   786→        <Card><CardContent className="py-12 text-center"><CreditCard size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No subscriptions</p></CardContent></Card>
+   787→      ) : (
+   788→        <div className="overflow-x-auto rounded-lg border bg-card">
+   789→          <table className="w-full text-sm">
+   790→            <thead className="border-b bg-muted/40">
+   791→              <tr>
+   792→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+   793→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Plan</th>
+   794→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Price</th>
+   795→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+   796→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Next Billing</th>
+   797→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+   798→              </tr>
+   799→            </thead>
+   800→            <tbody>
+   801→              {subscriptions.map((s) => (
+   802→                <tr key={s._id} className="border-b last:border-0 hover:bg-muted/30">
+   803→                  <td className="px-4 py-3"><p className="font-medium">{s.customerName}</p><p className="text-xs text-muted-foreground">{s.customerEmail}</p></td>
+   804→                  <td className="px-4 py-3 hidden md:table-cell"><p>{s.plan}</p><p className="text-xs text-muted-foreground capitalize">{s.billingCycle}</p></td>
+   805→                  <td className="px-4 py-3 text-right font-semibold">${s.price.toFixed(2)}</td>
+   806→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[s.status]}`}>{s.status.replace("_", " ")}</span></td>
+   807→                  <td className="px-4 py-3 text-xs hidden lg:table-cell">{new Date(s.nextBillingDate).toLocaleDateString()}</td>
+   808→                  <td className="px-4 py-3 text-right">
+   809→                    <Select onValueChange={async (v) => { await updateStatus({ id: s._id, status: v as Doc<"subscriptions">["status"] }); toast.success("Updated"); }}>
+   810→                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Action" /></SelectTrigger>
+   811→                      <SelectContent>
+   812→                        <SelectItem value="active">Activate</SelectItem>
+   813→                        <SelectItem value="cancelled">Cancel</SelectItem>
+   814→                        <SelectItem value="past_due">Mark Past Due</SelectItem>
+   815→                        <SelectItem value="trial">Set Trial</SelectItem>
+   816→                      </SelectContent>
+   817→                    </Select>
+   818→                  </td>
+   819→                </tr>
+   820→              ))}
+   821→            </tbody>
+   822→          </table>
+   823→        </div>
+   824→      )}
+   825→
+   826→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+   827→        <DialogContent>
+   828→          <DialogHeader><DialogTitle>New Subscription</DialogTitle></DialogHeader>
+   829→          <div className="space-y-3">
+   830→            <div><Label>Customer Name *</Label><Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="John Smith" /></div>
+   831→            <div><Label>Customer Email *</Label><Input value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} placeholder="john@example.com" /></div>
+   832→            <div className="grid grid-cols-2 gap-3">
+   833→              <div><Label>Plan</Label><Input value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} placeholder="Basic" /></div>
+   834→              <div><Label>Price/cycle ($)</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="9.99" /></div>
+   835→            </div>
+   836→            <div><Label>Billing Cycle</Label>
+   837→              <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v as "monthly" | "yearly" })}>
+   838→                <SelectTrigger><SelectValue /></SelectTrigger>
+   839→                <SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent>
+   840→              </Select>
+   841→            </div>
+   842→          </div>
+   843→          <DialogFooter>
+   844→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+   845→            <Button onClick={handleCreate}>Create</Button>
+   846→          </DialogFooter>
+   847→        </DialogContent>
+   848→      </Dialog>
+   849→    </div>
+   850→  );
+   851→}
+   852→
+   853→export default function Subscriptions() {
+   854→  return <Authenticated><SubscriptionsInner /></Authenticated>;
+   855→}
+   856→import { useState } from "react";
+   857→import { useQuery, useMutation } from "convex/react";
+   858→import { api } from "@/convex/_generated/api.js";
+   859→import { Authenticated } from "convex/react";
+   860→import { Card, CardContent } from "@/components/ui/card.tsx";
+   861→import { Button } from "@/components/ui/button.tsx";
+   862→import { Input } from "@/components/ui/input.tsx";
+   863→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   864→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+   865→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+   866→import { Label } from "@/components/ui/label.tsx";
+   867→import { Tag, Plus, Copy } from "lucide-react";
+   868→import { toast } from "sonner";
+   869→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+   870→
+   871→const statusColors: Record<string, string> = {
+   872→  active: "bg-green-100 text-green-700",
+   873→  inactive: "bg-gray-100 text-gray-500",
+   874→  expired: "bg-red-100 text-red-600",
+   875→};
+   876→
+   877→function CouponsInner() {
+   878→  const [status, setStatus] = useState("all");
+   879→  const [showCreate, setShowCreate] = useState(false);
+   880→  const [form, setForm] = useState({ code: "", type: "percentage" as "percentage" | "fixed", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+   881→
+   882→  const coupons = useQuery(api.system.listCoupons, { status: status === "all" ? undefined : status });
+   883→  const create = useMutation(api.system.createCoupon);
+   884→  const toggle = useMutation(api.system.toggleCoupon);
+   885→
+   886→  const handleCreate = async () => {
+   887→    if (!form.code || !form.value) { toast.error("Code and value required"); return; }
+   888→    try {
+   889→      await create({ code: form.code.toUpperCase(), type: form.type, value: Number(form.value), minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : undefined, maxUses: form.maxUses ? Number(form.maxUses) : undefined, expiresAt: form.expiresAt || undefined, appliesTo: form.appliesTo || undefined });
+   890→      toast.success("Coupon created");
+   891→      setShowCreate(false);
+   892→      setForm({ code: "", type: "percentage", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+   893→    } catch { toast.error("Failed to create coupon"); }
+   894→  };
+   895→
+   896→  return (
+   897→    <div className="space-y-6">
+   898→      <div className="flex items-center justify-between flex-wrap gap-3">
+   899→        <div><h1 className="text-2xl font-bold">Coupons</h1><p className="text-muted-foreground text-sm mt-1">Manage discount codes</p></div>
+   900→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />Create Coupon</Button>
+   901→      </div>
+   902→
+   903→      <Select value={status} onValueChange={setStatus}>
+   904→        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+   905→        <SelectContent>
+   906→          <SelectItem value="all">All</SelectItem>
+   907→          <SelectItem value="active">Active</SelectItem>
+   908→          <SelectItem value="inactive">Inactive</SelectItem>
+   909→          <SelectItem value="expired">Expired</SelectItem>
+   910→        </SelectContent>
+   911→      </Select>
+   912→
+   913→      {!coupons ? (
+   914→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+   915→      ) : coupons.length === 0 ? (
+   916→        <Card><CardContent className="py-12 text-center"><Tag size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No coupons found</p></CardContent></Card>
+   917→      ) : (
+   918→        <div className="overflow-x-auto rounded-lg border bg-card">
+   919→          <table className="w-full text-sm">
+   920→            <thead className="border-b bg-muted/40">
+   921→              <tr>
+   922→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Code</th>
+   923→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Discount</th>
+   924→                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Used</th>
+   925→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+   926→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+   927→              </tr>
+   928→            </thead>
+   929→            <tbody>
+   930→              {coupons.map((c) => (
+   931→                <tr key={c._id} className="border-b last:border-0 hover:bg-muted/30">
+   932→                  <td className="px-4 py-3">
+   933→                    <div className="flex items-center gap-2">
+   934→                      <span className="font-mono font-bold text-primary">{c.code}</span>
+   935→                      <button onClick={() => { navigator.clipboard.writeText(c.code); toast.success("Copied!"); }} className="text-muted-foreground hover:text-foreground"><Copy size={12} /></button>
+   936→                    </div>
+   937→                  </td>
+   938→                  <td className="px-4 py-3">{c.type === "percentage" ? `${c.value}%` : `$${c.value}`} off{c.minOrderAmount ? ` (min $${c.minOrderAmount})` : ""}</td>
+   939→                  <td className="px-4 py-3 text-right hidden sm:table-cell">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
+   940→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[c.status]}`}>{c.status}</span></td>
+   941→                  <td className="px-4 py-3 text-right">
+   942→                    <Button variant="ghost" size="sm" className="text-xs h-7" onClick={async () => { await toggle({ id: c._id, status: c.status === "active" ? "inactive" : "active" }); toast.success("Updated"); }}>
+   943→                      {c.status === "active" ? "Disable" : "Enable"}
+   944→                    </Button>
+   945→                  </td>
+   946→                </tr>
+   947→              ))}
+   948→            </tbody>
+   949→          </table>
+   950→        </div>
+   951→      )}
+   952→
+   953→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+   954→        <DialogContent>
+   955→          <DialogHeader><DialogTitle>Create Coupon</DialogTitle></DialogHeader>
+   956→          <div className="space-y-3">
+   957→            <div><Label>Code *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="SAVE20" /></div>
+   958→            <div className="grid grid-cols-2 gap-3">
+   959→              <div><Label>Type</Label>
+   960→                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as "percentage" | "fixed" })}>
+   961→                  <SelectTrigger><SelectValue /></SelectTrigger>
+   962→                  <SelectContent><SelectItem value="percentage">Percentage (%)</SelectItem><SelectItem value="fixed">Fixed ($)</SelectItem></SelectContent>
+   963→                </Select>
+   964→              </div>
+   965→              <div><Label>Value *</Label><Input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="20" /></div>
+   966→            </div>
+   967→            <div className="grid grid-cols-2 gap-3">
+   968→              <div><Label>Min Order ($)</Label><Input type="number" value={form.minOrderAmount} onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })} placeholder="50" /></div>
+   969→              <div><Label>Max Uses</Label><Input type="number" value={form.maxUses} onChange={(e) => setForm({ ...form, maxUses: e.target.value })} placeholder="100" /></div>
+   970→            </div>
+   971→            <div><Label>Expires At</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div>
+   972→          </div>
+   973→          <DialogFooter>
+   974→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+   975→            <Button onClick={handleCreate}>Create Coupon</Button>
+   976→          </DialogFooter>
+   977→        </DialogContent>
+   978→      </Dialog>
+   979→    </div>
+   980→  );
+   981→}
+   982→
+   983→export default function Coupons() {
+   984→  return <Authenticated><CouponsInner /></Authenticated>;
+   985→}
+   986→ woocomerce import { useState } from "react";
+   987→import { useQuery, useMutation } from "convex/react";
+   988→import { api } from "@/convex/_generated/api.js";
+   989→import { Authenticated } from "convex/react";
+   990→import { Card, CardContent } from "@/components/ui/card.tsx";
+   991→import { Button } from "@/components/ui/button.tsx";
+   992→import { Input } from "@/components/ui/input.tsx";
+   993→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   994→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+   995→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+   996→import { Label } from "@/components/ui/label.tsx";
+   997→import { CreditCard, Plus } from "lucide-react";
+   998→import { toast } from "sonner";
+   999→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+  1000→
+  1001→const statusColors: Record<string, string> = {
+  1002→  active: "bg-green-100 text-green-700",
+  1003→  cancelled: "bg-red-100 text-red-700",
+  1004→  past_due: "bg-orange-100 text-orange-700",
+  1005→  trial: "bg-blue-100 text-blue-700",
+  1006→};
+  1007→
+  1008→function SubscriptionsInner() {
+  1009→  const [status, setStatus] = useState("all");
+  1010→  const [showCreate, setShowCreate] = useState(false);
+  1011→  const [form, setForm] = useState({ customerName: "", customerEmail: "", plan: "Basic", price: "", billingCycle: "monthly" as "monthly" | "yearly", status: "active" as Doc<"subscriptions">["status"] });
+  1012→
+  1013→  const subscriptions = useQuery(api.subscriptions.list, { status: status === "all" ? undefined : status });
+  1014→  const create = useMutation(api.subscriptions.create);
+  1015→  const updateStatus = useMutation(api.subscriptions.updateStatus);
+  1016→
+  1017→  const handleCreate = async () => {
+  1018→    if (!form.customerName || !form.customerEmail) { toast.error("Customer info required"); return; }
+  1019→    const now = new Date();
+  1020→    const next = new Date(now);
+  1021→    if (form.billingCycle === "monthly") next.setMonth(next.getMonth() + 1);
+  1022→    else next.setFullYear(next.getFullYear() + 1);
+  1023→    try {
+  1024→      await create({ customerName: form.customerName, customerEmail: form.customerEmail, plan: form.plan, price: Number(form.price), billingCycle: form.billingCycle, status: form.status, startDate: now.toISOString(), nextBillingDate: next.toISOString() });
+  1025→      toast.success("Subscription created");
+  1026→      setShowCreate(false);
+  1027→    } catch { toast.error("Failed to create subscription"); }
+  1028→  };
+  1029→
+  1030→  return (
+  1031→    <div className="space-y-6">
+  1032→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1033→        <div><h1 className="text-2xl font-bold">Subscriptions</h1><p className="text-muted-foreground text-sm mt-1">Manage recurring plans</p></div>
+  1034→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />New Subscription</Button>
+  1035→      </div>
+  1036→
+  1037→      <Select value={status} onValueChange={setStatus}>
+  1038→        <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+  1039→        <SelectContent>
+  1040→          <SelectItem value="all">All Status</SelectItem>
+  1041→          <SelectItem value="active">Active</SelectItem>
+  1042→          <SelectItem value="trial">Trial</SelectItem>
+  1043→          <SelectItem value="past_due">Past Due</SelectItem>
+  1044→          <SelectItem value="cancelled">Cancelled</SelectItem>
+  1045→        </SelectContent>
+  1046→      </Select>
+  1047→
+  1048→      {!subscriptions ? (
+  1049→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1050→      ) : subscriptions.length === 0 ? (
+  1051→        <Card><CardContent className="py-12 text-center"><CreditCard size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No subscriptions</p></CardContent></Card>
+  1052→      ) : (
+  1053→        <div className="overflow-x-auto rounded-lg border bg-card">
+  1054→          <table className="w-full text-sm">
+  1055→            <thead className="border-b bg-muted/40">
+  1056→              <tr>
+  1057→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+  1058→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Plan</th>
+  1059→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Price</th>
+  1060→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+  1061→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Next Billing</th>
+  1062→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+  1063→              </tr>
+  1064→            </thead>
+  1065→            <tbody>
+  1066→              {subscriptions.map((s) => (
+  1067→                <tr key={s._id} className="border-b last:border-0 hover:bg-muted/30">
+  1068→                  <td className="px-4 py-3"><p className="font-medium">{s.customerName}</p><p className="text-xs text-muted-foreground">{s.customerEmail}</p></td>
+  1069→                  <td className="px-4 py-3 hidden md:table-cell"><p>{s.plan}</p><p className="text-xs text-muted-foreground capitalize">{s.billingCycle}</p></td>
+  1070→                  <td className="px-4 py-3 text-right font-semibold">${s.price.toFixed(2)}</td>
+  1071→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[s.status]}`}>{s.status.replace("_", " ")}</span></td>
+  1072→                  <td className="px-4 py-3 text-xs hidden lg:table-cell">{new Date(s.nextBillingDate).toLocaleDateString()}</td>
+  1073→                  <td className="px-4 py-3 text-right">
+  1074→                    <Select onValueChange={async (v) => { await updateStatus({ id: s._id, status: v as Doc<"subscriptions">["status"] }); toast.success("Updated"); }}>
+  1075→                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Action" /></SelectTrigger>
+  1076→                      <SelectContent>
+  1077→                        <SelectItem value="active">Activate</SelectItem>
+  1078→                        <SelectItem value="cancelled">Cancel</SelectItem>
+  1079→                        <SelectItem value="past_due">Mark Past Due</SelectItem>
+  1080→                        <SelectItem value="trial">Set Trial</SelectItem>
+  1081→                      </SelectContent>
+  1082→                    </Select>
+  1083→                  </td>
+  1084→                </tr>
+  1085→              ))}
+  1086→            </tbody>
+  1087→          </table>
+  1088→        </div>
+  1089→      )}
+  1090→
+  1091→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+  1092→        <DialogContent>
+  1093→          <DialogHeader><DialogTitle>New Subscription</DialogTitle></DialogHeader>
+  1094→          <div className="space-y-3">
+  1095→            <div><Label>Customer Name *</Label><Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="John Smith" /></div>
+  1096→            <div><Label>Customer Email *</Label><Input value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} placeholder="john@example.com" /></div>
+  1097→            <div className="grid grid-cols-2 gap-3">
+  1098→              <div><Label>Plan</Label><Input value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} placeholder="Basic" /></div>
+  1099→              <div><Label>Price/cycle ($)</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="9.99" /></div>
+  1100→            </div>
+  1101→            <div><Label>Billing Cycle</Label>
+  1102→              <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v as "monthly" | "yearly" })}>
+  1103→                <SelectTrigger><SelectValue /></SelectTrigger>
+  1104→                <SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent>
+  1105→              </Select>
+  1106→            </div>
+  1107→          </div>
+  1108→          <DialogFooter>
+  1109→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+  1110→            <Button onClick={handleCreate}>Create</Button>
+  1111→          </DialogFooter>
+  1112→        </DialogContent>
+  1113→      </Dialog>
+  1114→    </div>
+  1115→  );
+  1116→}
+  1117→
+  1118→export default function Subscriptions() {
+  1119→  return <Authenticated><SubscriptionsInner /></Authenticated>;
+  1120→}
+  1121→import { useState } from "react";
+  1122→import { useQuery, useMutation } from "convex/react";
+  1123→import { api } from "@/convex/_generated/api.js";
+  1124→import { Authenticated } from "convex/react";
+  1125→import { Card, CardContent } from "@/components/ui/card.tsx";
+  1126→import { Button } from "@/components/ui/button.tsx";
+  1127→import { Input } from "@/components/ui/input.tsx";
+  1128→import { Skeleton } from "@/components/ui/skeleton.tsx";
+  1129→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+  1130→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+  1131→import { Label } from "@/components/ui/label.tsx";
+  1132→import { Tag, Plus, Copy } from "lucide-react";
+  1133→import { toast } from "sonner";
+  1134→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+  1135→
+  1136→const statusColors: Record<string, string> = {
+  1137→  active: "bg-green-100 text-green-700",
+  1138→  inactive: "bg-gray-100 text-gray-500",
+  1139→  expired: "bg-red-100 text-red-600",
+  1140→};
+  1141→
+  1142→function CouponsInner() {
+  1143→  const [status, setStatus] = useState("all");
+  1144→  const [showCreate, setShowCreate] = useState(false);
+  1145→  const [form, setForm] = useState({ code: "", type: "percentage" as "percentage" | "fixed", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+  1146→
+  1147→  const coupons = useQuery(api.system.listCoupons, { status: status === "all" ? undefined : status });
+  1148→  const create = useMutation(api.system.createCoupon);
+  1149→  const toggle = useMutation(api.system.toggleCoupon);
+  1150→
+  1151→  const handleCreate = async () => {
+  1152→    if (!form.code || !form.value) { toast.error("Code and value required"); return; }
+  1153→    try {
+  1154→      await create({ code: form.code.toUpperCase(), type: form.type, value: Number(form.value), minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : undefined, maxUses: form.maxUses ? Number(form.maxUses) : undefined, expiresAt: form.expiresAt || undefined, appliesTo: form.appliesTo || undefined });
+  1155→      toast.success("Coupon created");
+  1156→      setShowCreate(false);
+  1157→      setForm({ code: "", type: "percentage", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+  1158→    } catch { toast.error("Failed to create coupon"); }
+  1159→  };
+  1160→
+  1161→  return (
+  1162→    <div className="space-y-6">
+  1163→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1164→        <div><h1 className="text-2xl font-bold">Coupons</h1><p className="text-muted-foreground text-sm mt-1">Manage discount codes</p></div>
+  1165→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />Create Coupon</Button>
+  1166→      </div>
+  1167→
+  1168→      <Select value={status} onValueChange={setStatus}>
+  1169→        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+  1170→        <SelectContent>
+  1171→          <SelectItem value="all">All</SelectItem>
+  1172→          <SelectItem value="active">Active</SelectItem>
+  1173→          <SelectItem value="inactive">Inactive</SelectItem>
+  1174→          <SelectItem value="expired">Expired</SelectItem>
+  1175→        </SelectContent>
+  1176→      </Select>
+  1177→
+  1178→      {!coupons ? (
+  1179→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1180→      ) : coupons.length === 0 ? (
+  1181→        <Card><CardContent className="py-12 text-center"><Tag size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No coupons found</p></CardContent></Card>
+  1182→      ) : (
+  1183→        <div className="overflow-x-auto rounded-lg border bg-card">
+  1184→          <table className="w-full text-sm">
+  1185→            <thead className="border-b bg-muted/40">
+  1186→              <tr>
+  1187→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Code</th>
+  1188→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Discount</th>
+  1189→                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Used</th>
+  1190→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+  1191→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+  1192→              </tr>
+  1193→            </thead>
+  1194→            <tbody>
+  1195→              {coupons.map((c) => (
+  1196→                <tr key={c._id} className="border-b last:border-0 hover:bg-muted/30">
+  1197→                  <td className="px-4 py-3">
+  1198→                    <div className="flex items-center gap-2">
+  1199→                      <span className="font-mono font-bold text-primary">{c.code}</span>
+  1200→                      <button onClick={() => { navigator.clipboard.writeText(c.code); toast.success("Copied!"); }} className="text-muted-foreground hover:text-foreground"><Copy size={12} /></button>
+  1201→                    </div>
+  1202→                  </td>
+  1203→                  <td className="px-4 py-3">{c.type === "percentage" ? `${c.value}%` : `$${c.value}`} off{c.minOrderAmount ? ` (min $${c.minOrderAmount})` : ""}</td>
+  1204→                  <td className="px-4 py-3 text-right hidden sm:table-cell">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
+  1205→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[c.status]}`}>{c.status}</span></td>
+  1206→                  <td className="px-4 py-3 text-right">
+  1207→                    <Button variant="ghost" size="sm" className="text-xs h-7" onClick={async () => { await toggle({ id: c._id, status: c.status === "active" ? "inactive" : "active" }); toast.success("Updated"); }}>
+  1208→                      {c.status === "active" ? "Disable" : "Enable"}
+  1209→                    </Button>
+  1210→                  </td>
+  1211→                </tr>
+  1212→              ))}
+  1213→            </tbody>
+  1214→          </table>
+  1215→        </div>
+  1216→      )}
+  1217→
+  1218→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+  1219→        <DialogContent>
+  1220→          <DialogHeader><DialogTitle>Create Coupon</DialogTitle></DialogHeader>
+  1221→          <div className="space-y-3">
+  1222→            <div><Label>Code *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="SAVE20" /></div>
+  1223→            <div className="grid grid-cols-2 gap-3">
+  1224→              <div><Label>Type</Label>
+  1225→                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as "percentage" | "fixed" })}>
+  1226→                  <SelectTrigger><SelectValue /></SelectTrigger>
+  1227→                  <SelectContent><SelectItem value="percentage">Percentage (%)</SelectItem><SelectItem value="fixed">Fixed ($)</SelectItem></SelectContent>
+  1228→                </Select>
+  1229→              </div>
+  1230→              <div><Label>Value *</Label><Input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="20" /></div>
+  1231→            </div>
+  1232→            <div className="grid grid-cols-2 gap-3">
+  1233→              <div><Label>Min Order ($)</Label><Input type="number" value={form.minOrderAmount} onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })} placeholder="50" /></div>
+  1234→              <div><Label>Max Uses</Label><Input type="number" value={form.maxUses} onChange={(e) => setForm({ ...form, maxUses: e.target.value })} placeholder="100" /></div>
+  1235→            </div>
+  1236→            <div><Label>Expires At</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div>
+  1237→          </div>
+  1238→          <DialogFooter>
+  1239→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+  1240→            <Button onClick={handleCreate}>Create Coupon</Button>
+  1241→          </DialogFooter>
+  1242→        </DialogContent>
+  1243→      </Dialog>
+  1244→    </div>
+  1245→  );
+  1246→}
+  1247→
+  1248→export default function Coupons() {
+  1249→  return <Authenticated><CouponsInner /></Authenticated>;
+  1250→}
+  1251→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+  1252→import { Badge } from "@/components/ui/badge.tsx";
+  1253→import { Button } from "@/components/ui/button.tsx";
+  1254→import { Globe2, ShoppingBag, RefreshCw, CheckCircle, AlertCircle, Settings } from "lucide-react";
+  1255→import { toast } from "sonner";
+  1256→
+  1257→const syncItems = [
+  1258→  { label: "Products", count: 248, synced: 246, lastSync: "2 minutes ago", status: "ok" },
+  1259→  { label: "Orders", count: 1842, synced: 1842, lastSync: "5 minutes ago", status: "ok" },
+  1260→  { label: "Customers", count: 3201, synced: 3198, lastSync: "10 minutes ago", status: "warning" },
+  1261→  { label: "Categories", count: 32, synced: 32, lastSync: "1 hour ago", status: "ok" },
+  1262→];
+  1263→
+  1264→export default function WooCommerce() {
+  1265→  return (
+  1266→    <div className="space-y-6">
+  1267→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1268→        <div><h1 className="text-2xl font-bold">WooCommerce</h1><p className="text-muted-foreground text-sm mt-1">Manage your WooCommerce integration</p></div>
+  1269→        <Button onClick={() => toast.success("Sync started!")} className="gap-2"><RefreshCw size={16} />Sync Now</Button>
+  1270→      </div>
+  1271→
+  1272→      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  1273→        <Card>
+  1274→          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Globe2 size={16} />Connection Status</CardTitle></CardHeader>
+  1275→          <CardContent>
+  1276→            <div className="flex items-center gap-2 mb-4">
+  1277→              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+  1278→              <span className="text-sm font-medium text-green-600">Connected</span>
+  1279→            </div>
+  1280→            <div className="space-y-2 text-sm">
+  1281→              <div className="flex justify-between"><span className="text-muted-foreground">Store URL</span><span className="font-mono text-xs">mystore.com</span></div>
+  1282→              <div className="flex justify-between"><span className="text-muted-foreground">WC Version</span><span>8.4.0</span></div>
+  1283→              <div className="flex justify-between"><span className="text-muted-foreground">API Version</span><span>v3</span></div>
+  1284→            </div>
+  1285→            <Button variant="secondary" size="sm" className="mt-4 gap-2 w-full" onClick={() => toast.info("Opening settings...")}><Settings size={14} />Configure</Button>
+  1286→          </CardContent>
+  1287→        </Card>
+  1288→
+  1289→        <Card>
+  1290→          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ShoppingBag size={16} />Store Summary</CardTitle></CardHeader>
+  1291→          <CardContent>
+  1292→            <div className="grid grid-cols-2 gap-3">
+  1293→              {[
+  1294→                { label: "Products", value: "248" },
+  1295→                { label: "Orders Today", value: "34" },
+  1296→                { label: "Revenue (MTD)", value: "$12,400" },
+  1297→                { label: "Customers", value: "3,201" },
+  1298→              ].map((stat) => (
+  1299→                <div key={stat.label} className="bg-muted rounded-lg p-3">
+  1300→                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+  1301→                  <p className="text-lg font-bold">{stat.value}</p>
+  1302→                </div>
+  1303→              ))}
+  1304→            </div>
+  1305→          </CardContent>
+  1306→        </Card>
+  1307→      </div>
+  1308→
+  1309→      <Card>
+  1310→        <CardHeader className="pb-2"><CardTitle className="text-base">Sync Status</CardTitle></CardHeader>
+  1311→        <CardContent>
+  1312→          <div className="space-y-3">
+  1313→            {syncItems.map((item) => (
+  1314→              <div key={item.label} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+  1315→                <div className="flex items-center gap-3">
+  1316→                  {item.status === "ok" ? <CheckCircle size={16} className="text-green-500" /> : <AlertCircle size={16} className="text-yellow-500" />}
+  1317→                  <div>
+  1318→                    <p className="text-sm font-medium">{item.label}</p>
+  1319→                    <p className="text-xs text-muted-foreground">Last sync: {item.lastSync}</p>
+  1320→                  </div>
+  1321→                </div>
+  1322→                <div className="text-right">
+  1323→                  <p className="text-sm font-semibold">{item.synced.toLocaleString()} / {item.count.toLocaleString()}</p>
+  1324→                  {item.synced < item.count && <p className="text-xs text-yellow-600">{item.count - item.synced} pending</p>}
+  1325→                </div>
+  1326→              </div>
+  1327→            ))}
+  1328→          </div>
+  1329→        </CardContent>
+  1330→      </Card>
+  1331→    </div>
+  1332→  );
+  1333→}users import { useState } from "react";
+  1334→import { useQuery, useMutation } from "convex/react";
+  1335→import { api } from "@/convex/_generated/api.js";
+  1336→import { Authenticated } from "convex/react";
+  1337→import { Card, CardContent } from "@/components/ui/card.tsx";
+  1338→import { Button } from "@/components/ui/button.tsx";
+  1339→import { Input } from "@/components/ui/input.tsx";
+  1340→import { Skeleton } from "@/components/ui/skeleton.tsx";
+  1341→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+  1342→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+  1343→import { Label } from "@/components/ui/label.tsx";
+  1344→import { CreditCard, Plus } from "lucide-react";
+  1345→import { toast } from "sonner";
+  1346→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+  1347→
+  1348→const statusColors: Record<string, string> = {
+  1349→  active: "bg-green-100 text-green-700",
+  1350→  cancelled: "bg-red-100 text-red-700",
+  1351→  past_due: "bg-orange-100 text-orange-700",
+  1352→  trial: "bg-blue-100 text-blue-700",
+  1353→};
+  1354→
+  1355→function SubscriptionsInner() {
+  1356→  const [status, setStatus] = useState("all");
+  1357→  const [showCreate, setShowCreate] = useState(false);
+  1358→  const [form, setForm] = useState({ customerName: "", customerEmail: "", plan: "Basic", price: "", billingCycle: "monthly" as "monthly" | "yearly", status: "active" as Doc<"subscriptions">["status"] });
+  1359→
+  1360→  const subscriptions = useQuery(api.subscriptions.list, { status: status === "all" ? undefined : status });
+  1361→  const create = useMutation(api.subscriptions.create);
+  1362→  const updateStatus = useMutation(api.subscriptions.updateStatus);
+  1363→
+  1364→  const handleCreate = async () => {
+  1365→    if (!form.customerName || !form.customerEmail) { toast.error("Customer info required"); return; }
+  1366→    const now = new Date();
+  1367→    const next = new Date(now);
+  1368→    if (form.billingCycle === "monthly") next.setMonth(next.getMonth() + 1);
+  1369→    else next.setFullYear(next.getFullYear() + 1);
+  1370→    try {
+  1371→      await create({ customerName: form.customerName, customerEmail: form.customerEmail, plan: form.plan, price: Number(form.price), billingCycle: form.billingCycle, status: form.status, startDate: now.toISOString(), nextBillingDate: next.toISOString() });
+  1372→      toast.success("Subscription created");
+  1373→      setShowCreate(false);
+  1374→    } catch { toast.error("Failed to create subscription"); }
+  1375→  };
+  1376→
+  1377→  return (
+  1378→    <div className="space-y-6">
+  1379→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1380→        <div><h1 className="text-2xl font-bold">Subscriptions</h1><p className="text-muted-foreground text-sm mt-1">Manage recurring plans</p></div>
+  1381→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />New Subscription</Button>
+  1382→      </div>
+  1383→
+  1384→      <Select value={status} onValueChange={setStatus}>
+  1385→        <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+  1386→        <SelectContent>
+  1387→          <SelectItem value="all">All Status</SelectItem>
+  1388→          <SelectItem value="active">Active</SelectItem>
+  1389→          <SelectItem value="trial">Trial</SelectItem>
+  1390→          <SelectItem value="past_due">Past Due</SelectItem>
+  1391→          <SelectItem value="cancelled">Cancelled</SelectItem>
+  1392→        </SelectContent>
+  1393→      </Select>
+  1394→
+  1395→      {!subscriptions ? (
+  1396→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1397→      ) : subscriptions.length === 0 ? (
+  1398→        <Card><CardContent className="py-12 text-center"><CreditCard size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No subscriptions</p></CardContent></Card>
+  1399→      ) : (
+  1400→        <div className="overflow-x-auto rounded-lg border bg-card">
+  1401→          <table className="w-full text-sm">
+  1402→            <thead className="border-b bg-muted/40">
+  1403→              <tr>
+  1404→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+  1405→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Plan</th>
+  1406→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Price</th>
+  1407→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+  1408→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Next Billing</th>
+  1409→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+  1410→              </tr>
+  1411→            </thead>
+  1412→            <tbody>
+  1413→              {subscriptions.map((s) => (
+  1414→                <tr key={s._id} className="border-b last:border-0 hover:bg-muted/30">
+  1415→                  <td className="px-4 py-3"><p className="font-medium">{s.customerName}</p><p className="text-xs text-muted-foreground">{s.customerEmail}</p></td>
+  1416→                  <td className="px-4 py-3 hidden md:table-cell"><p>{s.plan}</p><p className="text-xs text-muted-foreground capitalize">{s.billingCycle}</p></td>
+  1417→                  <td className="px-4 py-3 text-right font-semibold">${s.price.toFixed(2)}</td>
+  1418→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[s.status]}`}>{s.status.replace("_", " ")}</span></td>
+  1419→                  <td className="px-4 py-3 text-xs hidden lg:table-cell">{new Date(s.nextBillingDate).toLocaleDateString()}</td>
+  1420→                  <td className="px-4 py-3 text-right">
+  1421→                    <Select onValueChange={async (v) => { await updateStatus({ id: s._id, status: v as Doc<"subscriptions">["status"] }); toast.success("Updated"); }}>
+  1422→                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Action" /></SelectTrigger>
+  1423→                      <SelectContent>
+  1424→                        <SelectItem value="active">Activate</SelectItem>
+  1425→                        <SelectItem value="cancelled">Cancel</SelectItem>
+  1426→                        <SelectItem value="past_due">Mark Past Due</SelectItem>
+  1427→                        <SelectItem value="trial">Set Trial</SelectItem>
+  1428→                      </SelectContent>
+  1429→                    </Select>
+  1430→                  </td>
+  1431→                </tr>
+  1432→              ))}
+  1433→            </tbody>
+  1434→          </table>
+  1435→        </div>
+  1436→      )}
+  1437→
+  1438→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+  1439→        <DialogContent>
+  1440→          <DialogHeader><DialogTitle>New Subscription</DialogTitle></DialogHeader>
+  1441→          <div className="space-y-3">
+  1442→            <div><Label>Customer Name *</Label><Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="John Smith" /></div>
+  1443→            <div><Label>Customer Email *</Label><Input value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} placeholder="john@example.com" /></div>
+  1444→            <div className="grid grid-cols-2 gap-3">
+  1445→              <div><Label>Plan</Label><Input value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} placeholder="Basic" /></div>
+  1446→              <div><Label>Price/cycle ($)</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="9.99" /></div>
+  1447→            </div>
+  1448→            <div><Label>Billing Cycle</Label>
+  1449→              <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v as "monthly" | "yearly" })}>
+  1450→                <SelectTrigger><SelectValue /></SelectTrigger>
+  1451→                <SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent>
+  1452→              </Select>
+  1453→            </div>
+  1454→          </div>
+  1455→          <DialogFooter>
+  1456→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+  1457→            <Button onClick={handleCreate}>Create</Button>
+  1458→          </DialogFooter>
+  1459→        </DialogContent>
+  1460→      </Dialog>
+  1461→    </div>
+  1462→  );
+  1463→}
+  1464→
+  1465→export default function Subscriptions() {
+  1466→  return <Authenticated><SubscriptionsInner /></Authenticated>;
+  1467→}
+  1468→import { useState } from "react";
+  1469→import { useQuery, useMutation } from "convex/react";
+  1470→import { api } from "@/convex/_generated/api.js";
+  1471→import { Authenticated } from "convex/react";
+  1472→import { Card, CardContent } from "@/components/ui/card.tsx";
+  1473→import { Button } from "@/components/ui/button.tsx";
+  1474→import { Input } from "@/components/ui/input.tsx";
+  1475→import { Skeleton } from "@/components/ui/skeleton.tsx";
+  1476→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+  1477→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+  1478→import { Label } from "@/components/ui/label.tsx";
+  1479→import { Tag, Plus, Copy } from "lucide-react";
+  1480→import { toast } from "sonner";
+  1481→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+  1482→
+  1483→const statusColors: Record<string, string> = {
+  1484→  active: "bg-green-100 text-green-700",
+  1485→  inactive: "bg-gray-100 text-gray-500",
+  1486→  expired: "bg-red-100 text-red-600",
+  1487→};
+  1488→
+  1489→function CouponsInner() {
+  1490→  const [status, setStatus] = useState("all");
+  1491→  const [showCreate, setShowCreate] = useState(false);
+  1492→  const [form, setForm] = useState({ code: "", type: "percentage" as "percentage" | "fixed", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+  1493→
+  1494→  const coupons = useQuery(api.system.listCoupons, { status: status === "all" ? undefined : status });
+  1495→  const create = useMutation(api.system.createCoupon);
+  1496→  const toggle = useMutation(api.system.toggleCoupon);
+  1497→
+  1498→  const handleCreate = async () => {
+  1499→    if (!form.code || !form.value) { toast.error("Code and value required"); return; }
+  1500→    try {
+  1501→      await create({ code: form.code.toUpperCase(), type: form.type, value: Number(form.value), minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : undefined, maxUses: form.maxUses ? Number(form.maxUses) : undefined, expiresAt: form.expiresAt || undefined, appliesTo: form.appliesTo || undefined });
+  1502→      toast.success("Coupon created");
+  1503→      setShowCreate(false);
+  1504→      setForm({ code: "", type: "percentage", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+  1505→    } catch { toast.error("Failed to create coupon"); }
+  1506→  };
+  1507→
+  1508→  return (
+  1509→    <div className="space-y-6">
+  1510→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1511→        <div><h1 className="text-2xl font-bold">Coupons</h1><p className="text-muted-foreground text-sm mt-1">Manage discount codes</p></div>
+  1512→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />Create Coupon</Button>
+  1513→      </div>
+  1514→
+  1515→      <Select value={status} onValueChange={setStatus}>
+  1516→        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+  1517→        <SelectContent>
+  1518→          <SelectItem value="all">All</SelectItem>
+  1519→          <SelectItem value="active">Active</SelectItem>
+  1520→          <SelectItem value="inactive">Inactive</SelectItem>
+  1521→          <SelectItem value="expired">Expired</SelectItem>
+  1522→        </SelectContent>
+  1523→      </Select>
+  1524→
+  1525→      {!coupons ? (
+  1526→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1527→      ) : coupons.length === 0 ? (
+  1528→        <Card><CardContent className="py-12 text-center"><Tag size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No coupons found</p></CardContent></Card>
+  1529→      ) : (
+  1530→        <div className="overflow-x-auto rounded-lg border bg-card">
+  1531→          <table className="w-full text-sm">
+  1532→            <thead className="border-b bg-muted/40">
+  1533→              <tr>
+  1534→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Code</th>
+  1535→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Discount</th>
+  1536→                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Used</th>
+  1537→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+  1538→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+  1539→              </tr>
+  1540→            </thead>
+  1541→            <tbody>
+  1542→              {coupons.map((c) => (
+  1543→                <tr key={c._id} className="border-b last:border-0 hover:bg-muted/30">
+  1544→                  <td className="px-4 py-3">
+  1545→                    <div className="flex items-center gap-2">
+  1546→                      <span className="font-mono font-bold text-primary">{c.code}</span>
+  1547→                      <button onClick={() => { navigator.clipboard.writeText(c.code); toast.success("Copied!"); }} className="text-muted-foreground hover:text-foreground"><Copy size={12} /></button>
+  1548→                    </div>
+  1549→                  </td>
+  1550→                  <td className="px-4 py-3">{c.type === "percentage" ? `${c.value}%` : `$${c.value}`} off{c.minOrderAmount ? ` (min $${c.minOrderAmount})` : ""}</td>
+  1551→                  <td className="px-4 py-3 text-right hidden sm:table-cell">{c.usedCount}{c.maxUses ? ` / ${c.maxUses}` : ""}</td>
+  1552→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[c.status]}`}>{c.status}</span></td>
+  1553→                  <td className="px-4 py-3 text-right">
+  1554→                    <Button variant="ghost" size="sm" className="text-xs h-7" onClick={async () => { await toggle({ id: c._id, status: c.status === "active" ? "inactive" : "active" }); toast.success("Updated"); }}>
+  1555→                      {c.status === "active" ? "Disable" : "Enable"}
+  1556→                    </Button>
+  1557→                  </td>
+  1558→                </tr>
+  1559→              ))}
+  1560→            </tbody>
+  1561→          </table>
+  1562→        </div>
+  1563→      )}
+  1564→
+  1565→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+  1566→        <DialogContent>
+  1567→          <DialogHeader><DialogTitle>Create Coupon</DialogTitle></DialogHeader>
+  1568→          <div className="space-y-3">
+  1569→            <div><Label>Code *</Label><Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="SAVE20" /></div>
+  1570→            <div className="grid grid-cols-2 gap-3">
+  1571→              <div><Label>Type</Label>
+  1572→                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v as "percentage" | "fixed" })}>
+  1573→                  <SelectTrigger><SelectValue /></SelectTrigger>
+  1574→                  <SelectContent><SelectItem value="percentage">Percentage (%)</SelectItem><SelectItem value="fixed">Fixed ($)</SelectItem></SelectContent>
+  1575→                </Select>
+  1576→              </div>
+  1577→              <div><Label>Value *</Label><Input type="number" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} placeholder="20" /></div>
+  1578→            </div>
+  1579→            <div className="grid grid-cols-2 gap-3">
+  1580→              <div><Label>Min Order ($)</Label><Input type="number" value={form.minOrderAmount} onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })} placeholder="50" /></div>
+  1581→              <div><Label>Max Uses</Label><Input type="number" value={form.maxUses} onChange={(e) => setForm({ ...form, maxUses: e.target.value })} placeholder="100" /></div>
+  1582→            </div>
+  1583→            <div><Label>Expires At</Label><Input type="date" value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div>
+  1584→          </div>
+  1585→          <DialogFooter>
+  1586→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+  1587→            <Button onClick={handleCreate}>Create Coupon</Button>
+  1588→          </DialogFooter>
+  1589→        </DialogContent>
+  1590→      </Dialog>
+  1591→    </div>
+  1592→  );
+  1593→}
+  1594→
+  1595→export default function Coupons() {
+  1596→  return <Authenticated><CouponsInner /></Authenticated>;
+  1597→}
+  1598→import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+  1599→import { Badge } from "@/components/ui/badge.tsx";
+  1600→import { Button } from "@/components/ui/button.tsx";
+  1601→import { Globe2, ShoppingBag, RefreshCw, CheckCircle, AlertCircle, Settings } from "lucide-react";
+  1602→import { toast } from "sonner";
+  1603→
+  1604→const syncItems = [
+  1605→  { label: "Products", count: 248, synced: 246, lastSync: "2 minutes ago", status: "ok" },
+  1606→  { label: "Orders", count: 1842, synced: 1842, lastSync: "5 minutes ago", status: "ok" },
+  1607→  { label: "Customers", count: 3201, synced: 3198, lastSync: "10 minutes ago", status: "warning" },
+  1608→  { label: "Categories", count: 32, synced: 32, lastSync: "1 hour ago", status: "ok" },
+  1609→];
+  1610→
+  1611→export default function WooCommerce() {
+  1612→  return (
+  1613→    <div className="space-y-6">
+  1614→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1615→        <div><h1 className="text-2xl font-bold">WooCommerce</h1><p className="text-muted-foreground text-sm mt-1">Manage your WooCommerce integration</p></div>
+  1616→        <Button onClick={() => toast.success("Sync started!")} className="gap-2"><RefreshCw size={16} />Sync Now</Button>
+  1617→      </div>
+  1618→
+  1619→      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  1620→        <Card>
+  1621→          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Globe2 size={16} />Connection Status</CardTitle></CardHeader>
+  1622→          <CardContent>
+  1623→            <div className="flex items-center gap-2 mb-4">
+  1624→              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+  1625→              <span className="text-sm font-medium text-green-600">Connected</span>
+  1626→            </div>
+  1627→            <div className="space-y-2 text-sm">
+  1628→              <div className="flex justify-between"><span className="text-muted-foreground">Store URL</span><span className="font-mono text-xs">mystore.com</span></div>
+  1629→              <div className="flex justify-between"><span className="text-muted-foreground">WC Version</span><span>8.4.0</span></div>
+  1630→              <div className="flex justify-between"><span className="text-muted-foreground">API Version</span><span>v3</span></div>
+  1631→            </div>
+  1632→            <Button variant="secondary" size="sm" className="mt-4 gap-2 w-full" onClick={() => toast.info("Opening settings...")}><Settings size={14} />Configure</Button>
+  1633→          </CardContent>
+  1634→        </Card>
+  1635→
+  1636→        <Card>
+  1637→          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ShoppingBag size={16} />Store Summary</CardTitle></CardHeader>
+  1638→          <CardContent>
+  1639→            <div className="grid grid-cols-2 gap-3">
+  1640→              {[
+  1641→                { label: "Products", value: "248" },
+  1642→                { label: "Orders Today", value: "34" },
+  1643→                { label: "Revenue (MTD)", value: "$12,400" },
+  1644→                { label: "Customers", value: "3,201" },
+  1645→              ].map((stat) => (
+  1646→                <div key={stat.label} className="bg-muted rounded-lg p-3">
+  1647→                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+  1648→                  <p className="text-lg font-bold">{stat.value}</p>
+  1649→                </div>
+  1650→              ))}
+  1651→            </div>
+  1652→          </CardContent>
+  1653→        </Card>
+  1654→      </div>
+  1655→
+  1656→      <Card>
+  1657→        <CardHeader className="pb-2"><CardTitle className="text-base">Sync Status</CardTitle></CardHeader>
+  1658→        <CardContent>
+  1659→          <div className="space-y-3">
+  1660→            {syncItems.map((item) => (
+  1661→              <div key={item.label} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+  1662→                <div className="flex items-center gap-3">
+  1663→                  {item.status === "ok" ? <CheckCircle size={16} className="text-green-500" /> : <AlertCircle size={16} className="text-yellow-500" />}
+  1664→                  <div>
+  1665→                    <p className="text-sm font-medium">{item.label}</p>
+  1666→                    <p className="text-xs text-muted-foreground">Last sync: {item.lastSync}</p>
+  1667→                  </div>
+  1668→                </div>
+  1669→                <div className="text-right">
+  1670→                  <p className="text-sm font-semibold">{item.synced.toLocaleString()} / {item.count.toLocaleString()}</p>
+  1671→                  {item.synced < item.count && <p className="text-xs text-yellow-600">{item.count - item.synced} pending</p>}
+  1672→                </div>
+  1673→              </div>
+  1674→            ))}
+  1675→          </div>
+  1676→        </CardContent>
+  1677→      </Card>
+  1678→    </div>
+  1679→  );
+  1680→}
+  1681→import { useState } from "react";
+  1682→import { useQuery, useMutation } from "convex/react";
+  1683→import { api } from "@/convex/_generated/api.js";
+  1684→import { Authenticated } from "convex/react";
+  1685→import { Card, CardContent } from "@/components/ui/card.tsx";
+  1686→import { Button } from "@/components/ui/button.tsx";
+  1687→import { Input } from "@/components/ui/input.tsx";
+  1688→import { Skeleton } from "@/components/ui/skeleton.tsx";
+  1689→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+  1690→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+  1691→import { Label } from "@/components/ui/label.tsx";
+  1692→import { Users, Search, Plus, ShieldCheck, Ban, UserCheck } from "lucide-react";
+  1693→import { toast } from "sonner";
+  1694→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+  1695→
+  1696→const statusColors: Record<string, string> = {
+  1697→  active: "bg-green-100 text-green-700",
+  1698→  banned: "bg-red-100 text-red-700",
+  1699→  pending: "bg-yellow-100 text-yellow-700",
+  1700→};
+  1701→const roleColors: Record<string, string> = {
+  1702→  admin: "bg-purple-100 text-purple-700",
+  1703→  manager: "bg-blue-100 text-blue-700",
+  1704→  support: "bg-teal-100 text-teal-700",
+  1705→  user: "bg-gray-100 text-gray-600",
+  1706→};
+  1707→
+  1708→function UsersInner() {
+  1709→  const [search, setSearch] = useState("");
+  1710→  const [status, setStatus] = useState("all");
+  1711→
+  1712→  const users = useQuery(api.users.listUsers, { search: search || undefined, status: status === "all" ? undefined : status });
+  1713→  const updateStatus = useMutation(api.users.updateUserStatus);
+  1714→  const updateRole = useMutation(api.users.updateUserRole);
+  1715→
+  1716→  return (
+  1717→    <div className="space-y-6">
+  1718→      <div>
+  1719→        <h1 className="text-2xl font-bold">Users</h1>
+  1720→        <p className="text-muted-foreground text-sm mt-1">Manage platform users and permissions</p>
+  1721→      </div>
+  1722→
+  1723→      <div className="flex gap-3 flex-wrap">
+  1724→        <div className="relative flex-1 min-w-48"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search users..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
+  1725→        <Select value={status} onValueChange={setStatus}>
+  1726→          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+  1727→          <SelectContent>
+  1728→            <SelectItem value="all">All Status</SelectItem>
+  1729→            <SelectItem value="active">Active</SelectItem>
+  1730→            <SelectItem value="banned">Banned</SelectItem>
+  1731→            <SelectItem value="pending">Pending</SelectItem>
+  1732→          </SelectContent>
+  1733→        </Select>
+  1734→      </div>
+  1735→
+  1736→      {!users ? (
+  1737→        <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1738→      ) : users.length === 0 ? (
+  1739→        <Card><CardContent className="py-12 text-center"><Users size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No users found</p></CardContent></Card>
+  1740→      ) : (
+  1741→        <div className="overflow-x-auto rounded-lg border bg-card">
+  1742→          <table className="w-full text-sm">
+  1743→            <thead className="border-b bg-muted/40">
+  1744→              <tr>
+  1745→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">User</th>
+  1746→                <th className="text-center px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Role</th>
+  1747→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+  1748→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+  1749→              </tr>
+  1750→            </thead>
+  1751→            <tbody>
+  1752→              {users.map((u) => (
+  1753→                <tr key={u._id} className="border-b last:border-0 hover:bg-muted/30">
+  1754→                  <td className="px-4 py-3">
+  1755→                    <div className="flex items-center gap-3">
+  1756→                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">{(u.name ?? u.email ?? "?").charAt(0).toUpperCase()}</div>
+  1757→                      <div><p className="font-medium">{u.name ?? "Unknown"}</p><p className="text-xs text-muted-foreground">{u.email ?? "No email"}</p></div>
+  1758→                    </div>
+  1759→                  </td>
+  1760→                  <td className="px-4 py-3 text-center hidden sm:table-cell">
+  1761→                    <Select value={u.role ?? "user"} onValueChange={async (v) => { await updateRole({ userId: u._id, role: v as Doc<"users">["role"] & string }); toast.success("Role updated"); }}>
+  1762→                      <SelectTrigger className="h-7 text-xs border-none shadow-none p-0 justify-center gap-1">
+  1763→                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${roleColors[u.role ?? "user"]}`}>{u.role ?? "user"}</span>
+  1764→                      </SelectTrigger>
+  1765→                      <SelectContent>
+  1766→                        <SelectItem value="admin">Admin</SelectItem>
+  1767→                        <SelectItem value="manager">Manager</SelectItem>
+  1768→                        <SelectItem value="support">Support</SelectItem>
+  1769→                        <SelectItem value="user">User</SelectItem>
+  1770→                      </SelectContent>
+  1771→                    </Select>
+  1772→                  </td>
+  1773→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[u.status ?? "active"]}`}>{u.status ?? "active"}</span></td>
+  1774→                  <td className="px-4 py-3 text-right">
+  1775→                    <div className="flex items-center justify-end gap-1">
+  1776→                      {u.status !== "banned" ? (
+  1777→                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={async () => { await updateStatus({ userId: u._id, status: "banned" }); toast.success("User banned"); }}><Ban size={13} /></Button>
+  1778→                      ) : (
+  1779→                        <Button variant="ghost" size="icon" className="h-7 w-7 text-green-600" onClick={async () => { await updateStatus({ userId: u._id, status: "active" }); toast.success("User unbanned"); }}><UserCheck size={13} /></Button>
+  1780→                      )}
+  1781→                    </div>
+  1782→                  </td>
+  1783→                </tr>
+  1784→              ))}
+  1785→            </tbody>
+  1786→          </table>
+  1787→        </div>
+  1788→      )}
+  1789→    </div>
+  1790→  );
+  1791→}
+  1792→
+  1793→export default function Users() {
+  1794→  return <Authenticated><UsersInner /></Authenticated>;
+  1795→}
+  1796→support import { useState } from "react";
+  1797→import { useQuery, useMutation } from "convex/react";
+  1798→import { api } from "@/convex/_generated/api.js";
+  1799→import { Authenticated } from "convex/react";
+  1800→import { Card, CardContent } from "@/components/ui/card.tsx";
+  1801→import { Button } from "@/components/ui/button.tsx";
+  1802→import { Input } from "@/components/ui/input.tsx";
+  1803→import { Skeleton } from "@/components/ui/skeleton.tsx";
+  1804→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+  1805→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+  1806→import { Label } from "@/components/ui/label.tsx";
+  1807→import { CreditCard, Plus } from "lucide-react";
+  1808→import { toast } from "sonner";
+  1809→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+  1810→
+  1811→const statusColors: Record<string, string> = {
+  1812→  active: "bg-green-100 text-green-700",
+  1813→  cancelled: "bg-red-100 text-red-700",
+  1814→  past_due: "bg-orange-100 text-orange-700",
+  1815→  trial: "bg-blue-100 text-blue-700",
+  1816→};
+  1817→
+  1818→function SubscriptionsInner() {
+  1819→  const [status, setStatus] = useState("all");
+  1820→  const [showCreate, setShowCreate] = useState(false);
+  1821→  const [form, setForm] = useState({ customerName: "", customerEmail: "", plan: "Basic", price: "", billingCycle: "monthly" as "monthly" | "yearly", status: "active" as Doc<"subscriptions">["status"] });
+  1822→
+  1823→  const subscriptions = useQuery(api.subscriptions.list, { status: status === "all" ? undefined : status });
+  1824→  const create = useMutation(api.subscriptions.create);
+  1825→  const updateStatus = useMutation(api.subscriptions.updateStatus);
+  1826→
+  1827→  const handleCreate = async () => {
+  1828→    if (!form.customerName || !form.customerEmail) { toast.error("Customer info required"); return; }
+  1829→    const now = new Date();
+  1830→    const next = new Date(now);
+  1831→    if (form.billingCycle === "monthly") next.setMonth(next.getMonth() + 1);
+  1832→    else next.setFullYear(next.getFullYear() + 1);
+  1833→    try {
+  1834→      await create({ customerName: form.customerName, customerEmail: form.customerEmail, plan: form.plan, price: Number(form.price), billingCycle: form.billingCycle, status: form.status, startDate: now.toISOString(), nextBillingDate: next.toISOString() });
+  1835→      toast.success("Subscription created");
+  1836→      setShowCreate(false);
+  1837→    } catch { toast.error("Failed to create subscription"); }
+  1838→  };
+  1839→
+  1840→  return (
+  1841→    <div className="space-y-6">
+  1842→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1843→        <div><h1 className="text-2xl font-bold">Subscriptions</h1><p className="text-muted-foreground text-sm mt-1">Manage recurring plans</p></div>
+  1844→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />New Subscription</Button>
+  1845→      </div>
+  1846→
+  1847→      <Select value={status} onValueChange={setStatus}>
+  1848→        <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+  1849→        <SelectContent>
+  1850→          <SelectItem value="all">All Status</SelectItem>
+  1851→          <SelectItem value="active">Active</SelectItem>
+  1852→          <SelectItem value="trial">Trial</SelectItem>
+  1853→          <SelectItem value="past_due">Past Due</SelectItem>
+  1854→          <SelectItem value="cancelled">Cancelled</SelectItem>
+  1855→        </SelectContent>
+  1856→      </Select>
+  1857→
+  1858→      {!subscriptions ? (
+  1859→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1860→      ) : subscriptions.length === 0 ? (
+  1861→        <Card><CardContent className="py-12 text-center"><CreditCard size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No subscriptions</p></CardContent></Card>
+  1862→      ) : (
+  1863→        <div className="overflow-x-auto rounded-lg border bg-card">
+  1864→          <table className="w-full text-sm">
+  1865→            <thead className="border-b bg-muted/40">
+  1866→              <tr>
+  1867→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Customer</th>
+  1868→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">Plan</th>
+  1869→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Price</th>
+  1870→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+  1871→                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">Next Billing</th>
+  1872→                <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
+  1873→              </tr>
+  1874→            </thead>
+  1875→            <tbody>
+  1876→              {subscriptions.map((s) => (
+  1877→                <tr key={s._id} className="border-b last:border-0 hover:bg-muted/30">
+  1878→                  <td className="px-4 py-3"><p className="font-medium">{s.customerName}</p><p className="text-xs text-muted-foreground">{s.customerEmail}</p></td>
+  1879→                  <td className="px-4 py-3 hidden md:table-cell"><p>{s.plan}</p><p className="text-xs text-muted-foreground capitalize">{s.billingCycle}</p></td>
+  1880→                  <td className="px-4 py-3 text-right font-semibold">${s.price.toFixed(2)}</td>
+  1881→                  <td className="px-4 py-3 text-center"><span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[s.status]}`}>{s.status.replace("_", " ")}</span></td>
+  1882→                  <td className="px-4 py-3 text-xs hidden lg:table-cell">{new Date(s.nextBillingDate).toLocaleDateString()}</td>
+  1883→                  <td className="px-4 py-3 text-right">
+  1884→                    <Select onValueChange={async (v) => { await updateStatus({ id: s._id, status: v as Doc<"subscriptions">["status"] }); toast.success("Updated"); }}>
+  1885→                      <SelectTrigger className="h-7 w-28 text-xs"><SelectValue placeholder="Action" /></SelectTrigger>
+  1886→                      <SelectContent>
+  1887→                        <SelectItem value="active">Activate</SelectItem>
+  1888→                        <SelectItem value="cancelled">Cancel</SelectItem>
+  1889→                        <SelectItem value="past_due">Mark Past Due</SelectItem>
+  1890→                        <SelectItem value="trial">Set Trial</SelectItem>
+  1891→                      </SelectContent>
+  1892→                    </Select>
+  1893→                  </td>
+  1894→                </tr>
+  1895→              ))}
+  1896→            </tbody>
+  1897→          </table>
+  1898→        </div>
+  1899→      )}
+  1900→
+  1901→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+  1902→        <DialogContent>
+  1903→          <DialogHeader><DialogTitle>New Subscription</DialogTitle></DialogHeader>
+  1904→          <div className="space-y-3">
+  1905→            <div><Label>Customer Name *</Label><Input value={form.customerName} onChange={(e) => setForm({ ...form, customerName: e.target.value })} placeholder="John Smith" /></div>
+  1906→            <div><Label>Customer Email *</Label><Input value={form.customerEmail} onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} placeholder="john@example.com" /></div>
+  1907→            <div className="grid grid-cols-2 gap-3">
+  1908→              <div><Label>Plan</Label><Input value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} placeholder="Basic" /></div>
+  1909→              <div><Label>Price/cycle ($)</Label><Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="9.99" /></div>
+  1910→            </div>
+  1911→            <div><Label>Billing Cycle</Label>
+  1912→              <Select value={form.billingCycle} onValueChange={(v) => setForm({ ...form, billingCycle: v as "monthly" | "yearly" })}>
+  1913→                <SelectTrigger><SelectValue /></SelectTrigger>
+  1914→                <SelectContent><SelectItem value="monthly">Monthly</SelectItem><SelectItem value="yearly">Yearly</SelectItem></SelectContent>
+  1915→              </Select>
+  1916→            </div>
+  1917→          </div>
+  1918→          <DialogFooter>
+  1919→            <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
+  1920→            <Button onClick={handleCreate}>Create</Button>
+  1921→          </DialogFooter>
+  1922→        </DialogContent>
+  1923→      </Dialog>
+  1924→    </div>
+  1925→  );
+  1926→}
+  1927→
+  1928→export default function Subscriptions() {
+  1929→  return <Authenticated><SubscriptionsInner /></Authenticated>;
+  1930→}
+  1931→import { useState } from "react";
+  1932→import { useQuery, useMutation } from "convex/react";
+  1933→import { api } from "@/convex/_generated/api.js";
+  1934→import { Authenticated } from "convex/react";
+  1935→import { Card, CardContent } from "@/components/ui/card.tsx";
+  1936→import { Button } from "@/components/ui/button.tsx";
+  1937→import { Input } from "@/components/ui/input.tsx";
+  1938→import { Skeleton } from "@/components/ui/skeleton.tsx";
+  1939→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+  1940→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog.tsx";
+  1941→import { Label } from "@/components/ui/label.tsx";
+  1942→import { Tag, Plus, Copy } from "lucide-react";
+  1943→import { toast } from "sonner";
+  1944→import type { Doc } from "@/convex/_generated/dataModel.d.ts";
+  1945→
+  1946→const statusColors: Record<string, string> = {
+  1947→  active: "bg-green-100 text-green-700",
+  1948→  inactive: "bg-gray-100 text-gray-500",
+  1949→  expired: "bg-red-100 text-red-600",
+  1950→};
+  1951→
+  1952→function CouponsInner() {
+  1953→  const [status, setStatus] = useState("all");
+  1954→  const [showCreate, setShowCreate] = useState(false);
+  1955→  const [form, setForm] = useState({ code: "", type: "percentage" as "percentage" | "fixed", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+  1956→
+  1957→  const coupons = useQuery(api.system.listCoupons, { status: status === "all" ? undefined : status });
+  1958→  const create = useMutation(api.system.createCoupon);
+  1959→  const toggle = useMutation(api.system.toggleCoupon);
+  1960→
+  1961→  const handleCreate = async () => {
+  1962→    if (!form.code || !form.value) { toast.error("Code and value required"); return; }
+  1963→    try {
+  1964→      await create({ code: form.code.toUpperCase(), type: form.type, value: Number(form.value), minOrderAmount: form.minOrderAmount ? Number(form.minOrderAmount) : undefined, maxUses: form.maxUses ? Number(form.maxUses) : undefined, expiresAt: form.expiresAt || undefined, appliesTo: form.appliesTo || undefined });
+  1965→      toast.success("Coupon created");
+  1966→      setShowCreate(false);
+  1967→      setForm({ code: "", type: "percentage", value: "", minOrderAmount: "", maxUses: "", expiresAt: "", appliesTo: "" });
+  1968→    } catch { toast.error("Failed to create coupon"); }
+  1969→  };
+  1970→
+  1971→  return (
+  1972→    <div className="space-y-6">
+  1973→      <div className="flex items-center justify-between flex-wrap gap-3">
+  1974→        <div><h1 className="text-2xl font-bold">Coupons</h1><p className="text-muted-foreground text-sm mt-1">Manage discount codes</p></div>
+  1975→        <Button onClick={() => setShowCreate(true)} className="gap-2"><Plus size={16} />Create Coupon</Button>
+  1976→      </div>
+  1977→
+  1978→      <Select value={status} onValueChange={setStatus}>
+  1979→        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+  1980→        <SelectContent>
+  1981→          <SelectItem value="all">All</SelectItem>
+  1982→          <SelectItem value="active">Active</SelectItem>
+  1983→          <SelectItem value="inactive">Inactive</SelectItem>
+  1984→          <SelectItem value="expired">Expired</SelectItem>
+  1985→        </SelectContent>
+  1986→      </Select>
+  1987→
+  1988→      {!coupons ? (
+  1989→        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}</div>
+  1990→      ) : coupons.length === 0 ? (
+  1991→        <Card><CardContent className="py-12 text-center"><Tag size={40} className="mx-auto mb-3 text-muted-foreground" /><p className="text-muted-foreground">No coupons found</p></CardContent></Card>
+  1992→      ) : (
+  1993→        <div className="overflow-x-auto rounded-lg border bg-card">
+  1994→          <table className="w-full text-sm">
+  1995→            <thead className="border-b bg-muted/40">
+  1996→              <tr>
+  1997→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Code</th>
+  1998→                <th className="text-left px-4 py-3 font-medium text-muted-foreground">Discount</th>
+  1999→                <th className="text-right px-4 py-3 font-medium text-muted-foreground hidden sm:table-cell">Used</th>
+  2000→                <th className="text-center px-4 py-3 font-medium text-muted-foreground">Status</th>
+
+[showing lines 1-2000 of 4770; use offset=2001 with limit to continue reading]

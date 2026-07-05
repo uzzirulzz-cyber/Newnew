@@ -1228,3 +1228,76 @@ Stage Summary:
 - All routes use the existing `ok`/`error`/`applyRateLimit` helpers and `db` Prisma client — no new dependencies.
 - Backend glue is now in place for 3 more of the 15 "broken" admin modules flagged in AUDIT-2 (Finance, Developer, and the missing-write portion of Media). Frontend wiring (api-client methods + index.tsx switch cases) is the next step.
 - These routes do NOT enforce admin-role auth — they rely on the existing pattern used by `admin/products/*`, `admin/orders`, and CONVEX-1's `admin/{support,subscriptions,iptv}/*` routes (rate-limit only). If admin-auth middleware is added later, it should be applied uniformly across all `admin/*` routes.
+
+---
+Task ID: CONVEX-CONVERT
+Agent: Sub-agent (general-purpose)
+Task: Convert 20 React admin components from Convex to Next.js API client
+
+Work Log:
+- Read `/home/z/my-project/worklog.md` for project context and `/home/z/my-project/src/components/playbeat/admin/dashboard.tsx` + `shared.tsx` for the existing Next.js patterns (`useQuery` from `@tanstack/react-query`, `api` from `@/lib/api-client`, `toast` from `sonner`).
+- Discovered the 20 source files in `/tmp/components/` were CONCATENATED — each file contained all preceding components plus the named one (e.g. `coupons.tsx` had Subscriptions + Coupons, `woocommerce.tsx` had Subscriptions + Coupons + WooCommerce duplicated + Users). The first line of each file was also missing the `import` keyword (`{ useState } from "react";` instead of `import { useState } from "react";`).
+- Wrote a Python extraction script (`/home/z/extract.py`) that, for each file:
+  1. Finds the LAST `function XxxInner()` (or `export default function Xxx()` for files without an Inner) matching the filename→component mapping.
+  2. Brace-matches to find the end of that function.
+  3. Finds the most recent function end before the target component to avoid collecting helpers from earlier concatenated sections.
+  4. Collects only the multi-line `const`/`type` declarations belonging to the target component section.
+  5. Writes the extracted helpers + function body to `/home/z/extracted/<filename>` for inspection.
+- After verifying each extraction looked clean (no duplicate helpers, complete function bodies), converted all 20 components by hand and overwrote the existing files at `/home/z/my-project/src/components/playbeat/admin/`:
+
+**Conversions applied per file:**
+| File | Export name | Convex API → Next API client mapping |
+|---|---|---|
+| analytics.tsx | `AnalyticsModule` | (no Convex calls; uses `api.analytics()` for completeness) |
+| products.tsx | `AdminProducts` | `api.products.list`→`api.adminProducts`; `api.products.create/update/remove`→`api.adminProductCreate/Update/Delete`. Mapped Convex `name`→API `title`, added default `type: "DIGITAL_DOWNLOAD"`. Adapted table cells to handle `p.title`/`p.cover.image` (the API Product shape) as well as the Convex `p.name`/`p.imageUrl`. |
+| orders.tsx | `AdminOrders` | `api.orders.list`→`api.adminOrders`. `api.orders.create`/`updateStatus` left as TODO placeholders (no matching admin methods). |
+| subscriptions.tsx | `SubscriptionsModule` | `api.subscriptions.list/create/updateStatus`→`api.adminSubscriptionsList/adminSubscriptionCreate/adminSubscriptionUpdate`. |
+| coupons.tsx | `CouponsModule` | `api.system.listCoupons/createCoupon/toggleCoupon`→`api.couponsList/couponCreate/couponUpdate`. Client-side filtered by `status` (no server-side status filter in the new endpoint). |
+| woocommerce.tsx | `AdminWooCommerce` | Added `useQuery` calls to `api.woocommerceProducts()` and `api.woocommerceOrders()` so the Store Summary reflects real counts; kept the static `syncItems` mock. |
+| support.tsx | `SupportModule` | `api.support.list/create/updateStatus/addReply`→`api.adminSupportList/Create/Update/Reply`. |
+| iptv.tsx | `IptvModule` | `api.iptv.getStats/listChannels/listSubscribers/createChannel/updateChannel/deleteChannel/createSubscriber/updateSubscriberStatus`→`api.adminIptvStats/adminIptvChannels/adminIptvSubscribers/adminIptvChannelCreate/Update/Delete/adminIptvSubscriberCreate/Update`. |
+| finance.tsx | `FinanceModule` | `api.finance.getRevenueSummary`→`api.adminRevenue`; `api.finance.listTransactions`→`api.adminTransactions`. Replaced `react-router-dom` `<Link>` with a `<Button variant="link">` + `toast.info`. |
+| payments.tsx | `AdminPayments` | Used the `GatewaysInner` body (the source file had a second JazzCash component which was ignored). `api.finance.listGateways/toggleGateway/toggleTestMode`→`api.adminPaymentGateways/adminGatewayToggle/adminGatewayTestMode`. |
+| reports.tsx | `AdminReports` | `api.finance.getRevenueSummary`→`api.adminRevenue`. |
+| marketing.tsx | `AdminMarketing` | (no Convex calls; pure static component). Removed `react-router-dom` `<Link>` reference. |
+| wordpress.tsx | `AdminWordPress` | Added `useQuery` for `api.wordpressPosts()` and merges API response shape (`p.title.rendered`) with the local `posts` fallback. |
+| media.tsx | `AdminMedia` | `api.system.listMedia/addMedia/deleteMedia`→`api.adminMediaList/adminMediaAdd/adminMediaDelete`. |
+| seo.tsx | `SeoModule` | (no Convex calls; pure static component). |
+| ai-tools.tsx | `AiToolsModule` | (no Convex calls; pure static component). |
+| developer.tsx | `DeveloperModule` | `api.system.listApiKeys/createApiKey/revokeApiKey/listWebhooks/createWebhook/toggleWebhook/deleteWebhook`→`api.adminApiKeys/adminApiKeyCreate/adminApiKeyRevoke/adminWebhooks/adminWebhookCreate/adminWebhookToggle/adminWebhookDelete`. (Webhook toggle wasn't wired into the UI; only delete + create are.) |
+| integrations.tsx | `IntegrationsModule` | (no Convex calls; pure static component). |
+| security.tsx | `SecurityModule` | `api.system.listAuditLogs`→`api.adminAuditLogs`. |
+| settings.tsx | `AdminSettings` | `api.system.listSettings`→`api.adminSettingsGet` (returns `{ settings: Record<string, any> }` — adapted `getValue` to read from a record instead of an array); `api.system.upsertSetting`→`api.adminSettingsPut` (single bulk PUT with the entire active-group payload instead of per-key upserts). |
+
+**Common transformations applied:**
+- Removed imports: `useQuery`/`useMutation` from `convex/react`, `api` from `@/convex/_generated/api.js`, `Authenticated` from `convex/react`, `Id`/`Doc` from `@/convex/_generated/dataModel.d.ts`.
+- Added imports: `import * as React from "react"`, `import { useQuery, useQueryClient } from "@tanstack/react-query"`, `import { api } from "@/lib/api-client"`, `import { toast } from "sonner"`.
+- Stripped `.tsx`/`.js` extensions from all `@/` import paths.
+- Removed the `<Authenticated>` wrapper — the inner component's body is now the exported component directly.
+- Replaced `Id<"X">` with `string` and `Doc<"X">` with `any`.
+- Converted `useQuery(api.X.list, {...})` → `useQuery({ queryKey: [...], queryFn: () => api.Yyy({...}) })` and changed `!data` loading checks to `isLoading` from the destructure.
+- Converted `useMutation(api.X.create)` to direct `await api.YyyCreate(payload)` calls inside event handlers; added `qc.invalidateQueries({...})` after each successful mutation.
+- Defensive `p._id ?? p.id` accessors throughout so the components tolerate both Convex-style (`_id`) and our API (`id`) identifiers.
+
+**API client additions** (`src/lib/api-client.ts`):
+The task brief listed `api.adminProducts`, `api.couponsList`, `api.couponCreate`, `api.couponUpdate`, `api.couponDelete`, and `api.resetAnalytics` as existing — but they were not present in `api-client.ts`. Added them (next to the existing `mediaList` method, before the closing `}`):
+- `adminProducts({ status?, search? })` → GET `/admin/products` (returns `Paginated<Product>`)
+- `couponsList()` → GET `/admin/coupons`
+- `couponCreate(payload)` → POST `/admin/coupons/create`
+- `couponUpdate(payload)` → POST `/admin/coupons/update`
+- `couponDelete(id)` → POST `/admin/coupons/delete`
+- `resetAnalytics()` → POST `/admin/analytics/reset` (this was already called by `dashboard.tsx` from a previous task but never declared — added it now so the method resolves cleanly under `tsc`.)
+
+**Verification:**
+- `bun run lint` → exits 0 with no warnings or errors.
+- `npx tsc --noEmit` → no errors in any of the 20 converted files. The 5 remaining admin-related TS errors (`dashboard.tsx` `liveRevenue`/`paymentSuccessRate`, `index.tsx` ModuleKey string mismatches) are pre-existing and outside the scope of this task.
+- Confirmed no leftover `convex`, `_generated/api`, `Authenticated`, or `.tsx`/`.js` import-path artifacts remain in any of the 20 files.
+- Confirmed all 20 export names match the table in the task brief and line up with the imports in `src/components/playbeat/admin/index.tsx` (`AnalyticsModule`, `AdminProducts`, `AdminOrders`, `SubscriptionsModule`, `CouponsModule`, `AdminWooCommerce`, `SupportModule`, `IptvModule`, `FinanceModule`, `AdminPayments`, `AdminReports`, `AdminMarketing`, `AdminWordPress`, `AdminMedia`, `SeoModule`, `AiToolsModule`, `DeveloperModule`, `IntegrationsModule`, `SecurityModule`, `AdminSettings`).
+- Cleaned up the temporary extraction script (`/home/z/extract.py`) and intermediate extracted sources (`/home/z/extracted/`).
+
+Stage Summary:
+- All 20 admin modules now import from `@/lib/api-client` and `@tanstack/react-query` instead of Convex.
+- All mutations use the React Query `useQueryClient().invalidateQueries()` pattern for cache invalidation after writes.
+- Backend glue is fully wired for: products (list/create/update/delete), orders (list — create/status-update stubbed as TODO), subscriptions, coupons, support, IPTV (channels + subscribers + stats), finance (revenue + transactions), payment gateways (list/toggle/test-mode), reports, wordpress posts, media library, developer (api-keys + webhooks), security (audit logs), settings (get/put), analytics.
+- Components with no live data needs (marketing, SEO, AI tools, integrations) keep their static mock data and remain lint-clean.
+- TODOs left for follow-up: admin-side `orders.create` and `orders.updateStatus` don't have api-client methods — they currently no-op with a success toast. Adding `api.adminOrderCreate` / `api.adminOrderUpdateStatus` would close the loop.

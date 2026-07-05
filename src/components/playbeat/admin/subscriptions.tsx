@@ -1,256 +1,295 @@
 "use client";
 
 import * as React from "react";
-import {
-  RefreshCw,
-  Plus,
-  Check,
-  Crown,
-  Zap,
-  Infinity as InfinityIcon,
-  Pencil,
-} from "lucide-react";
-import {
-  AdminCard,
-  AdminCardHeader,
-  ModuleHeader,
-  StatusBadge,
-  ToggleRow,
-  notifyMock,
-  notifyComingSoon,
-  StatPill,
-} from "./shared";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { CreditCard, Plus } from "lucide-react";
+import { api } from "@/lib/api-client";
+import { toast } from "sonner";
 
-interface Plan {
-  id: string;
-  name: string;
-  icon: typeof Zap;
-  price: string;
-  period: string;
-  features: string[];
-  subscribers: number;
-  revenue: string;
-  active: boolean;
-  accent: "blue" | "purple" | "pink" | "cyan";
-  popular?: boolean;
-}
-
-const INITIAL_PLANS: Plan[] = [
-  {
-    id: "monthly",
-    name: "Monthly Pass",
-    icon: Zap,
-    price: "$9.99",
-    period: "/month",
-    features: ["All streaming channels", "1080p HD quality", "2 concurrent streams", "Email support", "Cancel anytime"],
-    subscribers: 1280,
-    revenue: "$12,787",
-    active: true,
-    accent: "blue",
-  },
-  {
-    id: "quarterly",
-    name: "Quarterly Pro",
-    icon: RefreshCw,
-    price: "$24.99",
-    period: "/3 months",
-    features: ["All Monthly features", "4K UHD on select channels", "4 concurrent streams", "Priority support", "Save 17%"],
-    subscribers: 642,
-    revenue: "$16,043",
-    active: true,
-    accent: "cyan",
-  },
-  {
-    id: "yearly",
-    name: "Yearly Premium",
-    icon: Crown,
-    price: "$89.99",
-    period: "/year",
-    features: ["All Quarterly features", "4K HDR everywhere", "6 concurrent streams", "24/7 phone support", "Save 25% + free IPTV box"],
-    subscribers: 412,
-    revenue: "$37,075",
-    active: true,
-    accent: "purple",
-    popular: true,
-  },
-  {
-    id: "lifetime",
-    name: "Lifetime Access",
-    icon: InfinityIcon,
-    price: "$349",
-    period: "one-time",
-    features: ["All Yearly features", "Lifetime updates", "Unlimited streams", "Dedicated manager", "Early access to new channels"],
-    subscribers: 88,
-    revenue: "$30,712",
-    active: false,
-    accent: "pink",
-  },
-];
-
-const ACCENT_BORDER: Record<Plan["accent"], string> = {
-  blue: "border-blue-500/40",
-  purple: "border-purple-500/40",
-  pink: "border-pink-500/40",
-  cyan: "border-cyan-500/40",
-};
-
-const ACCENT_BTN: Record<Plan["accent"], string> = {
-  blue: "from-blue-600 to-blue-500",
-  purple: "from-purple-600 to-purple-500",
-  pink: "from-pink-600 to-pink-500",
-  cyan: "from-cyan-600 to-cyan-500",
+const statusColors: Record<string, string> = {
+  active: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+  past_due: "bg-orange-100 text-orange-700",
+  trial: "bg-blue-100 text-blue-700",
 };
 
 export function SubscriptionsModule() {
-  const [plans, setPlans] = React.useState(INITIAL_PLANS);
+  const qc = useQueryClient();
+  const [status, setStatus] = React.useState("all");
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [form, setForm] = React.useState({
+    customerName: "",
+    customerEmail: "",
+    plan: "Basic",
+    price: "",
+    billingCycle: "monthly" as "monthly" | "yearly",
+    status: "active" as string,
+  });
 
-  const toggle = (id: string) => {
-    setPlans((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, active: !p.active } : p)),
-    );
-    const plan = plans.find((p) => p.id === id);
-    notifyMock(`${plan?.name} ${plan?.active ? "deactivated" : "activated"}`);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-subscriptions", status],
+    queryFn: () =>
+      api.adminSubscriptionsList({
+        status: status === "all" ? undefined : status,
+      }),
+    staleTime: 30_000,
+  });
+  const subscriptions = data?.items || [];
+
+  const handleCreate = async () => {
+    if (!form.customerName || !form.customerEmail) {
+      toast.error("Customer info required");
+      return;
+    }
+    const now = new Date();
+    const next = new Date(now);
+    if (form.billingCycle === "monthly") next.setMonth(next.getMonth() + 1);
+    else next.setFullYear(next.getFullYear() + 1);
+    try {
+      await api.adminSubscriptionCreate({
+        customerName: form.customerName,
+        customerEmail: form.customerEmail,
+        plan: form.plan,
+        price: Number(form.price),
+        billingCycle: form.billingCycle,
+        status: form.status,
+        startDate: now.toISOString(),
+        nextBillingDate: next.toISOString(),
+      });
+      toast.success("Subscription created");
+      setShowCreate(false);
+      qc.invalidateQueries({ queryKey: ["admin-subscriptions"] });
+    } catch {
+      toast.error("Failed to create subscription");
+    }
   };
 
-  const totalSubs = plans.reduce((s, p) => s + p.subscribers, 0);
-  const mrr = plans.reduce((s, p) => {
-    if (p.id === "monthly") return s + p.subscribers * 9.99;
-    if (p.id === "quarterly") return s + (p.subscribers * 24.99) / 3;
-    if (p.id === "yearly") return s + (p.subscribers * 89.99) / 12;
-    return s;
-  }, 0);
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      await api.adminSubscriptionUpdate({ id, status: newStatus });
+      toast.success("Updated");
+      qc.invalidateQueries({ queryKey: ["admin-subscriptions"] });
+    } catch {
+      toast.error("Failed to update subscription");
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <ModuleHeader
-        title="Subscriptions"
-        description="Manage recurring plans and lifetime access tiers"
-        icon={RefreshCw}
-        actions={
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white border-0" onClick={() => notifyComingSoon("Create subscription plan")}>
-            <Plus className="size-4" /> New Plan
-          </Button>
-        }
-      />
-
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-        <StatPill label="Active Subs" value={totalSubs.toLocaleString()} accent="blue" />
-        <StatPill label="MRR" value={`$${Math.round(mrr).toLocaleString()}`} accent="green" />
-        <StatPill label="ARR" value={`$${Math.round(mrr * 12).toLocaleString()}`} accent="purple" />
-        <StatPill label="Churn Rate" value="2.4%" accent="pink" />
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Subscriptions</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage recurring plans
+          </p>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="gap-2">
+          <Plus size={16} />
+          New Subscription
+        </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {plans.map((plan) => (
-          <AdminCard
-            key={plan.id}
-            className={cn(
-              "relative overflow-hidden",
-              ACCENT_BORDER[plan.accent],
-              plan.popular && "ring-2 ring-purple-500/50",
-            )}
-          >
-            {plan.popular && (
-              <div className="absolute top-0 right-0 bg-gradient-to-r from-purple-600 to-pink-600 text-[9px] font-bold uppercase tracking-wide text-white px-2.5 py-1 rounded-bl-lg">
-                Most Popular
-              </div>
-            )}
-            <div className="p-5">
-              <div className="flex items-center gap-2.5">
-                <div className={cn("grid size-9 place-items-center rounded-lg bg-gradient-to-br text-white", ACCENT_BTN[plan.accent])}>
-                  <plan.icon className="size-4" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold text-white">{plan.name}</div>
-                  <StatusBadge status={plan.active ? "active" : "inactive"} />
-                </div>
-              </div>
+      <Select value={status} onValueChange={setStatus}>
+        <SelectTrigger className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Status</SelectItem>
+          <SelectItem value="active">Active</SelectItem>
+          <SelectItem value="trial">Trial</SelectItem>
+          <SelectItem value="past_due">Past Due</SelectItem>
+          <SelectItem value="cancelled">Cancelled</SelectItem>
+        </SelectContent>
+      </Select>
 
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-2xl font-bold text-white">{plan.price}</span>
-                <span className="text-xs text-white/50">{plan.period}</span>
-              </div>
-
-              <ul className="mt-4 space-y-1.5">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs text-white/70">
-                    <Check className="size-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-
-              <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-2 text-center">
-                <div>
-                  <div className="text-[10px] text-white/50 uppercase">Subscribers</div>
-                  <div className="text-sm font-bold text-white">{plan.subscribers.toLocaleString()}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-white/50 uppercase">Revenue</div>
-                  <div className="text-sm font-bold text-emerald-300">{plan.revenue}</div>
-                </div>
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 border-white/10 bg-white/5 text-white hover:bg-white/10"
-                  onClick={() => notifyMock(`Editing ${plan.name}`)}
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      ) : subscriptions.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <CreditCard
+              size={40}
+              className="mx-auto mb-3 text-muted-foreground"
+            />
+            <p className="text-muted-foreground">No subscriptions</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/40">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Customer
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                  Plan
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Price
+                </th>
+                <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+                  Status
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">
+                  Next Billing
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {subscriptions.map((s: any) => (
+                <tr
+                  key={s._id ?? s.id}
+                  className="border-b last:border-0 hover:bg-muted/30"
                 >
-                  <Pencil className="size-3.5" /> Edit
-                </Button>
-                <Button
-                  size="sm"
-                  className={cn(
-                    "flex-1 text-white border-0 bg-gradient-to-r",
-                    ACCENT_BTN[plan.accent],
-                  )}
-                  onClick={() => toggle(plan.id)}
-                >
-                  {plan.active ? "Deactivate" : "Activate"}
-                </Button>
+                  <td className="px-4 py-3">
+                    <p className="font-medium">{s.customerName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {s.customerEmail}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <p>{s.plan}</p>
+                    <p className="text-xs text-muted-foreground capitalize">
+                      {s.billingCycle}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold">
+                    ${Number(s.price ?? 0).toFixed(2)}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[s.status] ?? ""}`}
+                    >
+                      {s.status?.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs hidden lg:table-cell">
+                    {s.nextBillingDate
+                      ? new Date(s.nextBillingDate).toLocaleDateString()
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Select
+                      onValueChange={async (v) => {
+                        await handleUpdateStatus(s._id ?? s.id, v);
+                      }}
+                    >
+                      <SelectTrigger className="h-7 w-28 text-xs">
+                        <SelectValue placeholder="Action" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Activate</SelectItem>
+                        <SelectItem value="cancelled">Cancel</SelectItem>
+                        <SelectItem value="past_due">Mark Past Due</SelectItem>
+                        <SelectItem value="trial">Set Trial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Subscription</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Customer Name *</Label>
+              <Input
+                value={form.customerName}
+                onChange={(e) =>
+                  setForm({ ...form, customerName: e.target.value })
+                }
+                placeholder="John Smith"
+              />
+            </div>
+            <div>
+              <Label>Customer Email *</Label>
+              <Input
+                value={form.customerEmail}
+                onChange={(e) =>
+                  setForm({ ...form, customerEmail: e.target.value })
+                }
+                placeholder="john@example.com"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Plan</Label>
+                <Input
+                  value={form.plan}
+                  onChange={(e) => setForm({ ...form, plan: e.target.value })}
+                  placeholder="Basic"
+                />
+              </div>
+              <div>
+                <Label>Price/cycle ($)</Label>
+                <Input
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  placeholder="9.99"
+                />
               </div>
             </div>
-          </AdminCard>
-        ))}
-      </div>
-
-      <AdminCard>
-        <AdminCardHeader
-          title="Plan Settings"
-          icon={RefreshCw}
-          description="Global subscription configuration"
-        />
-        <div className="p-4 grid gap-3 md:grid-cols-2">
-          <ToggleRow
-            label="Auto-renewal"
-            description="Allow subscriptions to auto-renew by default"
-            checked={true}
-            onChange={() => notifyMock("Auto-renewal toggled")}
-          />
-          <ToggleRow
-            label="Free trial"
-            description="Offer 7-day free trial for new subscribers"
-            checked={true}
-            onChange={() => notifyMock("Free trial toggled")}
-          />
-          <ToggleRow
-            label="Dunning emails"
-            description="Send retry emails on failed renewals"
-            checked={true}
-            onChange={() => notifyMock("Dunning toggled")}
-          />
-          <ToggleRow
-            label="Pause subscriptions"
-            description="Allow users to pause (not cancel) subscriptions"
-            checked={false}
-            onChange={() => notifyMock("Pause feature toggled")}
-          />
-        </div>
-      </AdminCard>
+            <div>
+              <Label>Billing Cycle</Label>
+              <Select
+                value={form.billingCycle}
+                onValueChange={(v) =>
+                  setForm({ ...form, billingCycle: v as "monthly" | "yearly" })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

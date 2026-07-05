@@ -1,249 +1,409 @@
 "use client";
 
 import * as React from "react";
-import {
-  Headphones,
-  MessageSquare,
-  Plus,
-  Send,
-  Paperclip,
-  Smile,
-  HelpCircle,
-  Mail,
-  Phone,
-  Clock,
-  CheckCircle2,
-} from "lucide-react";
-import {
-  AdminCard,
-  AdminCardHeader,
-  ModuleHeader,
-  SearchInput,
-  StatPill,
-  StatusBadge,
-  notifyMock,
-  notifyComingSoon,
-} from "./shared";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { HeadphonesIcon, Search, Plus, MessageSquare } from "lucide-react";
+import { api } from "@/lib/api-client";
+import { toast } from "sonner";
 
-const PRIORITY_COLOR: Record<string, string> = {
-  high: "border-rose-500/30 bg-rose-500/15 text-rose-300",
-  medium: "border-amber-500/30 bg-amber-500/15 text-amber-300",
-  low: "border-blue-500/30 bg-blue-500/15 text-blue-300",
+const statusColors: Record<string, string> = {
+  open: "bg-blue-100 text-blue-700",
+  in_progress: "bg-yellow-100 text-yellow-700",
+  resolved: "bg-green-100 text-green-700",
+  closed: "bg-gray-100 text-gray-500",
 };
 
-const TICKETS = [
-  { id: "t1", subject: "Netflix subscription not activating", customer: "Ahmed Raza", email: "ahmed@example.com", priority: "high", status: "open", channel: "WhatsApp", updated: "12 min ago", messages: 4 },
-  { id: "t2", subject: "Refund for duplicate charge — order #PB-1024", customer: "Sarah Khan", email: "sarah@example.com", priority: "high", status: "open", channel: "Email", updated: "1 hour ago", messages: 2 },
-  { id: "t3", subject: "How do I download my ChatGPT Plus access?", customer: "Mike Johnson", email: "mike@example.com", priority: "low", status: "pending", channel: "Live Chat", updated: "2 hours ago", messages: 1 },
-  { id: "t4", subject: "IPTV channels not loading on Smart TV", customer: "Bilal Hassan", email: "bilal@example.com", priority: "medium", status: "open", channel: "WhatsApp", updated: "4 hours ago", messages: 6 },
-  { id: "t5", subject: "Coupon WELCOME10 not working", customer: "Aisha Malik", email: "aisha@example.com", priority: "medium", status: "resolved", channel: "Email", updated: "1 day ago", messages: 3 },
-  { id: "t6", subject: "Bulk pricing for office team (20+ licenses)", customer: "David Lee", email: "david@example.com", priority: "low", status: "open", channel: "Email", updated: "1 day ago", messages: 1 },
-];
-
-const FAQS = [
-  { id: "f1", q: "How long does delivery take?", a: "Most products are delivered instantly via email. Subscriptions activate within 5–10 minutes of payment.", views: 4820, helpful: 92 },
-  { id: "f2", q: "What payment methods do you accept?", a: "We accept Lemon Squeezy (cards, Apple Pay, Google Pay), JazzCash, EasyPaisa, and crypto (BTC/USDT).", views: 3840, helpful: 88 },
-  { id: "f3", q: "Can I get a refund?", a: "Yes — see our refund policy. Eligible cases include non-delivery, defective keys, or duplicate charges.", views: 2810, helpful: 76 },
-  { id: "f4", q: "Do you support multiple devices?", a: "Subscription plans include concurrent stream limits (2–6 devices depending on tier).", views: 1820, helpful: 84 },
-  { id: "f5", q: "How do I contact support?", a: "WhatsApp +92 332 102 9333, email info@playbeat.digital, or use the live chat (24/7).", views: 1240, helpful: 96 },
-];
-
-const LIVE_CHAT = [
-  { from: "customer", name: "Ahmed Raza", text: "Hi, I purchased Netflix Premium 30 minutes ago but haven't received anything.", time: "10:42" },
-  { from: "agent", name: "Support Agent", text: "Hi Ahmed! Let me check your order. Can you share the order number?", time: "10:43" },
-  { from: "customer", name: "Ahmed Raza", text: "It's PB-1042", time: "10:43" },
-  { from: "agent", name: "Support Agent", text: "Found it. The payment is confirmed but the auto-delivery webhook failed. I'm resending your license now.", time: "10:45" },
-  { from: "customer", name: "Ahmed Raza", text: "Got it! Thank you so much 🙏", time: "10:46" },
-];
+const priorityColors: Record<string, string> = {
+  low: "bg-gray-100 text-gray-600",
+  medium: "bg-blue-100 text-blue-600",
+  high: "bg-orange-100 text-orange-600",
+  urgent: "bg-red-100 text-red-600",
+};
 
 export function SupportModule() {
-  const [activeTicket, setActiveTicket] = React.useState("t1");
-  const [reply, setReply] = React.useState("");
+  const qc = useQueryClient();
   const [search, setSearch] = React.useState("");
+  const [status, setStatus] = React.useState("all");
+  const [priority, setPriority] = React.useState("all");
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [viewTicket, setViewTicket] = React.useState<any | null>(null);
+  const [reply, setReply] = React.useState("");
+  const [form, setForm] = React.useState({
+    customerName: "",
+    customerEmail: "",
+    subject: "",
+    description: "",
+    priority: "medium" as string,
+    category: "",
+  });
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-support", status, priority, search],
+    queryFn: () =>
+      api.adminSupportList({
+        search: search || undefined,
+        status: status === "all" ? undefined : status,
+        priority: priority === "all" ? undefined : priority,
+      }),
+    staleTime: 30_000,
+  });
+  const tickets = data?.items || [];
+
+  const handleCreate = async () => {
+    if (!form.customerName || !form.subject || !form.description) {
+      toast.error("Fill required fields");
+      return;
+    }
+    try {
+      await api.adminSupportCreate({
+        customerName: form.customerName,
+        customerEmail: form.customerEmail,
+        subject: form.subject,
+        description: form.description,
+        priority: form.priority,
+        category: form.category,
+      });
+      toast.success("Ticket created");
+      setShowCreate(false);
+      setForm({
+        customerName: "",
+        customerEmail: "",
+        subject: "",
+        description: "",
+        priority: "medium",
+        category: "",
+      });
+      qc.invalidateQueries({ queryKey: ["admin-support"] });
+    } catch {
+      toast.error("Failed to create ticket");
+    }
+  };
+
+  const handleReply = async () => {
+    if (!reply.trim() || !viewTicket) return;
+    try {
+      await api.adminSupportReply({
+        id: viewTicket._id ?? viewTicket.id,
+        authorName: "Support Staff",
+        message: reply,
+        isStaff: true,
+      });
+      setReply("");
+      toast.success("Reply sent");
+      qc.invalidateQueries({ queryKey: ["admin-support"] });
+    } catch {
+      toast.error("Failed to send reply");
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      await api.adminSupportUpdate({ id, status: newStatus });
+      toast.success("Updated");
+      qc.invalidateQueries({ queryKey: ["admin-support"] });
+    } catch {
+      toast.error("Failed to update ticket");
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <ModuleHeader
-        title="Customer Support"
-        description="Tickets, live chat, FAQs, and knowledge base"
-        icon={Headphones}
-        actions={
-          <>
-            <Button variant="outline" size="sm" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={() => notifyMock("Opening knowledge base editor")}>
-              <HelpCircle className="size-4" /> Knowledge Base
-            </Button>
-            <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white border-0" onClick={() => notifyComingSoon("Create ticket")}>
-              <Plus className="size-4" /> New Ticket
-            </Button>
-          </>
-        }
-      />
-
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
-        <StatPill label="Open Tickets" value="14" accent="amber" />
-        <StatPill label="Avg Response" value="8m" accent="green" />
-        <StatPill label="Resolved (30d)" value="384" accent="blue" />
-        <StatPill label="CSAT Score" value="94%" accent="purple" />
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Support Tickets</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Manage customer support requests
+          </p>
+        </div>
+        <Button onClick={() => setShowCreate(true)} className="gap-2">
+          <Plus size={16} />
+          New Ticket
+        </Button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Ticket list */}
-        <AdminCard className="lg:col-span-1">
-          <AdminCardHeader title="Tickets" icon={MessageSquare} />
-          <div className="p-3 space-y-2">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Search tickets…"
-              className="mb-2"
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-48">
+          <Search
+            size={15}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            placeholder="Search tickets..."
+            className="pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="open">Open</SelectItem>
+            <SelectItem value="in_progress">In Progress</SelectItem>
+            <SelectItem value="resolved">Resolved</SelectItem>
+            <SelectItem value="closed">Closed</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Priority</SelectItem>
+            <SelectItem value="urgent">Urgent</SelectItem>
+            <SelectItem value="high">High</SelectItem>
+            <SelectItem value="medium">Medium</SelectItem>
+            <SelectItem value="low">Low</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      ) : tickets.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <HeadphonesIcon
+              size={40}
+              className="mx-auto mb-3 text-muted-foreground"
             />
-            <div className="space-y-1.5 max-h-[460px] overflow-y-auto pb-scrollbar">
-              {TICKETS.filter((t) => !search || t.subject.toLowerCase().includes(search.toLowerCase()) || t.customer.toLowerCase().includes(search.toLowerCase())).map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setActiveTicket(t.id)}
-                  className={cn(
-                    "w-full text-left rounded-lg p-3 border transition-colors",
-                    activeTicket === t.id
-                      ? "bg-gradient-to-r from-blue-600/30 to-purple-600/30 border-blue-500/40 text-white"
-                      : "border-transparent text-white/70 hover:bg-white/5 hover:text-white",
-                  )}
+            <p className="text-muted-foreground">No tickets found</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border bg-card">
+          <table className="w-full text-sm">
+            <thead className="border-b bg-muted/40">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                  Ticket
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+                  Customer
+                </th>
+                <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+                  Priority
+                </th>
+                <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+                  Status
+                </th>
+                <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {tickets.map((t: any) => (
+                <tr
+                  key={t._id ?? t.id}
+                  className="border-b last:border-0 hover:bg-muted/30"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-xs font-medium line-clamp-1">{t.subject}</div>
-                      <div className="text-[10px] text-white/50 mt-0.5">{t.customer}</div>
-                    </div>
-                    <span className={cn("text-[9px] uppercase font-semibold px-1.5 py-0.5 rounded border shrink-0", PRIORITY_COLOR[t.priority])}>
+                  <td className="px-4 py-3">
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {t.ticketNumber ?? t.id}
+                    </p>
+                    <p className="font-medium text-sm">{t.subject}</p>
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <p className="text-sm">{t.customerName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {t.customerEmail}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${priorityColors[t.priority] ?? ""}`}
+                    >
                       {t.priority}
                     </span>
-                  </div>
-                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-white/40">
-                    <span>{t.channel}</span>
-                    <span>{t.updated} · {t.messages} msgs</span>
-                  </div>
-                </button>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[t.status] ?? ""}`}
+                    >
+                      {t.status?.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => setViewTicket(t)}
+                      >
+                        <MessageSquare size={13} />
+                      </Button>
+                      <Select
+                        onValueChange={async (v) => {
+                          await handleUpdateStatus(t._id ?? t.id, v);
+                        }}
+                      >
+                        <SelectTrigger className="h-7 w-28 text-xs">
+                          <SelectValue placeholder="Update" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="open">Open</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="resolved">Resolved</SelectItem>
+                          <SelectItem value="closed">Closed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-        </AdminCard>
+            </tbody>
+          </table>
+        </div>
+      )}
 
-        {/* Conversation */}
-        <AdminCard className="lg:col-span-2">
-          <AdminCardHeader
-            title={TICKETS.find((t) => t.id === activeTicket)?.subject || "Ticket"}
-            icon={MessageSquare}
-            description={`Customer: ${TICKETS.find((t) => t.id === activeTicket)?.customer || ""}`}
-            action={<StatusBadge status={TICKETS.find((t) => t.id === activeTicket)?.status || "open"} />}
-          />
-          <div className="p-0">
-            <div className="max-h-[400px] overflow-y-auto pb-scrollbar p-4 space-y-3">
-              {LIVE_CHAT.map((m, i) => (
-                <div key={i} className={cn("flex", m.from === "agent" && "justify-end")}>
-                  <div className={cn(
-                    "max-w-[75%] rounded-2xl px-3.5 py-2",
-                    m.from === "agent"
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-                      : "bg-white/10 text-white",
-                  )}>
-                    <div className="text-[10px] opacity-70 mb-0.5">{m.name} · {m.time}</div>
-                    <div className="text-xs">{m.text}</div>
+      <Dialog
+        open={!!viewTicket}
+        onOpenChange={(o) => !o && setViewTicket(null)}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {viewTicket?.ticketNumber ?? viewTicket?.id}:{" "}
+              {viewTicket?.subject}
+            </DialogTitle>
+          </DialogHeader>
+          {viewTicket && (
+            <div className="space-y-4">
+              <div className="bg-muted rounded-lg p-3 text-sm">
+                <p className="font-medium mb-1">Original Message</p>
+                <p className="text-muted-foreground">
+                  {viewTicket.description}
+                </p>
+              </div>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {(viewTicket.replies ?? []).map((r: any, i: number) => (
+                  <div
+                    key={i}
+                    className={`p-3 rounded-lg text-sm ${r.isStaff ? "bg-primary/10 ml-8" : "bg-muted mr-8"}`}
+                  >
+                    <p className="font-medium text-xs mb-1">
+                      {r.authorName} ·{" "}
+                      {new Date(r.createdAt).toLocaleString()}
+                    </p>
+                    <p>{r.message}</p>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Type your reply..."
+                  value={reply}
+                  onChange={(e) => setReply(e.target.value)}
+                  rows={2}
+                  className="flex-1"
+                />
+                <Button onClick={handleReply} className="self-end">
+                  Send
+                </Button>
+              </div>
             </div>
-            <div className="border-t border-white/10 p-3">
-              <Textarea
-                value={reply}
-                onChange={(e) => setReply(e.target.value)}
-                placeholder="Type your reply…"
-                rows={2}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/40 resize-none mb-2"
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Support Ticket</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Customer Name *</Label>
+              <Input
+                value={form.customerName}
+                onChange={(e) =>
+                  setForm({ ...form, customerName: e.target.value })
+                }
+                placeholder="John Smith"
               />
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="size-7 text-white/60 hover:bg-white/10 hover:text-white" onClick={() => notifyMock("Attaching file")}>
-                    <Paperclip className="size-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="size-7 text-white/60 hover:bg-white/10 hover:text-white" onClick={() => notifyComingSoon("Emoji picker")}>
-                    <Smile className="size-3.5" />
-                  </Button>
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={() => notifyMock("Marking ticket resolved")}>
-                    <CheckCircle2 className="size-3.5" /> Resolve
-                  </Button>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-500 text-white border-0" onClick={() => { notifyMock("Reply sent"); setReply(""); }}>
-                    <Send className="size-3.5" /> Send
-                  </Button>
-                </div>
-              </div>
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input
+                value={form.customerEmail}
+                onChange={(e) =>
+                  setForm({ ...form, customerEmail: e.target.value })
+                }
+                placeholder="john@example.com"
+              />
+            </div>
+            <div>
+              <Label>Subject *</Label>
+              <Input
+                value={form.subject}
+                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                placeholder="Issue with..."
+              />
+            </div>
+            <div>
+              <Label>Description *</Label>
+              <Textarea
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+                rows={3}
+              />
+            </div>
+            <div>
+              <Label>Priority</Label>
+              <Select
+                value={form.priority}
+                onValueChange={(v) => setForm({ ...form, priority: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </AdminCard>
-      </div>
-
-      {/* Channels + FAQ */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Support channels */}
-        <AdminCard>
-          <AdminCardHeader title="Support Channels" icon={Headphones} />
-          <div className="p-4 space-y-2.5">
-            {[
-              { icon: MessageSquare, name: "Live Chat", value: "24/7 active", count: "8 online", color: "from-blue-600 to-blue-500" },
-              { icon: Mail, name: "Email", value: "info@playbeat.digital", count: "Avg 4h reply", color: "from-purple-600 to-purple-500" },
-              { icon: Phone, name: "WhatsApp", value: "+92 332 102 9333", count: "Avg 8m reply", color: "from-emerald-600 to-emerald-500" },
-              { icon: Clock, name: "Status", value: "All channels operational", count: "Uptime 99.9%", color: "from-amber-600 to-amber-500" },
-            ].map((c) => (
-              <div key={c.name} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                <div className={cn("grid size-9 place-items-center rounded-lg bg-gradient-to-br text-white shrink-0", c.color)}>
-                  <c.icon className="size-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium text-white">{c.name}</div>
-                  <div className="text-xs text-white/50">{c.value}</div>
-                </div>
-                <span className="text-[10px] text-white/40">{c.count}</span>
-              </div>
-            ))}
-          </div>
-        </AdminCard>
-
-        {/* FAQ manager */}
-        <AdminCard className="lg:col-span-2">
-          <AdminCardHeader
-            title="FAQ Manager"
-            icon={HelpCircle}
-            description="Frequently asked questions"
-            action={
-              <Button size="sm" variant="outline" className="border-white/10 bg-white/5 text-white hover:bg-white/10" onClick={() => notifyComingSoon("FAQ editor")}>
-                <Plus className="size-3.5" /> Add FAQ
-              </Button>
-            }
-          />
-          <div className="p-0">
-            <div className="divide-y divide-white/5 max-h-[420px] overflow-y-auto pb-scrollbar">
-              {FAQS.map((f) => (
-                <div key={f.id} className="p-4 hover:bg-white/5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium text-white">{f.q}</div>
-                      <p className="mt-1 text-xs text-white/60 line-clamp-2">{f.a}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-xs text-white/60">{f.views} views</div>
-                      <div className="text-xs text-emerald-300">{f.helpful}% helpful</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </AdminCard>
-      </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowCreate(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreate}>Create Ticket</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

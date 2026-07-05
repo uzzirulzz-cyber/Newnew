@@ -712,6 +712,44 @@ export const api = {
       totalSizeFormatted: string;
       folders: Array<{ name: string; count: number }>;
     }>(`/media/list`),
+
+  // ===== Admin product list (with filters) =====
+  adminProducts: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<Paginated<Product>>(
+      `/admin/products${qs.toString() ? `?${qs}` : ""}`,
+    );
+  },
+
+  // ===== Coupons (admin) =====
+  couponsList: () => apiFetch<{ items: any[] }>(`/admin/coupons`),
+  couponCreate: (payload: any) =>
+    apiFetch<{ coupon: any; message: string }>(`/admin/coupons/create`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  couponUpdate: (payload: any) =>
+    apiFetch<{ coupon: any; message: string }>(`/admin/coupons/update`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  couponDelete: (id: string) =>
+    apiFetch<{ deleted: boolean; message: string }>(`/admin/coupons/delete`, {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    }),
+
+  // ===== Reset analytics (dangerous!) =====
+  resetAnalytics: () =>
+    apiFetch<{
+      cleared: {
+        orders: number;
+        payments: number;
+        notifications: number;
+      };
+    }>(`/admin/analytics/reset`, { method: "POST" }),
 };
 
 // ===== Utilities =====
