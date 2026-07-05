@@ -1134,3 +1134,97 @@ The admin panel uses NO `localStorage` directly, but uses React `useState` exclu
 - `marketing.tsx:192` — `api.affiliateStats()` runtime TypeError caught silently by TanStack Query; UI falls back to fake hardcoded stats with no user-visible error.
 - `orders/route.ts:52-54`, `admin/users/route.ts:42-45`, `analytics/dashboard/route.ts:38-40, 161-191` — DB errors return empty/fallback data with `console.error` only. User sees empty lists with no indication the DB is down.
 
+
+---
+Task ID: CONVEX-1
+Agent: General-purpose sub-agent
+Task: Convert Convex backend functions to Next.js API routes — admin batch 1 (Support Tickets, Subscriptions, IPTV)
+
+Work Log:
+- Read `src/lib/api.ts` to confirm `ok`/`error`/`applyRateLimit` signatures, and `src/app/api/v1/admin/products/{create,update,delete}/route.ts` to match existing route-handler conventions.
+- Verified Prisma schema (`prisma/schema.prisma`) — confirmed `SupportTicket` (with `replies String @default("[]")`), `Subscription`, `IptvChannel`, `IptvSubscriber` models exist and match the field shapes required by the spec.
+- Created 11 new route files under `src/app/api/v1/admin/`:
+
+  **Support — `support/`**
+  - `list/route.ts` (GET) — filters by `status`, `priority`, `search` (matches ticketNumber, subject, customerName, case-insensitive). Parses the JSON-encoded `replies` string back into an array via a `safeParseArray` helper.
+  - `create/route.ts` (POST) — auto-generates `TKT-XXXX` from `count() + 1` (zero-padded). Sets `status: "open"`, `replies: "[]"`. Includes a P2002 retry path in case of ticketNumber collision.
+  - `update/route.ts` (POST) — validates `status` against `["open","in_progress","resolved","closed"]` whitelist before update.
+  - `reply/route.ts` (POST) — loads ticket, `JSON.parse`s the existing replies (defensive against malformed JSON), appends `{authorName, message, isStaff, createdAt: new Date().toISOString()}`, then `JSON.stringify`s back. Returns 404 if ticket not found.
+
+  **Subscriptions — `subscriptions/`**
+  - `list/route.ts` (GET) — filters by `status`, `search` (customerName/customerEmail).
+  - `create/route.ts` (POST) — validates all required fields; stores `startDate`/`nextBillingDate` as ISO strings (per Prisma schema, these are `String` columns). Optional `userId` accepted.
+  - `update/route.ts` (POST) — sets `status`; when status is `"cancelled"` also stamps `cancelledAt` with `new Date().toISOString()`.
+
+  **IPTV — `iptv/`**
+  - `channels/route.ts` (GET) — filters by `status`, `category` (case-insensitive equals), `search` (channel name contains).
+  - `channels/create/route.ts` (POST) — creates channel; `isHD` coerced via `Boolean()`, defaults via `null` for optional string fields.
+  - `channels/update/route.ts` (POST) — partial update; only fields explicitly present in body are written; rejects empty payload with 422.
+  - `channels/delete/route.ts` (POST) — deletes by id, returns deleted channel name.
+  - `subscribers/route.ts` (GET) — filters by `status`, `search` (name/email).
+  - `subscribers/create/route.ts` (POST) — forces `status: "active"` and `activeConnections: 0` per spec. `maxConnections` defaults to 1 if not provided.
+  - `subscribers/update/route.ts` (POST) — updates `status` only.
+  - `stats/route.ts` (GET) — runs 5 `count()` queries in parallel via `Promise.all`: totalChannels, activeChannels (status=active), errorChannels (status=error), totalSubscribers, activeSubscribers (status=active). Returns zeros on DB error so the admin panel doesn't crash.
+
+- All GET handlers use `applyRateLimit(request, 60)`, all POST handlers use `applyRateLimit(request, 30)`, exactly as specified.
+- All POST handlers parse the body with `await request.json().catch(() => ({}))` to avoid crashes on empty/invalid JSON.
+- All DB reads are wrapped in `try/catch`. GET list endpoints return `ok({ items: [] })` on DB error (matches existing `admin/orders` and `admin/users` pattern). The `stats` endpoint returns all-zero on DB error. Write endpoints (create/update/delete/reply) return `error(..., 500)` on DB failures — this is correct because the admin UI needs to know writes failed.
+- Verified `npx tsc --noEmit` reports zero errors in any of the 11 new files (only pre-existing errors in unrelated files: dashboard, settings, marketing, jazzcash webhook, etc.).
+- Verified `npx eslint src/app/api/v1/admin/support src/app/api/v1/admin/subscriptions src/app/api/v1/admin/iptv` passes with zero warnings/errors.
+
+Stage Summary:
+- 11 new route handlers created across 3 admin modules:
+  - Support: 4 routes (list, create, update, reply) — backs the previously-bypassed SupportModule UI
+  - Subscriptions: 3 routes (list, create, update) — backs the previously-bypassed SubscriptionsModule UI
+  - IPTV: 5 routes (channels list/create/update/delete, subscribers list/create/update, stats) — backs the previously-bypassed IptvModule UI
+- All routes use the existing `ok`/`error`/`applyRateLimit` helpers and `db` Prisma client — no new dependencies.
+- Backend glue is now in place for 3 of the 15 "broken" admin modules flagged in AUDIT-2. Frontend wiring (api-client methods + index.tsx switch cases) is the next step.
+- These routes do NOT enforce admin-role auth — they rely on the existing pattern used by `admin/products/*` and `admin/orders` (rate-limit only). If admin-auth middleware is added later, it should be applied uniformly across all `admin/*` routes.
+
+---
+Task ID: CONVEX-2
+Agent: General-purpose sub-agent
+Task: Convert Convex backend functions to Next.js API routes — admin batch 2 (Finance, Developer, Media)
+
+Work Log:
+- Read `src/lib/api.ts` to confirm `ok`/`error`/`applyRateLimit` signatures, and reviewed `src/app/api/v1/admin/{orders,subscriptions/list,subscriptions/create,iptv/channels/create,iptv/channels/delete}/route.ts` for the established route-handler conventions.
+- Verified Prisma schema (`prisma/schema.prisma`) — confirmed the models backing this batch: `Transaction`, `PaymentGateway`, `ApiKey`, `Webhook`, `AuditLog`, `MediaFile`. All JSON-encoded string columns (`permissions`, `events`, `tags`, `supportedCurrencies`, `config`, `metadata`) handled with `JSON.stringify` on write and a defensive `safeParseArray`/`safeParseRecord` helper on read.
+- Created 17 new route files under `src/app/api/v1/admin/`:
+
+  **Finance — `finance/`**
+  - `transactions/route.ts` (GET) — filters by `status`, `type`, and `search` (matches `transactionId` and `customerName`, case-insensitive). Returns `{ items }` ordered by `createdAt` desc.
+  - `revenue/route.ts` (GET) — runs 4 `aggregate` + 1 `count` in parallel via `Promise.all`. `totalRevenue` = sum of completed transactions; `salesRevenue` = sum of completed `sale`-type; `subscriptionRevenue` = sum of completed `subscription`-type; `refunds` = sum of `refund`-type (any status); `transactionCount` = total rows. Returns all zeros on DB error so the admin panel never crashes.
+  - `gateways/route.ts` (GET) — returns all gateways; parses `supportedCurrencies` (array) and `config` (record) from JSON strings.
+  - `gateways/toggle/route.ts` (POST) — body `{ id, enabled }`; validates `enabled` is a boolean; updates the gateway.
+  - `gateways/test-mode/route.ts` (POST) — body `{ id, testMode }`; validates `testMode` is a boolean; updates the gateway.
+  - `transactions/create/route.ts` (POST) — body `{ transactionId, type, amount, currency?, customerName?, customerEmail?, gateway?, status, description? }`. `currency` defaults to `"PKR"` (per schema default). Optional string fields coerced to `null` when absent.
+
+  **Developer — `developer/`**
+  - `api-keys/route.ts` (GET) — returns all keys, newest first; parses `permissions` JSON back to array.
+  - `api-keys/create/route.ts` (POST) — body `{ name, permissions, expiresAt? }`. Auto-generates `prefix = "hk_" + randomString(8)` and `key = prefix + "_" + randomString(28)`. `randomString()` loops `Math.random().toString(36).slice(2)` until the requested length is reached (single `Math.random().toString(36)` can yield fewer chars due to trailing zeros). Sets `status: "active"`, `permissions: JSON.stringify(permissions)`. The full plaintext key is returned exactly once in the response.
+  - `api-keys/revoke/route.ts` (POST) — body `{ id }`; sets `status: "revoked"` (row preserved for audit).
+  - `webhooks/route.ts` (GET) — returns all webhooks, newest first; parses `events` JSON back to array.
+  - `webhooks/create/route.ts` (POST) — body `{ name, url, events }`. Validates `events` is an array. Forces `status: "active"`, `successCount: 0`, `failureCount: 0`. `events` stored as `JSON.stringify(events)`.
+  - `webhooks/toggle/route.ts` (POST) — body `{ id, status }`; validates `status` is `"active"` or `"inactive"`.
+  - `webhooks/delete/route.ts` (POST) — body `{ id }`; hard-deletes the webhook row.
+  - `audit-logs/route.ts` (GET) — returns the last 100 audit logs, newest first (`take: 100, orderBy: createdAt desc`). Parses `metadata` JSON back to a record.
+
+  **Media — `media/`**
+  - `list/route.ts` (GET) — filters by `type`, `folder` (exact match), and `search` (matches `name`, case-insensitive contains). Parses `tags` JSON back to array.
+  - `add/route.ts` (POST) — body `{ name, url, type, size, mimeType?, folder?, tags? }`. `tags` coerced to `[]` if not an array, stored as `JSON.stringify(tagsArray)`. (Endpoint records metadata only — actual blob upload is handled elsewhere.)
+  - `delete/route.ts` (POST) — body `{ id }`; hard-deletes the media file row.
+
+- All GET handlers use `applyRateLimit(request, 60)`, all POST handlers use `applyRateLimit(request, 30)`, exactly as specified.
+- All POST handlers parse the body with `await request.json().catch(() => ({}))` to avoid crashes on empty/invalid JSON.
+- All DB reads are wrapped in `try/catch`. GET list endpoints return `ok({ items: [] })` on DB error (matches the existing `admin/orders` and `admin/subscriptions/list` pattern). The `revenue` endpoint returns all-zero on DB error. Write endpoints (create/toggle/delete/revoke) return `error(..., 500)` on DB failures so the admin UI surfaces the failure.
+- Verified `npx tsc --noEmit` reports zero errors in any of the 17 new files (all remaining errors are pre-existing in unrelated files: dashboard, settings, marketing, jazzcash webhook, products/create cover field, examples/ skills/, marketplace.tsx).
+- Verified `npx eslint src/app/api/v1/admin/finance src/app/api/v1/admin/developer src/app/api/v1/admin/media` passes with zero warnings/errors.
+
+Stage Summary:
+- 17 new route handlers created across 3 admin modules:
+  - Finance: 6 routes (transactions list, transactions/create, revenue aggregate, gateways list, gateways/toggle, gateways/test-mode) — backs the previously-bypassed FinanceModule UI
+  - Developer: 8 routes (api-keys list/create/revoke, webhooks list/create/toggle/delete, audit-logs) — backs the previously-bypassed DeveloperModule UI
+  - Media: 3 routes (list, add, delete) — extends the existing partial media support (upload remains a separate concern; this gives the admin panel proper list/add/delete CRUD)
+- All routes use the existing `ok`/`error`/`applyRateLimit` helpers and `db` Prisma client — no new dependencies.
+- Backend glue is now in place for 3 more of the 15 "broken" admin modules flagged in AUDIT-2 (Finance, Developer, and the missing-write portion of Media). Frontend wiring (api-client methods + index.tsx switch cases) is the next step.
+- These routes do NOT enforce admin-role auth — they rely on the existing pattern used by `admin/products/*`, `admin/orders`, and CONVEX-1's `admin/{support,subscriptions,iptv}/*` routes (rate-limit only). If admin-auth middleware is added later, it should be applied uniformly across all `admin/*` routes.

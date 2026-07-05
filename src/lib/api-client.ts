@@ -397,6 +397,109 @@ export const api = {
       `/admin/products/delete`,
       { method: "POST", body: JSON.stringify({ id }) },
     ),
+
+  // ===== Support Tickets =====
+  adminSupportList: (params?: { status?: string; priority?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.priority) qs.set("priority", params.priority);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[] }>(`/admin/support/list${qs.toString() ? `?${qs}` : ""}`);
+  },
+  adminSupportCreate: (payload: { customerName: string; customerEmail: string; subject: string; description: string; priority: string; category?: string }) =>
+    apiFetch<{ ticket: any; message: string }>(`/admin/support/create`, { method: "POST", body: JSON.stringify(payload) }),
+  adminSupportUpdate: (payload: { id: string; status: string }) =>
+    apiFetch<{ ticket: any; message: string }>(`/admin/support/update`, { method: "POST", body: JSON.stringify(payload) }),
+  adminSupportReply: (payload: { id: string; authorName: string; message: string; isStaff: boolean }) =>
+    apiFetch<{ ticket: any; message: string }>(`/admin/support/reply`, { method: "POST", body: JSON.stringify(payload) }),
+
+  // ===== Subscriptions =====
+  adminSubscriptionsList: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[] }>(`/admin/subscriptions/list${qs.toString() ? `?${qs}` : ""}`);
+  },
+  adminSubscriptionCreate: (payload: any) =>
+    apiFetch<{ subscription: any; message: string }>(`/admin/subscriptions/create`, { method: "POST", body: JSON.stringify(payload) }),
+  adminSubscriptionUpdate: (payload: { id: string; status: string }) =>
+    apiFetch<{ subscription: any; message: string }>(`/admin/subscriptions/update`, { method: "POST", body: JSON.stringify(payload) }),
+
+  // ===== IPTV =====
+  adminIptvChannels: (params?: { status?: string; category?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.category) qs.set("category", params.category);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[] }>(`/admin/iptv/channels${qs.toString() ? `?${qs}` : ""}`);
+  },
+  adminIptvChannelCreate: (payload: any) =>
+    apiFetch<{ channel: any; message: string }>(`/admin/iptv/channels/create`, { method: "POST", body: JSON.stringify(payload) }),
+  adminIptvChannelUpdate: (payload: any) =>
+    apiFetch<{ channel: any; message: string }>(`/admin/iptv/channels/update`, { method: "POST", body: JSON.stringify(payload) }),
+  adminIptvChannelDelete: (id: string) =>
+    apiFetch<{ deleted: boolean; message: string }>(`/admin/iptv/channels/delete`, { method: "POST", body: JSON.stringify({ id }) }),
+  adminIptvSubscribers: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[] }>(`/admin/iptv/subscribers${qs.toString() ? `?${qs}` : ""}`);
+  },
+  adminIptvSubscriberCreate: (payload: any) =>
+    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/create`, { method: "POST", body: JSON.stringify(payload) }),
+  adminIptvSubscriberUpdate: (payload: { id: string; status: string }) =>
+    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/update`, { method: "POST", body: JSON.stringify(payload) }),
+  adminIptvStats: () =>
+    apiFetch<{ totalChannels: number; activeChannels: number; errorChannels: number; totalSubscribers: number; activeSubscribers: number }>(`/admin/iptv/stats`),
+
+  // ===== Finance =====
+  adminTransactions: (params?: { status?: string; type?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.type) qs.set("type", params.type);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[] }>(`/admin/finance/transactions${qs.toString() ? `?${qs}` : ""}`);
+  },
+  adminRevenue: () =>
+    apiFetch<{ totalRevenue: number; salesRevenue: number; subscriptionRevenue: number; refunds: number; transactionCount: number }>(`/admin/finance/revenue`),
+  adminPaymentGateways: () =>
+    apiFetch<{ items: any[] }>(`/admin/finance/gateways`),
+  adminGatewayToggle: (payload: { id: string; enabled: boolean }) =>
+    apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/toggle`, { method: "POST", body: JSON.stringify(payload) }),
+  adminGatewayTestMode: (payload: { id: string; testMode: boolean }) =>
+    apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/test-mode`, { method: "POST", body: JSON.stringify(payload) }),
+
+  // ===== Developer =====
+  adminApiKeys: () =>
+    apiFetch<{ items: any[] }>(`/admin/developer/api-keys`),
+  adminApiKeyCreate: (payload: { name: string; permissions: string[]; expiresAt?: string }) =>
+    apiFetch<{ apiKey: any; message: string }>(`/admin/developer/api-keys/create`, { method: "POST", body: JSON.stringify(payload) }),
+  adminApiKeyRevoke: (id: string) =>
+    apiFetch<{ apiKey: any; message: string }>(`/admin/developer/api-keys/revoke`, { method: "POST", body: JSON.stringify({ id }) }),
+  adminWebhooks: () =>
+    apiFetch<{ items: any[] }>(`/admin/developer/webhooks`),
+  adminWebhookCreate: (payload: { name: string; url: string; events: string[] }) =>
+    apiFetch<{ webhook: any; message: string }>(`/admin/developer/webhooks/create`, { method: "POST", body: JSON.stringify(payload) }),
+  adminWebhookToggle: (payload: { id: string; status: string }) =>
+    apiFetch<{ webhook: any; message: string }>(`/admin/developer/webhooks/toggle`, { method: "POST", body: JSON.stringify(payload) }),
+  adminWebhookDelete: (id: string) =>
+    apiFetch<{ deleted: boolean; message: string }>(`/admin/developer/webhooks/delete`, { method: "POST", body: JSON.stringify({ id }) }),
+  adminAuditLogs: () =>
+    apiFetch<{ items: any[] }>(`/admin/developer/audit-logs`),
+
+  // ===== Media (admin) =====
+  adminMediaList: (params?: { type?: string; folder?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.type) qs.set("type", params.type);
+    if (params?.folder) qs.set("folder", params.folder);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[] }>(`/admin/media/list${qs.toString() ? `?${qs}` : ""}`);
+  },
+  adminMediaAdd: (payload: { name: string; url: string; type: string; size: number; mimeType?: string; folder?: string; tags?: string[] }) =>
+    apiFetch<{ file: any; message: string }>(`/admin/media/add`, { method: "POST", body: JSON.stringify(payload) }),
+  adminMediaDelete: (id: string) =>
+    apiFetch<{ deleted: boolean; message: string }>(`/admin/media/delete`, { method: "POST", body: JSON.stringify({ id }) }),
+
   validateCoupon: (code: string, subtotal: number) =>
     apiFetch<CouponValidation>(`/coupons/validate`, {
       method: "POST",
