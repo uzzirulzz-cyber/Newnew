@@ -1,0 +1,1088 @@
+     1→     1→import { Link, useLocation } from "react-router-dom";
+     2→     2→import { useQuery } from "convex/react";
+     3→     3→import { api } from "@/convex/_generated/api.js";
+     4→     4→import { Globe, Menu, X } from "lucide-react";
+     5→     5→import { useState } from "react";
+     6→     6→import { cn } from "@/lib/utils.ts";
+     7→     7→import { Button } from "@/components/ui/button.tsx";
+     8→     8→
+     9→     9→type NavItem = { label: string; href: string };
+    10→    10→
+    11→    11→type HeaderSettings = {
+    12→    12→  siteName?: string;
+    13→    13→  navItems?: NavItem[];
+    14→    14→};
+    15→    15→
+    16→    16→type FooterSettings = {
+    17→    17→  tagline?: string;
+    18→    18→  links?: NavItem[];
+    19→    19→  copyright?: string;
+    20→    20→};
+    21→    21→
+    22→    22→const defaultNav: NavItem[] = [
+    23→    23→  { label: "Blog", href: "/blog" },
+    24→    24→  { label: "FAQ", href: "/faq" },
+    25→    25→  { label: "Careers", href: "/careers" },
+    26→    26→  { label: "Contact", href: "/contact" },
+    27→    27→];
+    28→    28→
+    29→    29→export default function PublicLayout({ children }: { children: React.ReactNode }) {
+    30→    30→  const location = useLocation();
+    31→    31→  const [mobileOpen, setMobileOpen] = useState(false);
+    32→    32→
+    33→    33→  const headerRaw = useQuery(api.settings.get, { key: "header" });
+    34→    34→  const footerRaw = useQuery(api.settings.get, { key: "footer" });
+    35→    35→
+    36→    36→  const header = (headerRaw ?? {}) as HeaderSettings;
+    37→    37→  const footer = (footerRaw ?? {}) as FooterSettings;
+    38→    38→
+    39→    39→  const siteName = header.siteName ?? "SiteBuilder";
+    40→    40→  const navItems: NavItem[] = header.navItems?.length ? header.navItems : defaultNav;
+    41→    41→  const footerLinks: NavItem[] = footer.links ?? defaultNav;
+    42→    42→
+    43→    43→  return (
+    44→    44→    <div className="min-h-screen bg-background flex flex-col">
+    45→    45→      {/* Header */}
+    46→    46→      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md">
+    47→    47→        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center gap-4">
+    48→    48→          <Link to="/" className="flex items-center gap-2.5 font-bold text-base tracking-tight">
+    49→    49→            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center">
+    50→    50→              <Globe className="w-3.5 h-3.5 text-white" />
+    51→    51→            </div>
+    52→    52→            {siteName}
+    53→    53→          </Link>
+    54→    54→
+    55→    55→          {/* Desktop nav */}
+    56→    56→          <nav className="hidden md:flex items-center gap-1 ml-6">
+    57→    57→            {navItems.map((item) => (
+    58→    58→              <Link
+    59→    59→                key={item.href}
+    60→    60→                to={item.href}
+    61→    61→                className={cn(
+    62→    62→                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+    63→    63→                  location.pathname === item.href
+    64→    64→                    ? "bg-accent text-accent-foreground"
+    65→    65→                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+    66→    66→                )}
+    67→    67→              >
+    68→    68→                {item.label}
+    69→    69→              </Link>
+    70→    70→            ))}
+    71→    71→          </nav>
+    72→    72→
+    73→    73→          <div className="flex-1" />
+    74→    74→
+    75→    75→          {/* Mobile menu toggle */}
+    76→    76→          <button
+    77→    77→            className="md:hidden text-muted-foreground hover:text-foreground transition-colors"
+    78→    78→            onClick={() => setMobileOpen((v) => !v)}
+    79→    79→          >
+    80→    80→            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+    81→    81→          </button>
+    82→    82→        </div>
+    83→    83→
+    84→    84→        {/* Mobile nav */}
+    85→    85→        {mobileOpen && (
+    86→    86→          <div className="md:hidden border-t border-border bg-background px-6 py-4 flex flex-col gap-1">
+    87→    87→            {navItems.map((item) => (
+    88→    88→              <Link
+    89→    89→                key={item.href}
+    90→    90→                to={item.href}
+    91→    91→                onClick={() => setMobileOpen(false)}
+    92→    92→                className={cn(
+    93→    93→                  "px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+    94→    94→                  location.pathname === item.href
+    95→    95→                    ? "bg-accent text-accent-foreground"
+    96→    96→                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+    97→    97→                )}
+    98→    98→              >
+    99→    99→                {item.label}
+   100→   100→              </Link>
+   101→   101→            ))}
+   102→   102→          </div>
+   103→   103→        )}
+   104→   104→      </header>
+   105→   105→
+   106→   106→      {/* Page content */}
+   107→   107→      <main className="flex-1">{children}</main>
+   108→   108→
+   109→   109→      {/* Footer */}
+   110→   110→      <footer className="border-t border-border mt-20">
+   111→   111→        <div className="max-w-6xl mx-auto px-6 py-12">
+   112→   112→          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+   113→   113→            <div>
+   114→   114→              <Link to="/" className="flex items-center gap-2 font-bold text-base tracking-tight mb-2">
+   115→   115→                <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center">
+   116→   116→                  <Globe className="w-3 h-3 text-white" />
+   117→   117→                </div>
+   118→   118→                {siteName}
+   119→   119→              </Link>
+   120→   120→              {footer.tagline && (
+   121→   121→                <p className="text-sm text-muted-foreground max-w-xs">{footer.tagline}</p>
+   122→   122→              )}
+   123→   123→            </div>
+   124→   124→
+   125→   125→            <nav className="flex flex-wrap gap-x-6 gap-y-2">
+   126→   126→              {footerLinks.map((item) => (
+   127→   127→                <Link
+   128→   128→                  key={item.href}
+   129→   129→                  to={item.href}
+   130→   130→                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+   131→   131→                >
+   132→   132→                  {item.label}
+   133→   133→                </Link>
+   134→   134→              ))}
+   135→   135→            </nav>
+   136→   136→          </div>
+   137→   137→
+   138→   138→          <div className="mt-8 pt-6 border-t border-border text-xs text-muted-foreground">
+   139→   139→            {footer.copyright ?? `© ${new Date().getFullYear()} ${siteName}. All rights reserved.`}
+   140→   140→          </div>
+   141→   141→        </div>
+   142→   142→      </footer>
+   143→   143→    </div>
+   144→   144→  );
+   145→   145→}import { useQuery } from "convex/react";
+   146→   146→import { api } from "@/convex/_generated/api.js";
+   147→   147→import { Link } from "react-router-dom";
+   148→   148→import { motion } from "motion/react";
+   149→   149→import { format } from "date-fns";
+   150→   150→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   151→   151→import { Badge } from "@/components/ui/badge.tsx";
+   152→   152→import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty.tsx";
+   153→   153→import { FileText, Clock } from "lucide-react";
+   154→   154→import PublicLayout from "./_components/PublicLayout.tsx";
+   155→   155→
+   156→   156→function readTime(content: string) {
+   157→   157→  const words = content.trim().split(/\s+/).length;
+   158→   158→  return Math.max(1, Math.round(words / 200));
+   159→   159→}
+   160→   160→
+   161→   161→export default function BlogPage() {
+   162→   162→  const posts = useQuery(api.blog.list, { status: "published" });
+   163→   163→
+   164→   164→  return (
+   165→   165→    <PublicLayout>
+   166→   166→      <div className="max-w-4xl mx-auto px-6 py-16">
+   167→   167→        {/* Header */}
+   168→   168→        <motion.div
+   169→   169→          initial={{ opacity: 0, y: 16 }}
+   170→   170→          animate={{ opacity: 1, y: 0 }}
+   171→   171→          transition={{ duration: 0.5, ease: "easeOut" }}
+   172→   172→          className="mb-14"
+   173→   173→        >
+   174→   174→          <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Blog</p>
+   175→   175→          <h1 className="text-4xl font-extrabold tracking-tight mb-4">Latest articles</h1>
+   176→   176→          <p className="text-lg text-muted-foreground max-w-xl">
+   177→   177→            Insights, updates, and stories from our team.
+   178→   178→          </p>
+   179→   179→        </motion.div>
+   180→   180→
+   181→   181→        {/* Posts */}
+   182→   182→        {posts === undefined ? (
+   183→   183→          <div className="space-y-8">
+   184→   184→            {Array.from({ length: 3 }).map((_, i) => (
+   185→   185→              <div key={i} className="flex gap-6">
+   186→   186→                <Skeleton className="w-48 h-32 rounded-xl flex-shrink-0 hidden sm:block" />
+   187→   187→                <div className="flex-1 space-y-3">
+   188→   188→                  <Skeleton className="h-5 w-24" />
+   189→   189→                  <Skeleton className="h-7 w-3/4" />
+   190→   190→                  <Skeleton className="h-4 w-full" />
+   191→   191→                  <Skeleton className="h-4 w-2/3" />
+   192→   192→                </div>
+   193→   193→              </div>
+   194→   194→            ))}
+   195→   195→          </div>
+   196→   196→        ) : posts.length === 0 ? (
+   197→   197→          <Empty>
+   198→   198→            <EmptyHeader>
+   199→   199→              <EmptyMedia variant="icon"><FileText /></EmptyMedia>
+   200→   200→              <EmptyTitle>No posts yet</EmptyTitle>
+   201→   201→              <EmptyDescription>Check back soon for new articles.</EmptyDescription>
+   202→   202→            </EmptyHeader>
+   203→   203→          </Empty>
+   204→   204→        ) : (
+   205→   205→          <div className="space-y-10">
+   206→   206→            {posts.map((post, i) => (
+   207→   207→              <motion.article
+   208→   208→                key={post._id}
+   209→   209→                initial={{ opacity: 0, y: 16 }}
+   210→   210→                animate={{ opacity: 1, y: 0 }}
+   211→   211→                transition={{ duration: 0.4, delay: i * 0.06, ease: "easeOut" }}
+   212→   212→              >
+   213→   213→                <Link
+   214→   214→                  to={`/blog/${post.slug}`}
+   215→   215→                  className="group flex flex-col sm:flex-row gap-6 items-start"
+   216→   216→                >
+   217→   217→                  {/* Cover */}
+   218→   218→                  {post.coverImage ? (
+   219→   219→                    <div className="w-full sm:w-48 h-36 rounded-xl overflow-hidden flex-shrink-0 bg-muted">
+   220→   220→                      <img
+   221→   221→                        src={post.coverImage}
+   222→   222→                        alt={post.title}
+   223→   223→                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+   224→   224→                      />
+   225→   225→                    </div>
+   226→   226→                  ) : (
+   227→   227→                    <div className="hidden sm:flex w-48 h-36 rounded-xl bg-gradient-to-br from-primary/10 to-violet-500/10 flex-shrink-0 items-center justify-center">
+   228→   228→                      <FileText className="w-8 h-8 text-primary/40" />
+   229→   229→                    </div>
+   230→   230→                  )}
+   231→   231→
+   232→   232→                  {/* Content */}
+   233→   233→                  <div className="flex-1 min-w-0">
+   234→   234→                    {post.tags.length > 0 && (
+   235→   235→                      <div className="flex flex-wrap gap-1.5 mb-3">
+   236→   236→                        {post.tags.slice(0, 3).map((tag) => (
+   237→   237→                          <Badge key={tag} variant="secondary" className="text-xs font-medium">
+   238→   238→                            {tag}
+   239→   239→                          </Badge>
+   240→   240→                        ))}
+   241→   241→                      </div>
+   242→   242→                    )}
+   243→   243→                    <h2 className="text-xl font-bold tracking-tight group-hover:text-primary transition-colors mb-2 line-clamp-2">
+   244→   244→                      {post.title}
+   245→   245→                    </h2>
+   246→   246→                    {post.excerpt && (
+   247→   247→                      <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2 mb-3">
+   248→   248→                        {post.excerpt}
+   249→   249→                      </p>
+   250→   250→                    )}
+   251→   251→                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+   252→   252→                      {post.publishedAt && (
+   253→   253→                        <span>{format(new Date(post.publishedAt), "MMM d, yyyy")}</span>
+   254→   254→                      )}
+   255→   255→                      <span className="flex items-center gap-1">
+   256→   256→                        <Clock className="w-3 h-3" />
+   257→   257→                        {readTime(post.content)} min read
+   258→   258→                      </span>
+   259→   259→                    </div>
+   260→   260→                  </div>
+   261→   261→                </Link>
+   262→   262→                <div className="mt-8 h-px bg-border" />
+   263→   263→              </motion.article>
+   264→   264→            ))}
+   265→   265→          </div>
+   266→   266→        )}
+   267→   267→      </div>
+   268→   268→    </PublicLayout>
+   269→   269→  );
+   270→   270→}
+   271→   271→import { useQuery } from "convex/react";
+   272→   272→import { api } from "@/convex/_generated/api.js";
+   273→   273→import { useParams, Link, Navigate } from "react-router-dom";
+   274→   274→import { motion } from "motion/react";
+   275→   275→import { format } from "date-fns";
+   276→   276→import ReactMarkdown from "react-markdown";
+   277→   277→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   278→   278→import { Badge } from "@/components/ui/badge.tsx";
+   279→   279→import { Clock, ArrowLeft, Calendar } from "lucide-react";
+   280→   280→import PublicLayout from "./_components/PublicLayout.tsx";
+   281→   281→
+   282→   282→function readTime(content: string) {
+   283→   283→  const words = content.trim().split(/\s+/).length;
+   284→   284→  return Math.max(1, Math.round(words / 200));
+   285→   285→}
+   286→   286→
+   287→   287→export default function BlogPostPage() {
+   288→   288→  const { slug } = useParams<{ slug: string }>();
+   289→   289→  const post = useQuery(api.blog.getBySlug, slug ? { slug } : "skip");
+   290→   290→
+   291→   291→  if (post === undefined) {
+   292→   292→    return (
+   293→   293→      <PublicLayout>
+   294→   294→        <div className="max-w-3xl mx-auto px-6 py-16 space-y-6">
+   295→   295→          <Skeleton className="h-5 w-24" />
+   296→   296→          <Skeleton className="h-12 w-full" />
+   297→   297→          <Skeleton className="h-12 w-2/3" />
+   298→   298→          <Skeleton className="h-64 w-full rounded-xl" />
+   299→   299→          <div className="space-y-3 pt-4">
+   300→   300→            {Array.from({ length: 6 }).map((_, i) => (
+   301→   301→              <Skeleton key={i} className="h-4 w-full" />
+   302→   302→            ))}
+   303→   303→          </div>
+   304→   304→        </div>
+   305→   305→      </PublicLayout>
+   306→   306→    );
+   307→   307→  }
+   308→   308→
+   309→   309→  if (post === null || post.status !== "published") {
+   310→   310→    return <Navigate to="/blog" replace />;
+   311→   311→  }
+   312→   312→
+   313→   313→  return (
+   314→   314→    <PublicLayout>
+   315→   315→      <article className="max-w-3xl mx-auto px-6 py-16">
+   316→   316→        {/* Back */}
+   317→   317→        <motion.div
+   318→   318→          initial={{ opacity: 0, x: -8 }}
+   319→   319→          animate={{ opacity: 1, x: 0 }}
+   320→   320→          transition={{ duration: 0.3, ease: "easeOut" }}
+   321→   321→          className="mb-10"
+   322→   322→        >
+   323→   323→          <Link
+   324→   324→            to="/blog"
+   325→   325→            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+   326→   326→          >
+   327→   327→            <ArrowLeft className="w-4 h-4" /> Back to Blog
+   328→   328→          </Link>
+   329→   329→        </motion.div>
+   330→   330→
+   331→   331→        <motion.div
+   332→   332→          initial={{ opacity: 0, y: 20 }}
+   333→   333→          animate={{ opacity: 1, y: 0 }}
+   334→   334→          transition={{ duration: 0.5, ease: "easeOut" }}
+   335→   335→        >
+   336→   336→          {/* Tags */}
+   337→   337→          {post.tags.length > 0 && (
+   338→   338→            <div className="flex flex-wrap gap-1.5 mb-5">
+   339→   339→              {post.tags.map((tag) => (
+   340→   340→                <Badge key={tag} variant="secondary" className="text-xs">
+   341→   341→                  {tag}
+   342→   342→                </Badge>
+   343→   343→              ))}
+   344→   344→            </div>
+   345→   345→          )}
+   346→   346→
+   347→   347→          {/* Title */}
+   348→   348→          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-tight mb-6 text-balance">
+   349→   349→            {post.title}
+   350→   350→          </h1>
+   351→   351→
+   352→   352→          {/* Meta */}
+   353→   353→          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-10 pb-8 border-b border-border">
+   354→   354→            {post.publishedAt && (
+   355→   355→              <span className="flex items-center gap-1.5">
+   356→   356→                <Calendar className="w-4 h-4" />
+   357→   357→                {format(new Date(post.publishedAt), "MMMM d, yyyy")}
+   358→   358→              </span>
+   359→   359→            )}
+   360→   360→            <span className="flex items-center gap-1.5">
+   361→   361→              <Clock className="w-4 h-4" />
+   362→   362→              {readTime(post.content)} min read
+   363→   363→            </span>
+   364→   364→          </div>
+   365→   365→
+   366→   366→          {/* Cover image */}
+   367→   367→          {post.coverImage && (
+   368→   368→            <div className="mb-10 rounded-2xl overflow-hidden aspect-video bg-muted">
+   369→   369→              <img
+   370→   370→                src={post.coverImage}
+   371→   371→                alt={post.title}
+   372→   372→                className="w-full h-full object-cover"
+   373→   373→              />
+   374→   374→            </div>
+   375→   375→          )}
+   376→   376→
+   377→   377→          {/* Excerpt */}
+   378→   378→          {post.excerpt && (
+   379→   379→            <p className="text-xl text-muted-foreground leading-relaxed mb-10 font-medium border-l-4 border-primary pl-5">
+   380→   380→              {post.excerpt}
+   381→   381→            </p>
+   382→   382→          )}
+   383→   383→
+   384→   384→          {/* Body */}
+   385→   385→          <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:font-extrabold prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-code:text-primary">
+   386→   386→            <ReactMarkdown>{post.content}</ReactMarkdown>
+   387→   387→          </div>
+   388→   388→        </motion.div>
+   389→   389→      </article>
+   390→   390→    </PublicLayout>
+   391→   391→  );import { useQuery } from "convex/react";
+   392→   392→import { api } from "@/convex/_generated/api.js";
+   393→   393→import { motion } from "motion/react";
+   394→   394→import { useState } from "react";
+   395→   395→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   396→   396→import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty.tsx";
+   397→   397→import { HelpCircle, ChevronDown } from "lucide-react";
+   398→   398→import { cn } from "@/lib/utils.ts";
+   399→   399→import PublicLayout from "./_components/PublicLayout.tsx";
+   400→   400→
+   401→   401→type Doc = {
+   402→   402→  _id: string;
+   403→   403→  question: string;
+   404→   404→  answer: string;
+   405→   405→  category?: string;
+   406→   406→  published: boolean;
+   407→   407→  order: number;
+   408→   408→};
+   409→   409→
+   410→   410→export default function FaqPage() {
+   411→   411→  const faqs = useQuery(api.faqs.list, {});
+   412→   412→  const [openId, setOpenId] = useState<string | null>(null);
+   413→   413→  const [activeCategory, setActiveCategory] = useState<string>("All");
+   414→   414→
+   415→   415→  const published = (faqs ?? []).filter((f) => f.published) as Doc[];
+   416→   416→  const categories = ["All", ...Array.from(new Set(published.map((f) => f.category).filter(Boolean) as string[]))];
+   417→   417→  const filtered = activeCategory === "All" ? published : published.filter((f) => f.category === activeCategory);
+   418→   418→
+   419→   419→  return (
+   420→   420→    <PublicLayout>
+   421→   421→      <div className="max-w-3xl mx-auto px-6 py-16">
+   422→   422→        {/* Header */}
+   423→   423→        <motion.div
+   424→   424→          initial={{ opacity: 0, y: 16 }}
+   425→   425→          animate={{ opacity: 1, y: 0 }}
+   426→   426→          transition={{ duration: 0.5, ease: "easeOut" }}
+   427→   427→          className="mb-14 text-center"
+   428→   428→        >
+   429→   429→          <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">FAQ</p>
+   430→   430→          <h1 className="text-4xl font-extrabold tracking-tight mb-4">Frequently asked questions</h1>
+   431→   431→          <p className="text-lg text-muted-foreground">
+   432→   432→            Everything you need to know. Can{"'"}t find the answer? {" "}
+   433→   433→            <a href="/contact" className="text-primary hover:underline">Contact us.</a>
+   434→   434→          </p>
+   435→   435→        </motion.div>
+   436→   436→
+   437→   437→        {/* Category filter */}
+   438→   438→        {categories.length > 1 && (
+   439→   439→          <div className="flex flex-wrap gap-2 justify-center mb-10">
+   440→   440→            {categories.map((cat) => (
+   441→   441→              <button
+   442→   442→                key={cat}
+   443→   443→                onClick={() => setActiveCategory(cat)}
+   444→   444→                className={cn(
+   445→   445→                  "px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer",
+   446→   446→                  activeCategory === cat
+   447→   447→                    ? "bg-primary text-primary-foreground"
+   448→   448→                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+   449→   449→                )}
+   450→   450→              >
+   451→   451→                {cat}
+   452→   452→              </button>
+   453→   453→            ))}
+   454→   454→          </div>
+   455→   455→        )}
+   456→   456→
+   457→   457→        {/* FAQs */}
+   458→   458→        {faqs === undefined ? (
+   459→   459→          <div className="space-y-3">
+   460→   460→            {Array.from({ length: 5 }).map((_, i) => (
+   461→   461→              <Skeleton key={i} className="h-16 w-full rounded-xl" />
+   462→   462→            ))}
+   463→   463→          </div>
+   464→   464→        ) : filtered.length === 0 ? (
+   465→   465→          <Empty>
+   466→   466→            <EmptyHeader>
+   467→   467→              <EmptyMedia variant="icon"><HelpCircle /></EmptyMedia>
+   468→   468→              <EmptyTitle>No FAQs yet</EmptyTitle>
+   469→   469→              <EmptyDescription>Check back soon.</EmptyDescription>
+   470→   470→            </EmptyHeader>
+   471→   471→          </Empty>
+   472→   472→        ) : (
+   473→   473→          <div className="space-y-3">
+   474→   474→            {filtered.map((faq, i) => (
+   475→   475→              <motion.div
+   476→   476→                key={faq._id}
+   477→   477→                initial={{ opacity: 0, y: 10 }}
+   478→   478→                animate={{ opacity: 1, y: 0 }}
+   479→   479→                transition={{ duration: 0.3, delay: i * 0.04, ease: "easeOut" }}
+   480→   480→                className="border border-border rounded-xl overflow-hidden"
+   481→   481→              >
+   482→   482→                <button
+   483→   483→                  onClick={() => setOpenId(openId === faq._id ? null : faq._id)}
+   484→   484→                  className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-muted/50 transition-colors cursor-pointer"
+   485→   485→                >
+   486→   486→                  <span className="font-semibold text-sm pr-4">{faq.question}</span>
+   487→   487→                  <ChevronDown
+   488→   488→                    className={cn(
+   489→   489→                      "w-4 h-4 flex-shrink-0 text-muted-foreground transition-transform duration-200",
+   490→   490→                      openId === faq._id && "rotate-180"
+   491→   491→                    )}
+   492→   492→                  />
+   493→   493→                </button>
+   494→   494→                {openId === faq._id && (
+   495→   495→                  <div className="px-5 pb-5 text-sm text-muted-foreground leading-relaxed border-t border-border pt-4">
+   496→   496→                    {faq.answer}
+   497→   497→                  </div>
+   498→   498→                )}
+   499→   499→              </motion.div>
+   500→   500→            ))}
+   501→   501→          </div>
+   502→   502→        )}
+   503→   503→      </div>
+   504→   504→    </PublicLayout>
+   505→   505→  );
+   506→   506→}
+   507→   507→Now I need to add a getById to careers, getBySlug to staticPages, and a get to contact. Let me read those files first:
+   508→   508→
+   509→   509→import { useQuery } from "convex/react";
+   510→   510→import { api } from "@/convex/_generated/api.js";
+   511→   511→import { Link } from "react-router-dom";
+   512→   512→import { motion } from "motion/react";
+   513→   513→import { useState } from "react";
+   514→   514→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   515→   515→import { Badge } from "@/components/ui/badge.tsx";
+   516→   516→import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty.tsx";
+   517→   517→import { Briefcase, MapPin, Clock, ArrowRight, Building2 } from "lucide-react";
+   518→   518→import { cn } from "@/lib/utils.ts";
+   519→   519→import PublicLayout from "./_components/PublicLayout.tsx";
+   520→   520→import type { Id } from "@/convex/_generated/dataModel.js";
+   521→   521→
+   522→   522→type Job = {
+   523→   523→  _id: Id<"jobListings">;
+   524→   524→  title: string;
+   525→   525→  department?: string;
+   526→   526→  location?: string;
+   527→   527→  type?: string;
+   528→   528→  description: string;
+   529→   529→  published: boolean;
+   530→   530→  order: number;
+   531→   531→};
+   532→   532→
+   533→   533→const typeColors: Record<string, string> = {
+   534→   534→  "full-time": "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+   535→   535→  "part-time": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+   536→   536→  "contract": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+   537→   537→};
+   538→   538→
+   539→   539→export default function CareersPage() {
+   540→   540→  const jobs = useQuery(api.careers.list, {});
+   541→   541→  const [activeDept, setActiveDept] = useState("All");
+   542→   542→
+   543→   543→  const published = (jobs ?? []).filter((j) => j.published) as Job[];
+   544→   544→  const departments = ["All", ...Array.from(new Set(published.map((j) => j.department).filter(Boolean) as string[]))];
+   545→   545→  const filtered = activeDept === "All" ? published : published.filter((j) => j.department === activeDept);
+   546→   546→
+   547→   547→  return (
+   548→   548→    <PublicLayout>
+   549→   549→      <div className="max-w-4xl mx-auto px-6 py-16">
+   550→   550→        {/* Header */}
+   551→   551→        <motion.div
+   552→   552→          initial={{ opacity: 0, y: 16 }}
+   553→   553→          animate={{ opacity: 1, y: 0 }}
+   554→   554→          transition={{ duration: 0.5, ease: "easeOut" }}
+   555→   555→          className="mb-14"
+   556→   556→        >
+   557→   557→          <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Careers</p>
+   558→   558→          <h1 className="text-4xl font-extrabold tracking-tight mb-4">Join our team</h1>
+   559→   559→          <p className="text-lg text-muted-foreground max-w-xl">
+   560→   560→            We{"'"}re always looking for talented people. Explore our open roles below.
+   561→   561→          </p>
+   562→   562→        </motion.div>
+   563→   563→
+   564→   564→        {/* Department filter */}
+   565→   565→        {departments.length > 1 && (
+   566→   566→          <div className="flex flex-wrap gap-2 mb-10">
+   567→   567→            {departments.map((dept) => (
+   568→   568→              <button
+   569→   569→                key={dept}
+   570→   570→                onClick={() => setActiveDept(dept)}
+   571→   571→                className={cn(
+   572→   572→                  "px-4 py-1.5 rounded-full text-sm font-medium transition-colors cursor-pointer",
+   573→   573→                  activeDept === dept
+   574→   574→                    ? "bg-primary text-primary-foreground"
+   575→   575→                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+   576→   576→                )}
+   577→   577→              >
+   578→   578→                {dept}
+   579→   579→              </button>
+   580→   580→            ))}
+   581→   581→          </div>
+   582→   582→        )}
+   583→   583→
+   584→   584→        {/* Job listings */}
+   585→   585→        {jobs === undefined ? (
+   586→   586→          <div className="space-y-4">
+   587→   587→            {Array.from({ length: 4 }).map((_, i) => (
+   588→   588→              <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+   589→   589→            ))}
+   590→   590→          </div>
+   591→   591→        ) : filtered.length === 0 ? (
+   592→   592→          <Empty>
+   593→   593→            <EmptyHeader>
+   594→   594→              <EmptyMedia variant="icon"><Briefcase /></EmptyMedia>
+   595→   595→              <EmptyTitle>No open positions</EmptyTitle>
+   596→   596→              <EmptyDescription>Check back soon for new opportunities.</EmptyDescription>
+   597→   597→            </EmptyHeader>
+   598→   598→          </Empty>
+   599→   599→        ) : (
+   600→   600→          <div className="space-y-4">
+   601→   601→            {filtered.map((job, i) => (
+   602→   602→              <motion.div
+   603→   603→                key={job._id}
+   604→   604→                initial={{ opacity: 0, y: 12 }}
+   605→   605→                animate={{ opacity: 1, y: 0 }}
+   606→   606→                transition={{ duration: 0.35, delay: i * 0.05, ease: "easeOut" }}
+   607→   607→              >
+   608→   608→                <Link
+   609→   609→                  to={`/careers/${job._id}`}
+   610→   610→                  className="group block bg-card border border-border rounded-2xl p-6 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/6 transition-all duration-200"
+   611→   611→                >
+   612→   612→                  <div className="flex items-start justify-between gap-4">
+   613→   613→                    <div className="flex-1 min-w-0">
+   614→   614→                      <div className="flex flex-wrap items-center gap-2 mb-2">
+   615→   615→                        {job.type && (
+   616→   616→                          <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full", typeColors[job.type] ?? "bg-muted text-muted-foreground")}>
+   617→   617→                            {job.type}
+   618→   618→                          </span>
+   619→   619→                        )}
+   620→   620→                        {job.department && (
+   621→   621→                          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+   622→   622→                            <Building2 className="w-3 h-3" /> {job.department}
+   623→   623→                          </span>
+   624→   624→                        )}
+   625→   625→                      </div>
+   626→   626→                      <h3 className="font-bold text-lg tracking-tight group-hover:text-primary transition-colors">
+   627→   627→                        {job.title}
+   628→   628→                      </h3>
+   629→   629→                      <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+   630→   630→                        {job.location && (
+   631→   631→                          <span className="flex items-center gap-1.5">
+   632→   632→                            <MapPin className="w-3.5 h-3.5" /> {job.location}
+   633→   633→                          </span>
+   634→   634→                        )}
+   635→   635→                      </div>
+   636→   636→                    </div>
+   637→   637→                    <ArrowRight className="w-5 h-5 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1" />
+   638→   638→                  </div>
+   639→   639→                </Link>
+   640→   640→              </motion.div>
+   641→   641→            ))}
+   642→   642→          </div>
+   643→   643→        )}
+   644→   644→      </div>
+   645→   645→    </PublicLayout>
+   646→   646→  );
+   647→   647→}import { useQuery } from "convex/react";
+   648→   648→import { api } from "@/convex/_generated/api.js";
+   649→   649→import { useParams, Link, Navigate } from "react-router-dom";
+   650→   650→import { motion } from "motion/react";
+   651→   651→import ReactMarkdown from "react-markdown";
+   652→   652→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   653→   653→import { ArrowLeft, MapPin, Building2, Clock } from "lucide-react";
+   654→   654→import { cn } from "@/lib/utils.ts";
+   655→   655→import PublicLayout from "./_components/PublicLayout.tsx";
+   656→   656→import type { Id } from "@/convex/_generated/dataModel.js";
+   657→   657→
+   658→   658→const typeColors: Record<string, string> = {
+   659→   659→  "full-time": "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+   660→   660→  "part-time": "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+   661→   661→  "contract": "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+   662→   662→};
+   663→   663→
+   664→   664→export default function CareerDetailPage() {
+   665→   665→  const { id } = useParams<{ id: string }>();
+   666→   666→  const job = useQuery(
+   667→   667→    api.careers.getById,
+   668→   668→    id ? { id: id as Id<"jobListings"> } : "skip"
+   669→   669→  );
+   670→   670→
+   671→   671→  if (job === undefined) {
+   672→   672→    return (
+   673→   673→      <PublicLayout>
+   674→   674→        <div className="max-w-3xl mx-auto px-6 py-16 space-y-4">
+   675→   675→          <Skeleton className="h-5 w-24" />
+   676→   676→          <Skeleton className="h-10 w-2/3" />
+   677→   677→          <Skeleton className="h-5 w-40" />
+   678→   678→          <Skeleton className="h-64 w-full rounded-xl mt-8" />
+   679→   679→        </div>
+   680→   680→      </PublicLayout>
+   681→   681→    );
+   682→   682→  }
+   683→   683→
+   684→   684→  if (job === null || !job.published) {
+   685→   685→    return <Navigate to="/careers" replace />;
+   686→   686→  }
+   687→   687→
+   688→   688→  return (
+   689→   689→    <PublicLayout>
+   690→   690→      <div className="max-w-3xl mx-auto px-6 py-16">
+   691→   691→        {/* Back */}
+   692→   692→        <motion.div
+   693→   693→          initial={{ opacity: 0, x: -8 }}
+   694→   694→          animate={{ opacity: 1, x: 0 }}
+   695→   695→          transition={{ duration: 0.3, ease: "easeOut" }}
+   696→   696→          className="mb-10"
+   697→   697→        >
+   698→   698→          <Link
+   699→   699→            to="/careers"
+   700→   700→            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+   701→   701→          >
+   702→   702→            <ArrowLeft className="w-4 h-4" /> Back to Careers
+   703→   703→          </Link>
+   704→   704→        </motion.div>
+   705→   705→
+   706→   706→        <motion.div
+   707→   707→          initial={{ opacity: 0, y: 20 }}
+   708→   708→          animate={{ opacity: 1, y: 0 }}
+   709→   709→          transition={{ duration: 0.5, ease: "easeOut" }}
+   710→   710→        >
+   711→   711→          {/* Type badge */}
+   712→   712→          {job.type && (
+   713→   713→            <span className={cn("inline-block text-xs font-semibold px-3 py-1 rounded-full mb-4", typeColors[job.type] ?? "bg-muted text-muted-foreground")}>
+   714→   714→              {job.type}
+   715→   715→            </span>
+   716→   716→          )}
+   717→   717→
+   718→   718→          <h1 className="text-4xl font-extrabold tracking-tight mb-4">{job.title}</h1>
+   719→   719→
+   720→   720→          {/* Meta */}
+   721→   721→          <div className="flex flex-wrap items-center gap-5 text-sm text-muted-foreground mb-10 pb-8 border-b border-border">
+   722→   722→            {job.department && (
+   723→   723→              <span className="flex items-center gap-1.5">
+   724→   724→                <Building2 className="w-4 h-4" /> {job.department}
+   725→   725→              </span>
+   726→   726→            )}
+   727→   727→            {job.location && (
+   728→   728→              <span className="flex items-center gap-1.5">
+   729→   729→                <MapPin className="w-4 h-4" /> {job.location}
+   730→   730→              </span>
+   731→   731→            )}
+   732→   732→            {job.type && (
+   733→   733→              <span className="flex items-center gap-1.5">
+   734→   734→                <Clock className="w-4 h-4" /> {job.type}
+   735→   735→              </span>
+   736→   736→            )}
+   737→   737→          </div>
+   738→   738→
+   739→   739→          {/* Description */}
+   740→   740→          <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:font-extrabold prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+   741→   741→            <ReactMarkdown>{job.description}</ReactMarkdown>
+   742→   742→          </div>
+   743→   743→
+   744→   744→          {/* Apply CTA */}
+   745→   745→          <div className="mt-12 p-8 rounded-2xl bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20 text-center">
+   746→   746→            <h3 className="font-bold text-lg mb-2">Interested in this role?</h3>
+   747→   747→            <p className="text-sm text-muted-foreground mb-5">
+   748→   748→              Send your resume and a short introduction to apply.
+   749→   749→            </p>
+   750→   750→            <Link
+   751→   751→              to="/contact"
+   752→   752→              className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-semibold text-sm px-6 py-2.5 rounded-xl hover:opacity-90 transition-opacity"
+   753→   753→            >
+   754→   754→              Apply via Contact Page
+   755→   755→            </Link>
+   756→   756→          </div>
+   757→   757→        </motion.div>
+   758→   758→      </div>
+   759→   759→    </PublicLayout>
+   760→   760→  );
+   761→   761→}import { useQuery } from "convex/react";
+   762→   762→import { api } from "@/convex/_generated/api.js";
+   763→   763→import { motion } from "motion/react";
+   764→   764→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   765→   765→import { Mail, Phone, MapPin, MessageSquare } from "lucide-react";
+   766→   766→import PublicLayout from "./_components/PublicLayout.tsx";
+   767→   767→
+   768→   768→export default function ContactPage() {
+   769→   769→  const settings = useQuery(api.contact.get, {});
+   770→   770→
+   771→   771→  return (
+   772→   772→    <PublicLayout>
+   773→   773→      <div className="max-w-5xl mx-auto px-6 py-16">
+   774→   774→        {/* Header */}
+   775→   775→        <motion.div
+   776→   776→          initial={{ opacity: 0, y: 16 }}
+   777→   777→          animate={{ opacity: 1, y: 0 }}
+   778→   778→          transition={{ duration: 0.5, ease: "easeOut" }}
+   779→   779→          className="mb-16 text-center"
+   780→   780→        >
+   781→   781→          <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">Contact</p>
+   782→   782→          <h1 className="text-4xl font-extrabold tracking-tight mb-4">Get in touch</h1>
+   783→   783→          <p className="text-lg text-muted-foreground max-w-lg mx-auto">
+   784→   784→            Have a question or want to work together? We{"'"}d love to hear from you.
+   785→   785→          </p>
+   786→   786→        </motion.div>
+   787→   787→
+   788→   788→        <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+   789→   789→          {/* Contact info */}
+   790→   790→          <motion.div
+   791→   791→            initial={{ opacity: 0, x: -16 }}
+   792→   792→            animate={{ opacity: 1, x: 0 }}
+   793→   793→            transition={{ duration: 0.5, delay: 0.1, ease: "easeOut" }}
+   794→   794→            className="space-y-6"
+   795→   795→          >
+   796→   796→            <h2 className="font-bold text-xl tracking-tight">Contact information</h2>
+   797→   797→
+   798→   798→            {settings === undefined ? (
+   799→   799→              <div className="space-y-4">
+   800→   800→                {Array.from({ length: 3 }).map((_, i) => (
+   801→   801→                  <Skeleton key={i} className="h-14 w-full rounded-xl" />
+   802→   802→                ))}
+   803→   803→              </div>
+   804→   804→            ) : (
+   805→   805→              <div className="space-y-4">
+   806→   806→                {settings?.email && (
+   807→   807→                  <a
+   808→   808→                    href={`mailto:${settings.email}`}
+   809→   809→                    className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors group"
+   810→   810→                  >
+   811→   811→                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center flex-shrink-0">
+   812→   812→                      <Mail className="w-5 h-5 text-white" />
+   813→   813→                    </div>
+   814→   814→                    <div>
+   815→   815→                      <p className="text-xs text-muted-foreground font-medium mb-0.5">Email</p>
+   816→   816→                      <p className="text-sm font-semibold group-hover:text-primary transition-colors">{settings.email}</p>
+   817→   817→                    </div>
+   818→   818→                  </a>
+   819→   819→                )}
+   820→   820→
+   821→   821→                {settings?.phone && (
+   822→   822→                  <a
+   823→   823→                    href={`tel:${settings.phone}`}
+   824→   824→                    className="flex items-center gap-4 p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors group"
+   825→   825→                  >
+   826→   826→                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center flex-shrink-0">
+   827→   827→                      <Phone className="w-5 h-5 text-white" />
+   828→   828→                    </div>
+   829→   829→                    <div>
+   830→   830→                      <p className="text-xs text-muted-foreground font-medium mb-0.5">Phone</p>
+   831→   831→                      <p className="text-sm font-semibold group-hover:text-primary transition-colors">{settings.phone}</p>
+   832→   832→                    </div>
+   833→   833→                  </a>
+   834→   834→                )}
+   835→   835→
+   836→   836→                {settings?.address && (
+   837→   837→                  <div className="flex items-start gap-4 p-4 rounded-xl bg-muted/50">
+   838→   838→                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+   839→   839→                      <MapPin className="w-5 h-5 text-white" />
+   840→   840→                    </div>
+   841→   841→                    <div>
+   842→   842→                      <p className="text-xs text-muted-foreground font-medium mb-0.5">Address</p>
+   843→   843→                      <p className="text-sm font-semibold whitespace-pre-line">{settings.address}</p>
+   844→   844→                    </div>
+   845→   845→                  </div>
+   846→   846→                )}
+   847→   847→
+   848→   848→                {(!settings || (!settings.email && !settings.phone && !settings.address)) && (
+   849→   849→                  <p className="text-muted-foreground text-sm">Contact information coming soon.</p>
+   850→   850→                )}
+   851→   851→              </div>
+   852→   852→            )}
+   853→   853→          </motion.div>
+   854→   854→
+   855→   855→          {/* Contact form placeholder / message */}
+   856→   856→          <motion.div
+   857→   857→            initial={{ opacity: 0, x: 16 }}
+   858→   858→            animate={{ opacity: 1, x: 0 }}
+   859→   859→            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
+   860→   860→          >
+   861→   861→            {settings === undefined ? (
+   862→   862→              <Skeleton className="h-64 w-full rounded-2xl" />
+   863→   863→            ) : settings?.formEnabled ? (
+   864→   864→              <div className="bg-card border border-border rounded-2xl p-8">
+   865→   865→                <div className="flex items-center gap-3 mb-6">
+   866→   866→                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+   867→   867→                    <MessageSquare className="w-4 h-4 text-primary" />
+   868→   868→                  </div>
+   869→   869→                  <h2 className="font-bold text-lg">Send a message</h2>
+   870→   870→                </div>
+   871→   871→
+   872→   872→                <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+   873→   873→                  <div className="grid grid-cols-2 gap-4">
+   874→   874→                    <div>
+   875→   875→                      <label className="text-xs font-semibold text-muted-foreground block mb-1.5">First name</label>
+   876→   876→                      <input
+   877→   877→                        type="text"
+   878→   878→                        placeholder="John"
+   879→   879→                        className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+   880→   880→                      />
+   881→   881→                    </div>
+   882→   882→                    <div>
+   883→   883→                      <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Last name</label>
+   884→   884→                      <input
+   885→   885→                        type="text"
+   886→   886→                        placeholder="Smith"
+   887→   887→                        className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+   888→   888→                      />
+   889→   889→                    </div>
+   890→   890→                  </div>
+   891→   891→                  <div>
+   892→   892→                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Email</label>
+   893→   893→                    <input
+   894→   894→                      type="email"
+   895→   895→                      placeholder="example@gmail.com"
+   896→   896→                      className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+   897→   897→                    />
+   898→   898→                  </div>
+   899→   899→                  <div>
+   900→   900→                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Message</label>
+   901→   901→                    <textarea
+   902→   902→                      rows={5}
+   903→   903→                      placeholder="How can we help you?"
+   904→   904→                      className="w-full px-3 py-2.5 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow resize-none"
+   905→   905→                    />
+   906→   906→                  </div>
+   907→   907→                  <button
+   908→   908→                    type="submit"
+   909→   909→                    className="w-full bg-primary text-primary-foreground font-semibold text-sm py-3 rounded-xl hover:opacity-90 transition-opacity cursor-pointer"
+   910→   910→                  >
+   911→   911→                    Send Message
+   912→   912→                  </button>
+   913→   913→                </form>
+   914→   914→              </div>
+   915→   915→            ) : (
+   916→   916→              <div className="bg-gradient-to-br from-primary/8 to-violet-500/8 border border-primary/15 rounded-2xl p-8 flex flex-col items-center justify-center text-center h-full min-h-[280px]">
+   917→   917→                <MessageSquare className="w-10 h-10 text-primary/40 mb-4" />
+   918→   918→                <h3 className="font-bold text-lg mb-2">Drop us a line</h3>
+   919→   919→                <p className="text-sm text-muted-foreground">
+   920→   920→                  Use the contact information on the left to reach us directly.
+   921→   921→                </p>
+   922→   922→              </div>
+   923→   923→            )}
+   924→   924→          </motion.div>
+   925→   925→        </div>
+   926→   926→
+   927→   927→        {/* Map embed */}
+   928→   928→        {settings?.mapEmbed && (
+   929→   929→          <motion.div
+   930→   930→            initial={{ opacity: 0, y: 16 }}
+   931→   931→            animate={{ opacity: 1, y: 0 }}
+   932→   932→            transition={{ duration: 0.5, delay: 0.3, ease: "easeOut" }}
+   933→   933→            className="mt-16 rounded-2xl overflow-hidden border border-border h-72"
+   934→   934→            dangerouslySetInnerHTML={{ __html: settings.mapEmbed }}
+   935→   935→          />
+   936→   936→        )}
+   937→   937→      </div>
+   938→   938→    </PublicLayout>
+   939→   939→  );
+   940→   940→}import { useQuery } from "convex/react";
+   941→   941→import { api } from "@/convex/_generated/api.js";
+   942→   942→import { useParams, Navigate } from "react-router-dom";
+   943→   943→import { motion } from "motion/react";
+   944→   944→import ReactMarkdown from "react-markdown";
+   945→   945→import { Skeleton } from "@/components/ui/skeleton.tsx";
+   946→   946→import { format } from "date-fns";
+   947→   947→import PublicLayout from "./_components/PublicLayout.tsx";
+   948→   948→
+   949→   949→export default function StaticPage() {
+   950→   950→  const { slug } = useParams<{ slug: string }>();
+   951→   951→  const page = useQuery(api.staticPages.getBySlug, slug ? { slug } : "skip");
+   952→   952→
+   953→   953→  if (page === undefined) {
+   954→   954→    return (
+   955→   955→      <PublicLayout>
+   956→   956→        <div className="max-w-3xl mx-auto px-6 py-16 space-y-4">
+   957→   957→          <Skeleton className="h-10 w-1/2" />
+   958→   958→          <Skeleton className="h-4 w-32" />
+   959→   959→          <div className="space-y-3 pt-6">
+   960→   960→            {Array.from({ length: 8 }).map((_, i) => (
+   961→   961→              <Skeleton key={i} className="h-4 w-full" />
+   962→   962→            ))}
+   963→   963→          </div>
+   964→   964→        </div>
+   965→   965→      </PublicLayout>
+   966→   966→    );
+   967→   967→  }
+   968→   968→
+   969→   969→  if (page === null) {
+   970→   970→    return <Navigate to="/" replace />;
+   971→   971→  }
+   972→   972→
+   973→   973→  return (
+   974→   974→    <PublicLayout>
+   975→   975→      <div className="max-w-3xl mx-auto px-6 py-16">
+   976→   976→        <motion.div
+   977→   977→          initial={{ opacity: 0, y: 16 }}
+   978→   978→          animate={{ opacity: 1, y: 0 }}
+   979→   979→          transition={{ duration: 0.5, ease: "easeOut" }}
+   980→   980→        >
+   981→   981→          <h1 className="text-4xl font-extrabold tracking-tight mb-3">{page.title}</h1>
+   982→   982→          <p className="text-sm text-muted-foreground mb-10 pb-8 border-b border-border">
+   983→   983→            Last updated {format(new Date(page.updatedAt), "MMMM d, yyyy")}
+   984→   984→          </p>
+   985→   985→
+   986→   986→          <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:font-extrabold prose-headings:tracking-tight prose-a:text-primary prose-a:no-underline hover:prose-a:underline">
+   987→   987→            <ReactMarkdown>{page.content}</ReactMarkdown>
+   988→   988→          </div>
+   989→   989→        </motion.div>
+   990→   990→      </div>
+   991→   991→    </PublicLayout>
+   992→   992→  );
+   993→   993→}import { mutation, query } from "./_generated/server";
+   994→   994→import { v } from "convex/values";
+   995→   995→
+   996→   996→export const list = query({
+   997→   997→  args: {},
+   998→   998→  handler: async (ctx) => {
+   999→   999→    return await ctx.db.query("jobListings").withIndex("by_order").order("asc").collect();
+  1000→  1000→  },
+  1001→  1001→});
+  1002→  1002→
+  1003→  1003→export const upsert = mutation({
+  1004→  1004→  args: {
+  1005→  1005→    id: v.optional(v.id("jobListings")),
+  1006→  1006→    title: v.string(),
+  1007→  1007→    department: v.optional(v.string()),
+  1008→  1008→    location: v.optional(v.string()),
+  1009→  1009→    type: v.optional(v.string()),
+  1010→  1010→    description: v.string(),
+  1011→  1011→    published: v.boolean(),
+  1012→  1012→    order: v.number(),
+  1013→  1013→  },
+  1014→  1014→  handler: async (ctx, args) => {
+  1015→  1015→    if (args.id) {
+  1016→  1016→      const { id, ...data } = args;
+  1017→  1017→      await ctx.db.patch(id, data);
+  1018→  1018→      return id;
+  1019→  1019→    }
+  1020→  1020→    const { id: _id, ...data } = args;
+  1021→  1021→    return await ctx.db.insert("jobListings", data);
+  1022→  1022→  },
+  1023→  1023→});
+  1024→  1024→
+  1025→  1025→export const remove = mutation({
+  1026→  1026→  args: { id: v.id("jobListings") },
+  1027→  1027→  handler: async (ctx, args) => {
+  1028→  1028→    await ctx.db.delete(args.id);
+  1029→  1029→  },
+  1030→  1030→});import { mutation, query } from "./_generated/server";
+  1031→  1031→import { v } from "convex/values";
+  1032→  1032→
+  1033→  1033→export const get = query({
+  1034→  1034→  args: { slug: v.string() },
+  1035→  1035→  handler: async (ctx, args) => {
+  1036→  1036→    return await ctx.db
+  1037→  1037→      .query("staticPages")
+  1038→  1038→      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+  1039→  1039→      .unique();
+  1040→  1040→  },
+  1041→  1041→});
+  1042→  1042→
+  1043→  1043→export const upsert = mutation({
+  1044→  1044→  args: {
+  1045→  1045→    slug: v.string(),
+  1046→  1046→    title: v.string(),
+  1047→  1047→    content: v.string(),
+  1048→  1048→  },
+  1049→  1049→  handler: async (ctx, args) => {
+  1050→  1050→    const existing = await ctx.db
+  1051→  1051→      .query("staticPages")
+  1052→  1052→      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+  1053→  1053→      .unique();
+  1054→  1054→    const updatedAt = new Date().toISOString();
+  1055→  1055→    if (existing) {
+  1056→  1056→      await ctx.db.patch(existing._id, { title: args.title, content: args.content, updatedAt });
+  1057→  1057→    } else {
+  1058→  1058→      await ctx.db.insert("staticPages", { ...args, updatedAt });
+  1059→  1059→    }
+  1060→  1060→  },
+  1061→  1061→});import { mutation, query } from "./_generated/server";
+  1062→  1062→import { v } from "convex/values";
+  1063→  1063→
+  1064→  1064→export const get = query({
+  1065→  1065→  args: {},
+  1066→  1066→  handler: async (ctx) => {
+  1067→  1067→    const results = await ctx.db.query("contactSettings").take(1);
+  1068→  1068→    return results[0] ?? null;
+  1069→  1069→  },
+  1070→  1070→});
+  1071→  1071→
+  1072→  1072→export const upsert = mutation({
+  1073→  1073→  args: {
+  1074→  1074→    email: v.optional(v.string()),
+  1075→  1075→    phone: v.optional(v.string()),
+  1076→  1076→    address: v.optional(v.string()),
+  1077→  1077→    mapEmbed: v.optional(v.string()),
+  1078→  1078→    formEnabled: v.boolean(),
+  1079→  1079→  },
+  1080→  1080→  handler: async (ctx, args) => {
+  1081→  1081→    const results = await ctx.db.query("contactSettings").take(1);
+  1082→  1082→    if (results[0]) {
+  1083→  1083→      await ctx.db.patch(results[0]._id, args);
+  1084→  1084→    } else {
+  1085→  1085→      await ctx.db.insert("contactSettings", args);
+  1086→  1086→    }
+  1087→  1087→  },
+  1088→  1088→});

@@ -750,6 +750,28 @@ export const api = {
         notifications: number;
       };
     }>(`/admin/analytics/reset`, { method: "POST" }),
+
+  // ===== Website Builder — public CMS endpoints =====
+  blogPosts: () => apiFetch<{ items: any[] }>(`/blog/posts`),
+  blogPost: (slug: string) =>
+    apiFetch<{ post: any }>(`/blog/posts/${encodeURIComponent(slug)}`),
+  faqList: () => apiFetch<{ items: any[] }>(`/faq`),
+  careersList: () => apiFetch<{ items: any[] }>(`/careers`),
+  career: (slug: string) =>
+    apiFetch<{ job: any }>(`/careers/${encodeURIComponent(slug)}`),
+  contactSubmit: (payload: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    message?: string;
+    [key: string]: unknown;
+  }) =>
+    apiFetch<{ success: boolean }>(`/contact`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  staticPage: (slug: string) =>
+    apiFetch<{ page: any }>(`/pages/${encodeURIComponent(slug)}`),
 };
 
 // ===== Utilities =====

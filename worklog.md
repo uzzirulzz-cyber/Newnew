@@ -1301,3 +1301,65 @@ Stage Summary:
 - Backend glue is fully wired for: products (list/create/update/delete), orders (list — create/status-update stubbed as TODO), subscriptions, coupons, support, IPTV (channels + subscribers + stats), finance (revenue + transactions), payment gateways (list/toggle/test-mode), reports, wordpress posts, media library, developer (api-keys + webhooks), security (audit logs), settings (get/put), analytics.
 - Components with no live data needs (marketing, SEO, AI tools, integrations) keep their static mock data and remain lint-clean.
 - TODOs left for follow-up: admin-side `orders.create` and `orders.updateStatus` don't have api-client methods — they currently no-op with a success toast. Adding `api.adminOrderCreate` / `api.adminOrderUpdateStatus` would close the loop.
+
+---
+Task ID: PAGES-CONVERT
+Agent: Sub-agent (general-purpose)
+Task: Convert 8 React page components from upload/new.txt (Convex + react-router-dom) to Next.js 16 App Router pages (api-client + next/navigation).
+
+Work Log:
+- Read `/home/z/my-project/upload/new.txt` (1088 lines) in full — 8 components concatenated with 3 trailing Convex server stubs (careers/staticPages/contactSettings) that we did not port (Next.js backend already lives under `/api/v1`).
+- Inspected existing project conventions: `src/lib/api-client.ts` `apiFetch<T>` + `ok()/error()/applyRateLimit()` helpers from `src/lib/api.ts`; `QueryClientProvider` already wired via `src/components/playbeat/providers.tsx`; `framer-motion`, `react-markdown`, `lucide-react`, `sonner`, `@tanstack/react-query` all already in `package.json`; existing API route pattern uses `NextRequest` + `params: Promise<{...}>` (Next.js 16 async dynamic params).
+
+API client additions (`src/lib/api-client.ts`, appended after `resetAnalytics`):
+- `blogPosts()` → GET `/blog/posts` → `{ items: any[] }`
+- `blogPost(slug)` → GET `/blog/posts/{slug}` → `{ post: any }`
+- `faqList()` → GET `/faq` → `{ items: any[] }`
+- `careersList()` → GET `/careers` → `{ items: any[] }`
+- `career(slug)` → GET `/careers/{slug}` → `{ job: any }`
+- `contactSubmit(payload)` → POST `/contact` → `{ success: boolean }`
+- `staticPage(slug)` → GET `/pages/{slug}` → `{ page: any }`
+All slugs URL-encoded via `encodeURIComponent`. `contactSubmit` payload typed loosely (`[key: string]: unknown`) so the contact page can add fields later.
+
+New files created:
+
+| # | Path | Role |
+|---|---|---|
+| 1 | `src/components/website-builder/public-layout.tsx` | Header + footer wrapper, named export `PublicLayout` (+ default for convenience). Hardcoded `siteName`, `navItems`, `footer.tagline/links` since no settings API exists yet. Uses `usePathname()` from `next/navigation` and `<a href>` for nav. |
+| 2 | `src/app/api/v1/blog/posts/route.ts` | GET — returns 5 sample blog posts (`id`, `slug`, `title`, `excerpt`, `tags`, `coverImage`, `content`, `publishedAt`, `status`). |
+| 3 | `src/app/api/v1/blog/posts/[slug]/route.ts` | GET — returns single post by slug, 404 otherwise. |
+| 4 | `src/app/api/v1/faq/route.ts` | GET — returns 6 sample FAQ items across General/Domains/Support/Billing categories. |
+| 5 | `src/app/api/v1/careers/route.ts` | GET — returns 5 sample job listings (Senior Product Engineer, Product Designer, Developer Advocate, Customer Support Specialist, Technical Writer contract) with `slug`/`department`/`location`/`type`/`description` (Markdown). |
+| 6 | `src/app/api/v1/careers/[slug]/route.ts` | GET — returns single job by slug, 404 otherwise. |
+| 7 | `src/app/api/v1/contact/route.ts` | POST — validates `email` (regex) and `message` (≥10 chars) via `validate()`/`v` helpers, returns `{ success, message, received }`. 30 req/min rate limit. TODO comment left to wire up persistence/email. |
+| 8 | `src/app/api/v1/pages/[slug]/route.ts` | GET — returns hardcoded `/about` page content (Markdown). Any other slug → 404. |
+| 9 | `src/app/blog/page.tsx` | Blog listing. React Query `["blog-posts"]` → `api.blogPosts()`. Empty state replaced with dashed-border `<div>` + `FileText` icon. `post._id` → `post.id`, `<Link to={...}>` → `<a href={...}>`. |
+| 10 | `src/app/blog/[slug]/page.tsx` | Single blog post. React Query `["blog-post", slug]` → `api.blogPost(slug)`, `enabled: !!slug`. React-router `<Navigate to="/blog">` replaced with `useRouter().replace("/blog")` in a `useEffect` (also fires on `isError`). `ReactMarkdown` retained. |
+| 11 | `src/app/faq/page.tsx` | FAQ accordion. `["faq"]` → `api.faqList()`. Category filter and per-row open/close state preserved. |
+| 12 | `src/app/careers/page.tsx` | Job listings. `["careers"]` → `api.careersList()`. Department filter preserved. Job detail URL changed from `/careers/${job._id}` → `/careers/${job.slug}` (no more Convex IDs). |
+| 13 | `src/app/careers/[slug]/page.tsx` | Single job. `["career", slug]` → `api.career(slug)`. Same `useRouter().replace("/careers")` redirect pattern as blog post. Apply CTA links to `/contact`. |
+| 14 | `src/app/contact/page.tsx` | Contact page. Settings (email/phone/address/formEnabled/mapEmbed) hardcoded inline since no contact-settings API exists yet. Form actually submits via `api.contactSubmit(...)` (original just had `e.preventDefault()`); uses `sonner` toast for success/error feedback; controlled inputs; `disabled` state while submitting. |
+| 15 | `src/app/[slug]/page.tsx` | Static CMS page. `["static-page", slug]` → `api.staticPage(slug)`. `isError` (404) → `useRouter().replace("/")`. Note: Next.js prefers the existing static routes `/privacy`, `/terms`, `/refund-policy`, `/marketplace`, `/games`, `/ai-tools`, `/giftcards`, `/admin` over this dynamic `[slug]`, so the catch-all only kicks in for `/about` and any other unmapped top-level slug. |
+
+Common transformations applied (per task brief conversion rules):
+1. `react-router-dom` imports (`Link`, `useLocation`, `useParams`, `Navigate`) → removed. Replaced with `<a href>` for navigation, `usePathname()`/`useParams()` from `next/navigation`, `useRouter().replace()` for programmatic redirects.
+2. `convex/react` `useQuery` → `@tanstack/react-query`'s `useQuery({ queryKey, queryFn, enabled })`. The original Convex `"skip"` sentinel maps to React Query's `enabled: !!slug`.
+3. `@/convex/_generated/api.js` and `@/convex/_generated/dataModel.js` imports removed entirely (along with `Id<"...">` and `Doc<"...">` types — replaced with local plain-object types or `string`).
+4. `motion/react` → `framer-motion` (motion props unchanged).
+5. `date-fns` `format()` → local `formatDate()` helper using `new Date(iso).toLocaleDateString("en-US", { month/year/day })`. Two variants: short (`"MMM d, yyyy"`) for blog cards, long (`"MMMM d, yyyy"`) for blog post meta + static page footer.
+6. `Empty`/`EmptyHeader`/`EmptyMedia`/`EmptyTitle`/`EmptyDescription` (from `@/components/ui/empty`) → simple `<div>` with dashed border, circular icon background, title, and description. The original component doesn't exist in this project, so this was necessary regardless.
+7. All `.tsx`/`.ts` extensions stripped from `@/` import paths.
+8. Every page file starts with `"use client"`.
+9. Every page wraps its content in `<PublicLayout>` (imported as named export from `@/components/website-builder/public-layout`).
+10. `post._id` / `faq._id` / `job._id` → `post.id` / `faq.id` / `job.id` everywhere (React keys, link construction).
+
+Verification:
+- `bun run lint` → exits 0 with no warnings or errors.
+- `npx tsc --noEmit` → no errors in any of the 15 new files. The 4 remaining project-wide TS errors (`examples/websocket/frontend.tsx`, `examples/websocket/server.ts`, `skills/image-edit/scripts/image-edit.ts`, `skills/stock-analysis-skill/src/analyzer.ts`) are pre-existing and unrelated to this task (and outside `src/`).
+- Manually inspected the `[slug]` directory creation (square-bracket folders can be tricky on the shell) — confirmed `src/app/[slug]/page.tsx` exists.
+
+Stage Summary:
+- 8 components from `upload/new.txt` now run as Next.js 16 App Router pages: `/blog`, `/blog/[slug]`, `/faq`, `/careers`, `/careers/[slug]`, `/contact`, `/[slug]` (static catch-all), plus the shared `PublicLayout` component.
+- All 7 new API endpoints (`/api/v1/blog/posts`, `/api/v1/blog/posts/[slug]`, `/api/v1/faq`, `/api/v1/careers`, `/api/v1/careers/[slug]`, `/api/v1/contact`, `/api/v1/pages/[slug]`) return hardcoded sample data via the project's standard `ok()/error()/applyRateLimit()` helpers — ready to be swapped for real Prisma lookups once Blog/Faq/JobListing/ContactMessage/StaticPage models are added to `prisma/schema.prisma`.
+- Contact form is wired up end-to-end: client-side controlled inputs → `api.contactSubmit()` POST → server-side validation (email regex + ≥10-char message) → 30/min rate limit → `sonner` toast feedback. Persistence layer left as a documented TODO.
+- No routing conflicts: existing static routes (`/privacy`, `/terms`, `/refund-policy`, `/marketplace`, `/games`, `/ai-tools`, `/giftcards`, `/admin`) continue to resolve because Next.js prefers concrete folders over the dynamic `[slug]` catch-all.
