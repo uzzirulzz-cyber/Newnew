@@ -1363,3 +1363,88 @@ Stage Summary:
 - All 7 new API endpoints (`/api/v1/blog/posts`, `/api/v1/blog/posts/[slug]`, `/api/v1/faq`, `/api/v1/careers`, `/api/v1/careers/[slug]`, `/api/v1/contact`, `/api/v1/pages/[slug]`) return hardcoded sample data via the project's standard `ok()/error()/applyRateLimit()` helpers — ready to be swapped for real Prisma lookups once Blog/Faq/JobListing/ContactMessage/StaticPage models are added to `prisma/schema.prisma`.
 - Contact form is wired up end-to-end: client-side controlled inputs → `api.contactSubmit()` POST → server-side validation (email regex + ≥10-char message) → 30/min rate limit → `sonner` toast feedback. Persistence layer left as a documented TODO.
 - No routing conflicts: existing static routes (`/privacy`, `/terms`, `/refund-policy`, `/marketplace`, `/games`, `/ai-tools`, `/giftcards`, `/admin`) continue to resolve because Next.js prefers concrete folders over the dynamic `[slug]` catch-all.
+
+---
+Task ID: WEBSITE-BUILDER
+Agent: General-purpose sub-agent
+Task: Build a full-featured visual website builder (section-based editor) for the PlayBeat admin panel
+
+Work Log:
+- Read `worklog.md` (last ~10 entries — CONVEX-1/2, CONVEX-CONVERT, PAGES-CONVERT) for project context and conventions. Read `src/components/playbeat/admin/index.tsx` to confirm the module router already imports `WebsiteBuilderModule` from `./website-builder` and routes `case "website-builder"` → `<WebsiteBuilderModule />`. Read `src/components/playbeat/admin/shared.tsx` for the AdminCard / ModuleHeader / GradientButton patterns (the new module uses its own header styling for closer parity with the brief's wireframe, but follows the same dark glass aesthetic). Read `src/app/api/v1/admin/settings/route.ts` for the Settings-key-value-store pattern (`db.settings.findUnique({ where: { key } })` + `db.settings.upsert(...)`).
+
+**API route created — `src/app/api/v1/admin/website-builder/route.ts`** (219 lines):
+- `SETTING_KEY = "website-builder-config"` — single JSON blob in the existing `Settings` Prisma model.
+- `defaultConfig()` factory returns a complete starter page with 5 sections exactly per the brief:
+  - Hero — "Premium Digital Products" headline, eyebrow "PlayBeat Digital", 2 CTAs ("Browse Products" → /marketplace, "Become a Vendor" → /vendor), dark gradient bg.
+  - Features — "Why choose PlayBeat" with 3 cards (Zap/Instant Delivery, Shield/Secure Payments, BarChart3/Powerful Analytics).
+  - Stats — 4 stats (50K+ Products Sold, 12K+ Active Vendors, 98% Uptime, 24/7 Support).
+  - CTA — "Get started today" band on blue bg, "Create Account" button → /register.
+  - Footer — "PlayBeat Digital" logo + description + 3 link columns (Product / Company / Legal) + copyright + 3 social links.
+- GET handler: `applyRateLimit(60)` → `db.settings.findUnique({ where: { key } })` → returns `ok({ config })`. Falls back to `defaultConfig()` when (a) the row is missing, (b) the stored JSON is unparseable, or (c) the parsed object lacks a `sections` array. Also falls back to `defaultConfig()` on DB cold-start so the editor never crashes.
+- PUT handler: `applyRateLimit(20)` → parses body (tolerates both `{ config }` and the bare config object) → validates `sections` array exists → stamps `updatedAt` server-side (so clients can't lie about it) → `db.settings.upsert(...)` → returns `ok({ saved: true, message, updatedAt })`. Returns `error(..., 422)` for invalid bodies and `error(..., 500)` on DB failure.
+
+**API client additions — `src/lib/api-client.ts`** (appended after `staticPage`, before the closing `}`):
+- `websiteBuilderGet()` → GET `/admin/website-builder` → `{ config: any }`
+- `websiteBuilderPut(payload)` → PUT `/admin/website-builder` with `JSON.stringify(payload)` body → `{ saved: boolean; message: string; updatedAt?: string }`
+
+**Main module — `src/components/playbeat/admin/website-builder.tsx`** (2319 lines):
+
+Types & metadata:
+- `SectionType` union of all 9 types. `PageSection` and `PageConfig` interfaces match the brief exactly (`id` / `type` / `visible` / `data: Record<string, any>`).
+- `SECTION_META` — label + description + lucide icon for each section type (used in sidebar + add dialog).
+- `ICON_MAP` — 26 lucide icons keyed by name (Layout, Sparkles, Zap, Shield, BarChart3, Package, Users, Activity, Headphones, Star, Check, ArrowRight, Quote, HelpCircle, Mail, Heart, Rocket, Crown, Code, Globe, Clock, TrendingUp, Award, Download, Lock, RefreshCw). `getIcon(name)` resolves a string → component, falling back to `Sparkles`.
+- `genId()` — tries `crypto.randomUUID()` first, falls back to `s-<timestamp36>-<random>` if `crypto` is unavailable or `randomUUID` is missing.
+- `createDefaultSection(type)` — factory returning a fully-populated starter section for each of the 9 types (sensible defaults so newly-added sections aren't blank).
+
+9 section preview components (simplified visual renders for the live-preview panel):
+- `HeroPreview` — eyebrow + large headline + subheadline + 2 CTA pills, supports bgColor / bgGradient / bgImage (image overlay at 40% opacity).
+- `FeaturesPreview` — title + subtitle + vertical card list with icon-in-circle + title + line-clamped description.
+- `PricingPreview` — title + subtitle + 3-column tier grid; popular tier highlighted with blue border + "Popular" badge; price + period + up-to-3 features with check icons + CTA pill.
+- `TestimonialsPreview` — title + subtitle + stacked quote cards with 5-star rating row, italic quote, avatar (img if URL, else initial-circle) + name + role.
+- `CtaPreview` — colored band with headline + subtext + white CTA button.
+- `StatsPreview` — 2-column grid of stat tiles (icon + value + label).
+- `GalleryPreview` — title + 2-column image grid (img if URL, else ImageIcon placeholder).
+- `FaqPreview` — title + Q&A list with HelpCircle markers.
+- `FooterPreview` — dark section with logo + description + 2 link columns + copyright + social pills.
+- `SectionPreview` dispatcher switches on `section.type`.
+
+9 section editor components (full forms for every field):
+- `HeroEditor` — eyebrow, headline, subheadline, primary CTA (text+link), secondary CTA (text+link), bg color (color picker + hex input), bg image URL, bg gradient CSS.
+- `FeaturesEditor` — title, subtitle, card list (add up to 6, remove down to 3, each with IconPicker + title + description). Shows "Minimum 3 cards" warning when below.
+- `PricingEditor` — title, subtitle, 3 tier cards each with name/price/period, features (one-per-line textarea → array), popular Switch, CTA text + link.
+- `TestimonialsEditor` — title, subtitle, item list (add up to 6, remove down to 3) with name, role, avatar URL, quote, rating (1-5 Select).
+- `CtaEditor` — headline, subtext, button text + link, bg color.
+- `StatsEditor` — 4 stat rows (value + label + IconPicker).
+- `GalleryEditor` — title + image list (add/remove, each with URL + alt text).
+- `FaqEditor` — title + Q&A list (add/remove, each with question + answer).
+- `FooterEditor` — logo text, description, 3 link columns (title + links textarea where each line is `Label|/link`), social links (platform + URL, add/remove), copyright.
+- `IconPicker` — shared Select dropdown listing all 26 ICON_MAP entries with their visual icon.
+- `SectionEditor` dispatcher switches on `section.type`.
+
+Sidebar & dialogs:
+- `SectionListItem` — clickable card showing section icon + label + description, with an Eye/EyeOff visibility toggle, and a hover-revealed action row (ChevronUp / ChevronDown / index badge / Trash2). Up/down disabled at array boundaries.
+- `AddSectionDialog` — 3-column grid of section-type buttons (icon + label + description); clicking one calls `onAdd(type)` and closes the dialog.
+
+Main `WebsiteBuilderModule`:
+- Uses `useQuery({ queryKey: ["website-builder-config"], queryFn: () => api.websiteBuilderGet() })` to load on mount.
+- Local state (`config`, `selectedId`, `addOpen`, `showPreview`, `saving`) hydrated from the query via `useEffect` — keeps edits local until Save, so the editor is fully responsive.
+- Auto-selects the first section on first load if nothing is selected.
+- Mutations all operate on local state: `updateSectionData`, `toggleVisibility`, `moveSection(id, ±1)`, `deleteSection` (also clears `selectedId` if it was the deleted one), `addSection` (appends + auto-selects), `resetAll` (empties sections).
+- `handleSave` calls `api.websiteBuilderPut(config)`, shows toast, invalidates `["website-builder-config"]` via `useQueryClient`.
+- Loading state → 3-column Skeleton grid. Error state → rose-tinted card with Retry button (invalidates the query).
+- 3-column responsive layout: `[260px sections sidebar | edit panel | live preview]` on `lg+`, collapsing to single column on mobile. Preview panel toggleable via the "Hide/Preview" button.
+- Live preview is wrapped in fake browser chrome (3 traffic-light dots + `playbeat.digital` URL pill) with a 600px max-height scroll container. Sections render via `AnimatePresence mode="popLayout"` + `motion.div layout` so reordering animates smoothly. Hidden sections are filtered out of the preview.
+- Header has gradient icon badge, title, "saved at" timestamp Badge, Preview/Reset/Save buttons (Save uses the blue→purple gradient).
+
+Verification:
+- `bun run lint` → exits 0 with zero warnings and zero errors (initial run flagged 2 unused `@next/next/no-img-element` eslint-disable directives on the `<img>` tags in TestimonialsPreview and GalleryPreview — the project doesn't enable that rule, so the directives were removed).
+- `npx tsc --noEmit` → zero errors in any of the 3 new/modified files. The 5 remaining project-wide TS errors (`examples/websocket/*`, `skills/image-edit/*`, `skills/stock-analysis-skill/*`, `src/app/api/v1/analytics/dashboard/route.ts`) are all pre-existing and unrelated to this task.
+- Confirmed `WebsiteBuilderModule` is the sole named export and matches the import already wired in `src/components/playbeat/admin/index.tsx` (`case "website-builder": return <WebsiteBuilderModule />;`).
+- Confirmed both `api.websiteBuilderGet` and `api.websiteBuilderPut` resolve cleanly and use the project's standard `apiFetch<T>` wrapper (auto-unwraps the `{ success, data }` envelope).
+
+Stage Summary:
+- The admin panel's Website Builder (`/admin` → sidebar → "Website Builder") now renders a full 3-column visual editor instead of the previous "coming soon" SimpleModule placeholder.
+- 9 section types supported end-to-end: hero, features, pricing, testimonials, cta, stats, gallery, faq, footer — each with its own preview renderer and full-field editor form.
+- All section CRUD operations (add / delete / reorder up-down / toggle visibility / edit fields) work locally with real-time preview updates; Save persists the entire config as a single JSON blob to the `Settings` table under key `website-builder-config`.
+- Default config (returned by GET when no row exists) ships a polished 5-section homepage (Hero + Features + Stats + CTA + Footer) so the editor is never empty on first load.
+- Backend follows the established `ok/error/applyRateLimit/db.settings.upsert` pattern from `admin/settings/route.ts` — no new dependencies, no new Prisma models, no schema changes.

@@ -772,6 +772,18 @@ export const api = {
     }),
   staticPage: (slug: string) =>
     apiFetch<{ page: any }>(`/pages/${encodeURIComponent(slug)}`),
+
+  // ===== Website Builder (admin) =====
+  websiteBuilderGet: () =>
+    apiFetch<{ config: any }>(`/admin/website-builder`),
+  websiteBuilderPut: (payload: any) =>
+    apiFetch<{ saved: boolean; message: string; updatedAt?: string }>(
+      `/admin/website-builder`,
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      },
+    ),
 };
 
 // ===== Utilities =====

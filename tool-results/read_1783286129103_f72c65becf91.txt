@@ -1,0 +1,267 @@
+  1100→| 11 | Finance | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, 100% hardcoded data. |
+  1101→| 12 | Marketing | ❌ Broken | Affiliate section would work IF `api.affiliateStats()` existed — but it doesn't (C1). Campaigns are 100% local state + fake random send counts (C11). Edit/Automations/Manage-Affiliates all toast-only. |
+  1102→| 13 | Media | ⚠️ Partial | File list + folders + search read real `api.mediaList()`. Copy URL + Download (open in new tab) work. But upload silently 404s (C2), New Folder is fake (C2), Delete is toast-only (C2), Optimize All is toast-only, two stat cards are hardcoded. |
+  1103→| 14 | Mobile App | ❌ Broken | 100% local state, fake upload with random size, fake push (setTimeout + toast), no actual file upload, config inputs can't be edited (defaultValue), all stats hardcoded (C12). |
+  1104→| 15 | AI Tools | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, no AI generation backend, all toast-only. |
+  1105→| 16 | Integrations | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, toggle is local state, all hardcoded. |
+  1106→| 17 | SEO | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, robots.txt editor / redirects / sitemap all local state, no backend. |
+  1107→| 18 | Security | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, audit logs / login history / firewall rules all hardcoded. 2FA + IP whitelist local state only. |
+  1108→| 19 | Support | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, tickets / FAQs / live chat all hardcoded. Reply box has no send backend. |
+  1109→| 20 | Subscriptions | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, all 4 plans hardcoded with fake subscriber counts. |
+  1110→| 21 | WooCommerce | ✅ Functional | Real `api.woocommerceProducts()` + `api.woocommerceOrders()` + `api.woocommerceTest()` setup wizard. Sync, search, product/order tables all work. Only nit: no create/update — read-only (acceptable for sync). |
+  1111→| 22 | WordPress | ✅ Functional | Real `api.wordpressPlugins()` (live WP.org API with 5-min cache) + `api.wordpressPosts()`. Search, browse tabs, plugin cards, blog posts all work. Download button opens real WP.org download URL. |
+  1112→| 23 | Website Builder | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, pages/sections all hardcoded, Preview/New Page toast-only, section visibility toggle is local state. |
+  1113→| 24 | IPTV | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, channels/servers/categories all hardcoded, Upload M3U + Add Xtream toast-only. |
+  1114→| 25 | Developer | ❌ Broken (bypassed) | File has full UI but index.tsx routes to SimpleModule placeholder (C4). Even if routed, API keys / webhooks / endpoints all hardcoded, no key rotation or webhook creation backend. |
+  1115→
+  1116→# Summary Scorecard
+  1117→
+  1118→- ✅ Fully functional: **2 / 25** (WooCommerce, WordPress)
+  1119→- ⚠️ Partial (real read, broken/fake write): **8 / 25** (Dashboard, Products, Orders, Payments, JazzCash, Users, Reports, Media)
+  1120→- ❌ Broken (all fake, all local, or dead-code-bypassed): **15 / 25** (Settings, Coupons, Analytics, Finance, Marketing, Mobile App, AI Tools, Integrations, SEO, Security, Support, Subscriptions, Website Builder, IPTV, Developer)
+  1121→
+  1122→# Top 5 Priority Fixes (highest impact, lowest effort)
+  1123→
+  1124→1. **C1 — Marketing `api.affiliateStats()` typo** → change to `api.affiliates()`. One-line fix, un-breaks the entire affiliate section.
+  1125→2. **C3 — Admin Orders shows admin's own orders** → add `GET /api/v1/admin/orders` returning all orders; switch dashboard/orders/reports to use it. Affects 3 modules at once.
+  1126→3. **C2 — Media upload 404** → implement `POST /api/v1/media/upload`. Without this, the entire upload UI is broken.
+  1127→4. **C4 — 12 bypassed modules** → either route them in `index.tsx` or delete the dead files. Currently the sidebar promises features that 100% show "coming soon".
+  1128→5. **C8 — Settings Save All is fake** → wire to `PUT /api/v1/admin/settings`. Settings Prisma model already exists from Task 1; this is mostly backend glue.
+  1129→
+  1130→# Silent Error Swallowing Patterns
+  1131→
+  1132→- `media.tsx:115` — upload catch shows generic "Upload failed" instead of "Endpoint /api/v1/media/upload not implemented (404)".
+  1133→- `reports.tsx:435` — report generation catch shows generic "Failed to generate report" instead of actual error.
+  1134→- `marketing.tsx:192` — `api.affiliateStats()` runtime TypeError caught silently by TanStack Query; UI falls back to fake hardcoded stats with no user-visible error.
+  1135→- `orders/route.ts:52-54`, `admin/users/route.ts:42-45`, `analytics/dashboard/route.ts:38-40, 161-191` — DB errors return empty/fallback data with `console.error` only. User sees empty lists with no indication the DB is down.
+  1136→
+  1137→
+  1138→---
+  1139→Task ID: CONVEX-1
+  1140→Agent: General-purpose sub-agent
+  1141→Task: Convert Convex backend functions to Next.js API routes — admin batch 1 (Support Tickets, Subscriptions, IPTV)
+  1142→
+  1143→Work Log:
+  1144→- Read `src/lib/api.ts` to confirm `ok`/`error`/`applyRateLimit` signatures, and `src/app/api/v1/admin/products/{create,update,delete}/route.ts` to match existing route-handler conventions.
+  1145→- Verified Prisma schema (`prisma/schema.prisma`) — confirmed `SupportTicket` (with `replies String @default("[]")`), `Subscription`, `IptvChannel`, `IptvSubscriber` models exist and match the field shapes required by the spec.
+  1146→- Created 11 new route files under `src/app/api/v1/admin/`:
+  1147→
+  1148→  **Support — `support/`**
+  1149→  - `list/route.ts` (GET) — filters by `status`, `priority`, `search` (matches ticketNumber, subject, customerName, case-insensitive). Parses the JSON-encoded `replies` string back into an array via a `safeParseArray` helper.
+  1150→  - `create/route.ts` (POST) — auto-generates `TKT-XXXX` from `count() + 1` (zero-padded). Sets `status: "open"`, `replies: "[]"`. Includes a P2002 retry path in case of ticketNumber collision.
+  1151→  - `update/route.ts` (POST) — validates `status` against `["open","in_progress","resolved","closed"]` whitelist before update.
+  1152→  - `reply/route.ts` (POST) — loads ticket, `JSON.parse`s the existing replies (defensive against malformed JSON), appends `{authorName, message, isStaff, createdAt: new Date().toISOString()}`, then `JSON.stringify`s back. Returns 404 if ticket not found.
+  1153→
+  1154→  **Subscriptions — `subscriptions/`**
+  1155→  - `list/route.ts` (GET) — filters by `status`, `search` (customerName/customerEmail).
+  1156→  - `create/route.ts` (POST) — validates all required fields; stores `startDate`/`nextBillingDate` as ISO strings (per Prisma schema, these are `String` columns). Optional `userId` accepted.
+  1157→  - `update/route.ts` (POST) — sets `status`; when status is `"cancelled"` also stamps `cancelledAt` with `new Date().toISOString()`.
+  1158→
+  1159→  **IPTV — `iptv/`**
+  1160→  - `channels/route.ts` (GET) — filters by `status`, `category` (case-insensitive equals), `search` (channel name contains).
+  1161→  - `channels/create/route.ts` (POST) — creates channel; `isHD` coerced via `Boolean()`, defaults via `null` for optional string fields.
+  1162→  - `channels/update/route.ts` (POST) — partial update; only fields explicitly present in body are written; rejects empty payload with 422.
+  1163→  - `channels/delete/route.ts` (POST) — deletes by id, returns deleted channel name.
+  1164→  - `subscribers/route.ts` (GET) — filters by `status`, `search` (name/email).
+  1165→  - `subscribers/create/route.ts` (POST) — forces `status: "active"` and `activeConnections: 0` per spec. `maxConnections` defaults to 1 if not provided.
+  1166→  - `subscribers/update/route.ts` (POST) — updates `status` only.
+  1167→  - `stats/route.ts` (GET) — runs 5 `count()` queries in parallel via `Promise.all`: totalChannels, activeChannels (status=active), errorChannels (status=error), totalSubscribers, activeSubscribers (status=active). Returns zeros on DB error so the admin panel doesn't crash.
+  1168→
+  1169→- All GET handlers use `applyRateLimit(request, 60)`, all POST handlers use `applyRateLimit(request, 30)`, exactly as specified.
+  1170→- All POST handlers parse the body with `await request.json().catch(() => ({}))` to avoid crashes on empty/invalid JSON.
+  1171→- All DB reads are wrapped in `try/catch`. GET list endpoints return `ok({ items: [] })` on DB error (matches existing `admin/orders` and `admin/users` pattern). The `stats` endpoint returns all-zero on DB error. Write endpoints (create/update/delete/reply) return `error(..., 500)` on DB failures — this is correct because the admin UI needs to know writes failed.
+  1172→- Verified `npx tsc --noEmit` reports zero errors in any of the 11 new files (only pre-existing errors in unrelated files: dashboard, settings, marketing, jazzcash webhook, etc.).
+  1173→- Verified `npx eslint src/app/api/v1/admin/support src/app/api/v1/admin/subscriptions src/app/api/v1/admin/iptv` passes with zero warnings/errors.
+  1174→
+  1175→Stage Summary:
+  1176→- 11 new route handlers created across 3 admin modules:
+  1177→  - Support: 4 routes (list, create, update, reply) — backs the previously-bypassed SupportModule UI
+  1178→  - Subscriptions: 3 routes (list, create, update) — backs the previously-bypassed SubscriptionsModule UI
+  1179→  - IPTV: 5 routes (channels list/create/update/delete, subscribers list/create/update, stats) — backs the previously-bypassed IptvModule UI
+  1180→- All routes use the existing `ok`/`error`/`applyRateLimit` helpers and `db` Prisma client — no new dependencies.
+  1181→- Backend glue is now in place for 3 of the 15 "broken" admin modules flagged in AUDIT-2. Frontend wiring (api-client methods + index.tsx switch cases) is the next step.
+  1182→- These routes do NOT enforce admin-role auth — they rely on the existing pattern used by `admin/products/*` and `admin/orders` (rate-limit only). If admin-auth middleware is added later, it should be applied uniformly across all `admin/*` routes.
+  1183→
+  1184→---
+  1185→Task ID: CONVEX-2
+  1186→Agent: General-purpose sub-agent
+  1187→Task: Convert Convex backend functions to Next.js API routes — admin batch 2 (Finance, Developer, Media)
+  1188→
+  1189→Work Log:
+  1190→- Read `src/lib/api.ts` to confirm `ok`/`error`/`applyRateLimit` signatures, and reviewed `src/app/api/v1/admin/{orders,subscriptions/list,subscriptions/create,iptv/channels/create,iptv/channels/delete}/route.ts` for the established route-handler conventions.
+  1191→- Verified Prisma schema (`prisma/schema.prisma`) — confirmed the models backing this batch: `Transaction`, `PaymentGateway`, `ApiKey`, `Webhook`, `AuditLog`, `MediaFile`. All JSON-encoded string columns (`permissions`, `events`, `tags`, `supportedCurrencies`, `config`, `metadata`) handled with `JSON.stringify` on write and a defensive `safeParseArray`/`safeParseRecord` helper on read.
+  1192→- Created 17 new route files under `src/app/api/v1/admin/`:
+  1193→
+  1194→  **Finance — `finance/`**
+  1195→  - `transactions/route.ts` (GET) — filters by `status`, `type`, and `search` (matches `transactionId` and `customerName`, case-insensitive). Returns `{ items }` ordered by `createdAt` desc.
+  1196→  - `revenue/route.ts` (GET) — runs 4 `aggregate` + 1 `count` in parallel via `Promise.all`. `totalRevenue` = sum of completed transactions; `salesRevenue` = sum of completed `sale`-type; `subscriptionRevenue` = sum of completed `subscription`-type; `refunds` = sum of `refund`-type (any status); `transactionCount` = total rows. Returns all zeros on DB error so the admin panel never crashes.
+  1197→  - `gateways/route.ts` (GET) — returns all gateways; parses `supportedCurrencies` (array) and `config` (record) from JSON strings.
+  1198→  - `gateways/toggle/route.ts` (POST) — body `{ id, enabled }`; validates `enabled` is a boolean; updates the gateway.
+  1199→  - `gateways/test-mode/route.ts` (POST) — body `{ id, testMode }`; validates `testMode` is a boolean; updates the gateway.
+  1200→  - `transactions/create/route.ts` (POST) — body `{ transactionId, type, amount, currency?, customerName?, customerEmail?, gateway?, status, description? }`. `currency` defaults to `"PKR"` (per schema default). Optional string fields coerced to `null` when absent.
+  1201→
+  1202→  **Developer — `developer/`**
+  1203→  - `api-keys/route.ts` (GET) — returns all keys, newest first; parses `permissions` JSON back to array.
+  1204→  - `api-keys/create/route.ts` (POST) — body `{ name, permissions, expiresAt? }`. Auto-generates `prefix = "hk_" + randomString(8)` and `key = prefix + "_" + randomString(28)`. `randomString()` loops `Math.random().toString(36).slice(2)` until the requested length is reached (single `Math.random().toString(36)` can yield fewer chars due to trailing zeros). Sets `status: "active"`, `permissions: JSON.stringify(permissions)`. The full plaintext key is returned exactly once in the response.
+  1205→  - `api-keys/revoke/route.ts` (POST) — body `{ id }`; sets `status: "revoked"` (row preserved for audit).
+  1206→  - `webhooks/route.ts` (GET) — returns all webhooks, newest first; parses `events` JSON back to array.
+  1207→  - `webhooks/create/route.ts` (POST) — body `{ name, url, events }`. Validates `events` is an array. Forces `status: "active"`, `successCount: 0`, `failureCount: 0`. `events` stored as `JSON.stringify(events)`.
+  1208→  - `webhooks/toggle/route.ts` (POST) — body `{ id, status }`; validates `status` is `"active"` or `"inactive"`.
+  1209→  - `webhooks/delete/route.ts` (POST) — body `{ id }`; hard-deletes the webhook row.
+  1210→  - `audit-logs/route.ts` (GET) — returns the last 100 audit logs, newest first (`take: 100, orderBy: createdAt desc`). Parses `metadata` JSON back to a record.
+  1211→
+  1212→  **Media — `media/`**
+  1213→  - `list/route.ts` (GET) — filters by `type`, `folder` (exact match), and `search` (matches `name`, case-insensitive contains). Parses `tags` JSON back to array.
+  1214→  - `add/route.ts` (POST) — body `{ name, url, type, size, mimeType?, folder?, tags? }`. `tags` coerced to `[]` if not an array, stored as `JSON.stringify(tagsArray)`. (Endpoint records metadata only — actual blob upload is handled elsewhere.)
+  1215→  - `delete/route.ts` (POST) — body `{ id }`; hard-deletes the media file row.
+  1216→
+  1217→- All GET handlers use `applyRateLimit(request, 60)`, all POST handlers use `applyRateLimit(request, 30)`, exactly as specified.
+  1218→- All POST handlers parse the body with `await request.json().catch(() => ({}))` to avoid crashes on empty/invalid JSON.
+  1219→- All DB reads are wrapped in `try/catch`. GET list endpoints return `ok({ items: [] })` on DB error (matches the existing `admin/orders` and `admin/subscriptions/list` pattern). The `revenue` endpoint returns all-zero on DB error. Write endpoints (create/toggle/delete/revoke) return `error(..., 500)` on DB failures so the admin UI surfaces the failure.
+  1220→- Verified `npx tsc --noEmit` reports zero errors in any of the 17 new files (all remaining errors are pre-existing in unrelated files: dashboard, settings, marketing, jazzcash webhook, products/create cover field, examples/ skills/, marketplace.tsx).
+  1221→- Verified `npx eslint src/app/api/v1/admin/finance src/app/api/v1/admin/developer src/app/api/v1/admin/media` passes with zero warnings/errors.
+  1222→
+  1223→Stage Summary:
+  1224→- 17 new route handlers created across 3 admin modules:
+  1225→  - Finance: 6 routes (transactions list, transactions/create, revenue aggregate, gateways list, gateways/toggle, gateways/test-mode) — backs the previously-bypassed FinanceModule UI
+  1226→  - Developer: 8 routes (api-keys list/create/revoke, webhooks list/create/toggle/delete, audit-logs) — backs the previously-bypassed DeveloperModule UI
+  1227→  - Media: 3 routes (list, add, delete) — extends the existing partial media support (upload remains a separate concern; this gives the admin panel proper list/add/delete CRUD)
+  1228→- All routes use the existing `ok`/`error`/`applyRateLimit` helpers and `db` Prisma client — no new dependencies.
+  1229→- Backend glue is now in place for 3 more of the 15 "broken" admin modules flagged in AUDIT-2 (Finance, Developer, and the missing-write portion of Media). Frontend wiring (api-client methods + index.tsx switch cases) is the next step.
+  1230→- These routes do NOT enforce admin-role auth — they rely on the existing pattern used by `admin/products/*`, `admin/orders`, and CONVEX-1's `admin/{support,subscriptions,iptv}/*` routes (rate-limit only). If admin-auth middleware is added later, it should be applied uniformly across all `admin/*` routes.
+  1231→
+  1232→---
+  1233→Task ID: CONVEX-CONVERT
+  1234→Agent: Sub-agent (general-purpose)
+  1235→Task: Convert 20 React admin components from Convex to Next.js API client
+  1236→
+  1237→Work Log:
+  1238→- Read `/home/z/my-project/worklog.md` for project context and `/home/z/my-project/src/components/playbeat/admin/dashboard.tsx` + `shared.tsx` for the existing Next.js patterns (`useQuery` from `@tanstack/react-query`, `api` from `@/lib/api-client`, `toast` from `sonner`).
+  1239→- Discovered the 20 source files in `/tmp/components/` were CONCATENATED — each file contained all preceding components plus the named one (e.g. `coupons.tsx` had Subscriptions + Coupons, `woocommerce.tsx` had Subscriptions + Coupons + WooCommerce duplicated + Users). The first line of each file was also missing the `import` keyword (`{ useState } from "react";` instead of `import { useState } from "react";`).
+  1240→- Wrote a Python extraction script (`/home/z/extract.py`) that, for each file:
+  1241→  1. Finds the LAST `function XxxInner()` (or `export default function Xxx()` for files without an Inner) matching the filename→component mapping.
+  1242→  2. Brace-matches to find the end of that function.
+  1243→  3. Finds the most recent function end before the target component to avoid collecting helpers from earlier concatenated sections.
+  1244→  4. Collects only the multi-line `const`/`type` declarations belonging to the target component section.
+  1245→  5. Writes the extracted helpers + function body to `/home/z/extracted/<filename>` for inspection.
+  1246→- After verifying each extraction looked clean (no duplicate helpers, complete function bodies), converted all 20 components by hand and overwrote the existing files at `/home/z/my-project/src/components/playbeat/admin/`:
+  1247→
+  1248→**Conversions applied per file:**
+  1249→| File | Export name | Convex API → Next API client mapping |
+  1250→|---|---|---|
+  1251→| analytics.tsx | `AnalyticsModule` | (no Convex calls; uses `api.analytics()` for completeness) |
+  1252→| products.tsx | `AdminProducts` | `api.products.list`→`api.adminProducts`; `api.products.create/update/remove`→`api.adminProductCreate/Update/Delete`. Mapped Convex `name`→API `title`, added default `type: "DIGITAL_DOWNLOAD"`. Adapted table cells to handle `p.title`/`p.cover.image` (the API Product shape) as well as the Convex `p.name`/`p.imageUrl`. |
+  1253→| orders.tsx | `AdminOrders` | `api.orders.list`→`api.adminOrders`. `api.orders.create`/`updateStatus` left as TODO placeholders (no matching admin methods). |
+  1254→| subscriptions.tsx | `SubscriptionsModule` | `api.subscriptions.list/create/updateStatus`→`api.adminSubscriptionsList/adminSubscriptionCreate/adminSubscriptionUpdate`. |
+  1255→| coupons.tsx | `CouponsModule` | `api.system.listCoupons/createCoupon/toggleCoupon`→`api.couponsList/couponCreate/couponUpdate`. Client-side filtered by `status` (no server-side status filter in the new endpoint). |
+  1256→| woocommerce.tsx | `AdminWooCommerce` | Added `useQuery` calls to `api.woocommerceProducts()` and `api.woocommerceOrders()` so the Store Summary reflects real counts; kept the static `syncItems` mock. |
+  1257→| support.tsx | `SupportModule` | `api.support.list/create/updateStatus/addReply`→`api.adminSupportList/Create/Update/Reply`. |
+  1258→| iptv.tsx | `IptvModule` | `api.iptv.getStats/listChannels/listSubscribers/createChannel/updateChannel/deleteChannel/createSubscriber/updateSubscriberStatus`→`api.adminIptvStats/adminIptvChannels/adminIptvSubscribers/adminIptvChannelCreate/Update/Delete/adminIptvSubscriberCreate/Update`. |
+  1259→| finance.tsx | `FinanceModule` | `api.finance.getRevenueSummary`→`api.adminRevenue`; `api.finance.listTransactions`→`api.adminTransactions`. Replaced `react-router-dom` `<Link>` with a `<Button variant="link">` + `toast.info`. |
+  1260→| payments.tsx | `AdminPayments` | Used the `GatewaysInner` body (the source file had a second JazzCash component which was ignored). `api.finance.listGateways/toggleGateway/toggleTestMode`→`api.adminPaymentGateways/adminGatewayToggle/adminGatewayTestMode`. |
+  1261→| reports.tsx | `AdminReports` | `api.finance.getRevenueSummary`→`api.adminRevenue`. |
+  1262→| marketing.tsx | `AdminMarketing` | (no Convex calls; pure static component). Removed `react-router-dom` `<Link>` reference. |
+  1263→| wordpress.tsx | `AdminWordPress` | Added `useQuery` for `api.wordpressPosts()` and merges API response shape (`p.title.rendered`) with the local `posts` fallback. |
+  1264→| media.tsx | `AdminMedia` | `api.system.listMedia/addMedia/deleteMedia`→`api.adminMediaList/adminMediaAdd/adminMediaDelete`. |
+  1265→| seo.tsx | `SeoModule` | (no Convex calls; pure static component). |
+  1266→| ai-tools.tsx | `AiToolsModule` | (no Convex calls; pure static component). |
+  1267→| developer.tsx | `DeveloperModule` | `api.system.listApiKeys/createApiKey/revokeApiKey/listWebhooks/createWebhook/toggleWebhook/deleteWebhook`→`api.adminApiKeys/adminApiKeyCreate/adminApiKeyRevoke/adminWebhooks/adminWebhookCreate/adminWebhookToggle/adminWebhookDelete`. (Webhook toggle wasn't wired into the UI; only delete + create are.) |
+  1268→| integrations.tsx | `IntegrationsModule` | (no Convex calls; pure static component). |
+  1269→| security.tsx | `SecurityModule` | `api.system.listAuditLogs`→`api.adminAuditLogs`. |
+  1270→| settings.tsx | `AdminSettings` | `api.system.listSettings`→`api.adminSettingsGet` (returns `{ settings: Record<string, any> }` — adapted `getValue` to read from a record instead of an array); `api.system.upsertSetting`→`api.adminSettingsPut` (single bulk PUT with the entire active-group payload instead of per-key upserts). |
+  1271→
+  1272→**Common transformations applied:**
+  1273→- Removed imports: `useQuery`/`useMutation` from `convex/react`, `api` from `@/convex/_generated/api.js`, `Authenticated` from `convex/react`, `Id`/`Doc` from `@/convex/_generated/dataModel.d.ts`.
+  1274→- Added imports: `import * as React from "react"`, `import { useQuery, useQueryClient } from "@tanstack/react-query"`, `import { api } from "@/lib/api-client"`, `import { toast } from "sonner"`.
+  1275→- Stripped `.tsx`/`.js` extensions from all `@/` import paths.
+  1276→- Removed the `<Authenticated>` wrapper — the inner component's body is now the exported component directly.
+  1277→- Replaced `Id<"X">` with `string` and `Doc<"X">` with `any`.
+  1278→- Converted `useQuery(api.X.list, {...})` → `useQuery({ queryKey: [...], queryFn: () => api.Yyy({...}) })` and changed `!data` loading checks to `isLoading` from the destructure.
+  1279→- Converted `useMutation(api.X.create)` to direct `await api.YyyCreate(payload)` calls inside event handlers; added `qc.invalidateQueries({...})` after each successful mutation.
+  1280→- Defensive `p._id ?? p.id` accessors throughout so the components tolerate both Convex-style (`_id`) and our API (`id`) identifiers.
+  1281→
+  1282→**API client additions** (`src/lib/api-client.ts`):
+  1283→The task brief listed `api.adminProducts`, `api.couponsList`, `api.couponCreate`, `api.couponUpdate`, `api.couponDelete`, and `api.resetAnalytics` as existing — but they were not present in `api-client.ts`. Added them (next to the existing `mediaList` method, before the closing `}`):
+  1284→- `adminProducts({ status?, search? })` → GET `/admin/products` (returns `Paginated<Product>`)
+  1285→- `couponsList()` → GET `/admin/coupons`
+  1286→- `couponCreate(payload)` → POST `/admin/coupons/create`
+  1287→- `couponUpdate(payload)` → POST `/admin/coupons/update`
+  1288→- `couponDelete(id)` → POST `/admin/coupons/delete`
+  1289→- `resetAnalytics()` → POST `/admin/analytics/reset` (this was already called by `dashboard.tsx` from a previous task but never declared — added it now so the method resolves cleanly under `tsc`.)
+  1290→
+  1291→**Verification:**
+  1292→- `bun run lint` → exits 0 with no warnings or errors.
+  1293→- `npx tsc --noEmit` → no errors in any of the 20 converted files. The 5 remaining admin-related TS errors (`dashboard.tsx` `liveRevenue`/`paymentSuccessRate`, `index.tsx` ModuleKey string mismatches) are pre-existing and outside the scope of this task.
+  1294→- Confirmed no leftover `convex`, `_generated/api`, `Authenticated`, or `.tsx`/`.js` import-path artifacts remain in any of the 20 files.
+  1295→- Confirmed all 20 export names match the table in the task brief and line up with the imports in `src/components/playbeat/admin/index.tsx` (`AnalyticsModule`, `AdminProducts`, `AdminOrders`, `SubscriptionsModule`, `CouponsModule`, `AdminWooCommerce`, `SupportModule`, `IptvModule`, `FinanceModule`, `AdminPayments`, `AdminReports`, `AdminMarketing`, `AdminWordPress`, `AdminMedia`, `SeoModule`, `AiToolsModule`, `DeveloperModule`, `IntegrationsModule`, `SecurityModule`, `AdminSettings`).
+  1296→- Cleaned up the temporary extraction script (`/home/z/extract.py`) and intermediate extracted sources (`/home/z/extracted/`).
+  1297→
+  1298→Stage Summary:
+  1299→- All 20 admin modules now import from `@/lib/api-client` and `@tanstack/react-query` instead of Convex.
+  1300→- All mutations use the React Query `useQueryClient().invalidateQueries()` pattern for cache invalidation after writes.
+  1301→- Backend glue is fully wired for: products (list/create/update/delete), orders (list — create/status-update stubbed as TODO), subscriptions, coupons, support, IPTV (channels + subscribers + stats), finance (revenue + transactions), payment gateways (list/toggle/test-mode), reports, wordpress posts, media library, developer (api-keys + webhooks), security (audit logs), settings (get/put), analytics.
+  1302→- Components with no live data needs (marketing, SEO, AI tools, integrations) keep their static mock data and remain lint-clean.
+  1303→- TODOs left for follow-up: admin-side `orders.create` and `orders.updateStatus` don't have api-client methods — they currently no-op with a success toast. Adding `api.adminOrderCreate` / `api.adminOrderUpdateStatus` would close the loop.
+  1304→
+  1305→---
+  1306→Task ID: PAGES-CONVERT
+  1307→Agent: Sub-agent (general-purpose)
+  1308→Task: Convert 8 React page components from upload/new.txt (Convex + react-router-dom) to Next.js 16 App Router pages (api-client + next/navigation).
+  1309→
+  1310→Work Log:
+  1311→- Read `/home/z/my-project/upload/new.txt` (1088 lines) in full — 8 components concatenated with 3 trailing Convex server stubs (careers/staticPages/contactSettings) that we did not port (Next.js backend already lives under `/api/v1`).
+  1312→- Inspected existing project conventions: `src/lib/api-client.ts` `apiFetch<T>` + `ok()/error()/applyRateLimit()` helpers from `src/lib/api.ts`; `QueryClientProvider` already wired via `src/components/playbeat/providers.tsx`; `framer-motion`, `react-markdown`, `lucide-react`, `sonner`, `@tanstack/react-query` all already in `package.json`; existing API route pattern uses `NextRequest` + `params: Promise<{...}>` (Next.js 16 async dynamic params).
+  1313→
+  1314→API client additions (`src/lib/api-client.ts`, appended after `resetAnalytics`):
+  1315→- `blogPosts()` → GET `/blog/posts` → `{ items: any[] }`
+  1316→- `blogPost(slug)` → GET `/blog/posts/{slug}` → `{ post: any }`
+  1317→- `faqList()` → GET `/faq` → `{ items: any[] }`
+  1318→- `careersList()` → GET `/careers` → `{ items: any[] }`
+  1319→- `career(slug)` → GET `/careers/{slug}` → `{ job: any }`
+  1320→- `contactSubmit(payload)` → POST `/contact` → `{ success: boolean }`
+  1321→- `staticPage(slug)` → GET `/pages/{slug}` → `{ page: any }`
+  1322→All slugs URL-encoded via `encodeURIComponent`. `contactSubmit` payload typed loosely (`[key: string]: unknown`) so the contact page can add fields later.
+  1323→
+  1324→New files created:
+  1325→
+  1326→| # | Path | Role |
+  1327→|---|---|---|
+  1328→| 1 | `src/components/website-builder/public-layout.tsx` | Header + footer wrapper, named export `PublicLayout` (+ default for convenience). Hardcoded `siteName`, `navItems`, `footer.tagline/links` since no settings API exists yet. Uses `usePathname()` from `next/navigation` and `<a href>` for nav. |
+  1329→| 2 | `src/app/api/v1/blog/posts/route.ts` | GET — returns 5 sample blog posts (`id`, `slug`, `title`, `excerpt`, `tags`, `coverImage`, `content`, `publishedAt`, `status`). |
+  1330→| 3 | `src/app/api/v1/blog/posts/[slug]/route.ts` | GET — returns single post by slug, 404 otherwise. |
+  1331→| 4 | `src/app/api/v1/faq/route.ts` | GET — returns 6 sample FAQ items across General/Domains/Support/Billing categories. |
+  1332→| 5 | `src/app/api/v1/careers/route.ts` | GET — returns 5 sample job listings (Senior Product Engineer, Product Designer, Developer Advocate, Customer Support Specialist, Technical Writer contract) with `slug`/`department`/`location`/`type`/`description` (Markdown). |
+  1333→| 6 | `src/app/api/v1/careers/[slug]/route.ts` | GET — returns single job by slug, 404 otherwise. |
+  1334→| 7 | `src/app/api/v1/contact/route.ts` | POST — validates `email` (regex) and `message` (≥10 chars) via `validate()`/`v` helpers, returns `{ success, message, received }`. 30 req/min rate limit. TODO comment left to wire up persistence/email. |
+  1335→| 8 | `src/app/api/v1/pages/[slug]/route.ts` | GET — returns hardcoded `/about` page content (Markdown). Any other slug → 404. |
+  1336→| 9 | `src/app/blog/page.tsx` | Blog listing. React Query `["blog-posts"]` → `api.blogPosts()`. Empty state replaced with dashed-border `<div>` + `FileText` icon. `post._id` → `post.id`, `<Link to={...}>` → `<a href={...}>`. |
+  1337→| 10 | `src/app/blog/[slug]/page.tsx` | Single blog post. React Query `["blog-post", slug]` → `api.blogPost(slug)`, `enabled: !!slug`. React-router `<Navigate to="/blog">` replaced with `useRouter().replace("/blog")` in a `useEffect` (also fires on `isError`). `ReactMarkdown` retained. |
+  1338→| 11 | `src/app/faq/page.tsx` | FAQ accordion. `["faq"]` → `api.faqList()`. Category filter and per-row open/close state preserved. |
+  1339→| 12 | `src/app/careers/page.tsx` | Job listings. `["careers"]` → `api.careersList()`. Department filter preserved. Job detail URL changed from `/careers/${job._id}` → `/careers/${job.slug}` (no more Convex IDs). |
+  1340→| 13 | `src/app/careers/[slug]/page.tsx` | Single job. `["career", slug]` → `api.career(slug)`. Same `useRouter().replace("/careers")` redirect pattern as blog post. Apply CTA links to `/contact`. |
+  1341→| 14 | `src/app/contact/page.tsx` | Contact page. Settings (email/phone/address/formEnabled/mapEmbed) hardcoded inline since no contact-settings API exists yet. Form actually submits via `api.contactSubmit(...)` (original just had `e.preventDefault()`); uses `sonner` toast for success/error feedback; controlled inputs; `disabled` state while submitting. |
+  1342→| 15 | `src/app/[slug]/page.tsx` | Static CMS page. `["static-page", slug]` → `api.staticPage(slug)`. `isError` (404) → `useRouter().replace("/")`. Note: Next.js prefers the existing static routes `/privacy`, `/terms`, `/refund-policy`, `/marketplace`, `/games`, `/ai-tools`, `/giftcards`, `/admin` over this dynamic `[slug]`, so the catch-all only kicks in for `/about` and any other unmapped top-level slug. |
+  1343→
+  1344→Common transformations applied (per task brief conversion rules):
+  1345→1. `react-router-dom` imports (`Link`, `useLocation`, `useParams`, `Navigate`) → removed. Replaced with `<a href>` for navigation, `usePathname()`/`useParams()` from `next/navigation`, `useRouter().replace()` for programmatic redirects.
+  1346→2. `convex/react` `useQuery` → `@tanstack/react-query`'s `useQuery({ queryKey, queryFn, enabled })`. The original Convex `"skip"` sentinel maps to React Query's `enabled: !!slug`.
+  1347→3. `@/convex/_generated/api.js` and `@/convex/_generated/dataModel.js` imports removed entirely (along with `Id<"...">` and `Doc<"...">` types — replaced with local plain-object types or `string`).
+  1348→4. `motion/react` → `framer-motion` (motion props unchanged).
+  1349→5. `date-fns` `format()` → local `formatDate()` helper using `new Date(iso).toLocaleDateString("en-US", { month/year/day })`. Two variants: short (`"MMM d, yyyy"`) for blog cards, long (`"MMMM d, yyyy"`) for blog post meta + static page footer.
+  1350→6. `Empty`/`EmptyHeader`/`EmptyMedia`/`EmptyTitle`/`EmptyDescription` (from `@/components/ui/empty`) → simple `<div>` with dashed border, circular icon background, title, and description. The original component doesn't exist in this project, so this was necessary regardless.
+  1351→7. All `.tsx`/`.ts` extensions stripped from `@/` import paths.
+  1352→8. Every page file starts with `"use client"`.
+  1353→9. Every page wraps its content in `<PublicLayout>` (imported as named export from `@/components/website-builder/public-layout`).
+  1354→10. `post._id` / `faq._id` / `job._id` → `post.id` / `faq.id` / `job.id` everywhere (React keys, link construction).
+  1355→
+  1356→Verification:
+  1357→- `bun run lint` → exits 0 with no warnings or errors.
+  1358→- `npx tsc --noEmit` → no errors in any of the 15 new files. The 4 remaining project-wide TS errors (`examples/websocket/frontend.tsx`, `examples/websocket/server.ts`, `skills/image-edit/scripts/image-edit.ts`, `skills/stock-analysis-skill/src/analyzer.ts`) are pre-existing and unrelated to this task (and outside `src/`).
+  1359→- Manually inspected the `[slug]` directory creation (square-bracket folders can be tricky on the shell) — confirmed `src/app/[slug]/page.tsx` exists.
+  1360→
+  1361→Stage Summary:
+  1362→- 8 components from `upload/new.txt` now run as Next.js 16 App Router pages: `/blog`, `/blog/[slug]`, `/faq`, `/careers`, `/careers/[slug]`, `/contact`, `/[slug]` (static catch-all), plus the shared `PublicLayout` component.
+  1363→- All 7 new API endpoints (`/api/v1/blog/posts`, `/api/v1/blog/posts/[slug]`, `/api/v1/faq`, `/api/v1/careers`, `/api/v1/careers/[slug]`, `/api/v1/contact`, `/api/v1/pages/[slug]`) return hardcoded sample data via the project's standard `ok()/error()/applyRateLimit()` helpers — ready to be swapped for real Prisma lookups once Blog/Faq/JobListing/ContactMessage/StaticPage models are added to `prisma/schema.prisma`.
+  1364→- Contact form is wired up end-to-end: client-side controlled inputs → `api.contactSubmit()` POST → server-side validation (email regex + ≥10-char message) → 30/min rate limit → `sonner` toast feedback. Persistence layer left as a documented TODO.
+  1365→- No routing conflicts: existing static routes (`/privacy`, `/terms`, `/refund-policy`, `/marketplace`, `/games`, `/ai-tools`, `/giftcards`, `/admin`) continue to resolve because Next.js prefers concrete folders over the dynamic `[slug]` catch-all.
+  1366→
