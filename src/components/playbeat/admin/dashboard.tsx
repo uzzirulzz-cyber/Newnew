@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -17,6 +18,8 @@ import {
   Bell,
   Package,
   ArrowRight,
+  RotateCcw,
+  Loader2,
 } from "lucide-react";
 import {
   Area,
@@ -107,6 +110,7 @@ function ChartTooltip({ active, payload, label }: any) {
 
 export function AdminDashboard() {
   const qc = useQueryClient();
+  const [resetting, setResetting] = React.useState(false);
   const { data: dash, isLoading } = useQuery({
     queryKey: ["admin-analytics"],
     queryFn: () => api.analytics(),
@@ -155,18 +159,56 @@ export function AdminDashboard() {
             Real-time overview of your PlayBeat Digital marketplace
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="border-white/10 bg-white/5"
-          onClick={() => {
-            qc.invalidateQueries({ queryKey: ["admin-analytics"] });
-            qc.invalidateQueries({ queryKey: ["admin-orders"] });
-            qc.invalidateQueries({ queryKey: ["admin-notifications"] });
-            toast.success("Dashboard refreshed");
-          }}
-        >
-          <Activity className="size-4" /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            className="border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10"
+            disabled={resetting}
+            onClick={async () => {
+              if (
+                !confirm(
+                  "Reset all dashboard analytics to 0?\n\nThis permanently deletes ALL orders, payments, and notifications. Products, users, and coupons are preserved. This cannot be undone.",
+                )
+              )
+                return;
+              setResetting(true);
+              try {
+                const result = await api.resetAnalytics();
+                qc.invalidateQueries({ queryKey: ["admin-analytics"] });
+                qc.invalidateQueries({ queryKey: ["admin-orders"] });
+                qc.invalidateQueries({ queryKey: ["admin-notifications"] });
+                toast.success(
+                  `Dashboard reset — cleared ${result.cleared.orders} orders, ${result.cleared.payments} payments, ${result.cleared.notifications} notifications.`,
+                );
+              } catch (e) {
+                toast.error(
+                  e instanceof Error ? e.message : "Reset failed",
+                );
+              } finally {
+                setResetting(false);
+              }
+            }}
+          >
+            {resetting ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RotateCcw className="size-4" />
+            )}
+            Reset to 0
+          </Button>
+          <Button
+            variant="outline"
+            className="border-white/10 bg-white/5"
+            onClick={() => {
+              qc.invalidateQueries({ queryKey: ["admin-analytics"] });
+              qc.invalidateQueries({ queryKey: ["admin-orders"] });
+              qc.invalidateQueries({ queryKey: ["admin-notifications"] });
+              toast.success("Dashboard refreshed");
+            }}
+          >
+            <Activity className="size-4" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* KPI cards */}

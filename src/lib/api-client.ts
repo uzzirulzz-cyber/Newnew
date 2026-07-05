@@ -358,6 +358,45 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
+  adminProductCreate: (payload: {
+    title: string;
+    type: string;
+    price: number;
+    discountPrice?: number;
+    shortDescription?: string;
+    description?: string;
+    categorySlug?: string;
+    vendorId?: string;
+    sku?: string;
+    stock?: number;
+    tags?: string[];
+    licenseType?: string;
+    downloadFile?: string;
+    fileSize?: number;
+    version?: string;
+    cover?: string;
+    images?: string[];
+    featured?: boolean;
+    seoTitle?: string;
+    seoDescription?: string;
+  }) =>
+    apiFetch<{ product: any; message: string }>(`/admin/products/create`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  adminProductUpdate: (payload: {
+    id: string;
+    [key: string]: any;
+  }) =>
+    apiFetch<{ product: any; message: string }>(`/admin/products/update`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  adminProductDelete: (id: string) =>
+    apiFetch<{ deleted: boolean; title: string; message: string }>(
+      `/admin/products/delete`,
+      { method: "POST", body: JSON.stringify({ id }) },
+    ),
   validateCoupon: (code: string, subtotal: number) =>
     apiFetch<CouponValidation>(`/coupons/validate`, {
       method: "POST",
