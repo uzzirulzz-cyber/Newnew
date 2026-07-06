@@ -40,11 +40,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
-  { value: "LEMON_SQUEEZY", label: "Lemon Squeezy (recommended)" },
-  { value: "STRIPE", label: "Stripe" },
-  { value: "PAYPAL", label: "PayPal" },
-  { value: "PADDLE", label: "Paddle" },
-  { value: "CRYPTO", label: "Crypto" },
+  { value: "JAZZCASH", label: "JazzCash — Mobile Wallet / Card" },
+  { value: "CRYPTO", label: "Crypto (Binance) — BTC/ETH/USDT" },
 ];
 
 function CartRow({
@@ -220,7 +217,7 @@ export function CartSheet() {
   const [couponLoading, setCouponLoading] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [provider, setProvider] = React.useState("LEMON_SQUEEZY");
+  const [provider, setProvider] = React.useState("JAZZCASH");
   const [placing, setPlacing] = React.useState(false);
   const [placedOrder, setPlacedOrder] = React.useState<Order | null>(null);
 
@@ -277,28 +274,68 @@ export function CartSheet() {
     if (cart.length === 0) return;
     setPlacing(true);
     try {
-      // Lemon Squeezy is the active store gateway — it creates a hosted
-      // checkout session and redirects the customer to complete payment.
-      if (provider === "LEMON_SQUEEZY") {
-        const result = await api.checkoutLemonSqueezy({
+      if (provider === "JAZZCASH") {
+        // JazzCash — live Pakistani payment gateway.
+        // 1. Create the order record locally (PENDING).
+        // 2. Create a JazzCash transaction with the order total.
+        // 3. Build + submit a POST form to the JazzCash gateway URL so the
+        //    browser redirects the customer to the JazzCash payment page.
+        const orderResult = await api.placeOrder({
           items: cart.map((c) => ({ productId: c.product.id })),
           customerName: name.trim(),
           customerEmail: email.trim(),
           couponCode: appliedCoupon?.code,
+          provider: "JAZZCASH",
         });
-        // In LIVE mode, redirect to the real Lemon Squeezy hosted checkout.
-        // In DEMO mode the order is already completed locally (instant
-        // delivery), so we just show the confirmation — no redirect to a
-        // non-existent demo URL.
-        if (result.live) {
-          window.open(result.checkoutUrl, "_blank", "noopener,noreferrer");
-          toast.success("Redirecting to Lemon Squeezy to complete payment.");
-        } else {
-          toast.success("Order placed via Lemon Squeezy!");
+        const txn = await api.jazzcashCreate({
+          amount: total,
+          description: cart
+            .map((c) => `${c.product.title} ×${c.quantity}`)
+            .join(", ")
+            .slice(0, 255),
+          billReference: orderResult.order.orderNumber.slice(0, 24),
+          customerEmail: email.trim(),
+        });
+        // Submit the signed params to the JazzCash gateway via a hidden form.
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = txn.gatewayUrl;
+        for (const [key, val] of Object.entries(txn.params)) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = val;
+          form.appendChild(input);
         }
-        setPlacedOrder(result.order);
+        document.body.appendChild(form);
+        form.submit();
+        toast.success("Redirecting to JazzCash to complete payment…");
+        setPlacedOrder(orderResult.order);
+        clearCart();
+      } else if (provider === "CRYPTO") {
+        // Crypto (Binance) — create order, then redirect to crypto payment page
+        const orderResult = await api.placeOrder({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+          provider: "CRYPTO",
+        });
+        const cryptoResult = await api.cryptoCreate({
+          amount: total,
+          description: cart
+            .map((c) => `${c.product.title} ×${c.quantity}`)
+            .join(", ")
+            .slice(0, 255),
+          orderNumber: orderResult.order.orderNumber,
+          customerEmail: email.trim(),
+        });
+        window.location.href = cryptoResult.checkoutUrl;
+        toast.success("Redirecting to crypto payment page…");
+        setPlacedOrder(orderResult.order);
         clearCart();
       } else {
+        // Fallback: create order as PENDING
         const result = await api.placeOrder({
           items: cart.map((c) => ({ productId: c.product.id })),
           customerName: name.trim(),
@@ -307,14 +344,14 @@ export function CartSheet() {
           provider,
         });
         setPlacedOrder(result.order);
-        toast.success("Order placed!");
+        toast.success(`Order ${result.order.orderNumber} created`);
         clearCart();
       }
       // Track purchase with Meta Pixel for ad attribution
       if (typeof window !== "undefined" && (window as any).fbq) {
         (window as any).fbq("track", "Purchase", {
           value: total,
-          currency: currency === "PKR" ? "PKR" : "USD",
+          currency: "PKR",
           content_type: "product",
           contents: cart.map((c) => ({
             id: c.product.id,
@@ -501,16 +538,16 @@ export function CartSheet() {
                 ) : (
                   <CheckCircle2 className="size-4" />
                 )}
-                {provider === "LEMON_SQUEEZY"
-                  ? `Checkout with Lemon Squeezy · ${formatPrice(total, currency)}`
-                  : `Place order · ${formatPrice(total, currency)}`}
+                {provider === "JAZZCASH"
+                  ? `Pay with JazzCash · ${formatPrice(total, currency)}`
+                  : provider === "CRYPTO"
+                    ? `Pay with Crypto · ${formatPrice(total, currency)}`
+                    : `Place order · ${formatPrice(total, currency)}`}
               </Button>
-              {provider === "LEMON_SQUEEZY" && (
-                <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
-                  <span className="inline-block size-1.5 rounded-full bg-primary" />
-                  Secured by Lemon Squeezy · instant delivery after payment
-                </p>
-              )}
+              <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
+                <Lock className="size-3" />
+                Secured checkout · instant delivery after payment
+              </p>
             </div>
           </div>
         )}
