@@ -384,7 +384,7 @@ function SidebarContent({
       <nav className="flex-1 overflow-y-auto pb-scrollbar px-3 py-4">
         {NAV_GROUPS.map((group) => (
           <div key={group.label} className="mb-4">
-            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-300">
               {group.label}
             </p>
             {group.items.map((item) => {
@@ -398,13 +398,13 @@ function SidebarContent({
                     "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all",
                     isActive
                       ? "bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-white"
-                      : "text-muted-foreground hover:bg-white/5 hover:text-white",
+                      : "text-slate-300 hover:bg-white/10 hover:text-white",
                   )}
                 >
                   <Icon
                     className={cn(
                       "size-4",
-                      isActive ? "text-blue-400" : "text-muted-foreground",
+                      isActive ? "text-blue-400" : "text-slate-400",
                     )}
                   />
                   {item.label}
@@ -426,7 +426,7 @@ function SidebarContent({
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-medium">Founder</p>
-            <p className="truncate text-[10px] text-muted-foreground">Admin</p>
+            <p className="truncate text-[10px] text-slate-300">Admin</p>
           </div>
           <Button
             size="icon"

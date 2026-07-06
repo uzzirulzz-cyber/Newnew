@@ -43,10 +43,10 @@ export function LogoMark({ size = 36 }: { size?: number }) {
 
 export function LogoWordmark({ className }: { className?: string }) {
   return (
-    <span className={cn("text-lg font-extrabold tracking-tight lowercase", className)}>
-      <span className="pb-text-silver">play</span>
-      <span className="text-accent">b</span>
-      <span className="pb-text-silver">eat</span>
+    <span className={cn("text-lg font-extrabold tracking-tight lowercase text-foreground", className)}>
+      <span className="text-foreground">play</span>
+      <span className="text-primary">b</span>
+      <span className="text-foreground">eat</span>
     </span>
   );
 }
