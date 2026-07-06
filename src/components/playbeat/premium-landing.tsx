@@ -66,7 +66,7 @@ function Nav() {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
         <div className="flex items-center gap-2.5">
           <LogoMark size={32} />
-          <span className="text-lg font-bold tracking-tight text-foreground">PLAYBEAT</span>
+          <span className="text-xl font-black uppercase tracking-tight" style={{ letterSpacing: "-0.02em" }}><span style={{ color: "#e2e8f0" }}>PLAY</span><span style={{ color: "#ef4444" }}>BEA</span><span style={{ color: "#3b82f6" }}>T</span></span>
         </div>
         <div className="hidden items-center gap-1 lg:flex">
           {links.map((l) => {
@@ -701,7 +701,7 @@ function Footer() {
           <div className="col-span-2">
             <div className="flex items-center gap-2.5">
               <LogoMark size={32} />
-              <span className="text-lg font-bold tracking-tight text-foreground">PLAYBEAT</span>
+              <span className="text-xl font-black uppercase tracking-tight" style={{ letterSpacing: "-0.02em" }}><span style={{ color: "#e2e8f0" }}>PLAY</span><span style={{ color: "#ef4444" }}>BEA</span><span style={{ color: "#3b82f6" }}>T</span></span>
             </div>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
               Everything Digital. One Platform. Global entertainment, AI solutions, and digital products.

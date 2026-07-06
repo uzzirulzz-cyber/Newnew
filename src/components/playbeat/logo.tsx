@@ -4,24 +4,20 @@ import { cn } from "@/lib/utils";
 
 interface LogoProps {
   className?: string;
-  /** Show the "playbeat" wordmark next to the mark */
   showWordmark?: boolean;
-  /** Size of the logo mark in px */
   size?: number;
 }
 
 /**
- * playbeat brand logo.
+ * PLAYBEAT brand logo.
  *
- * A rounded-square mark with a stylized "P" containing a gold play triangle,
- * flanked by three sound-wave bars (silver / gold / silver). The wordmark
- * reads "playbeat" — "play" in silver, "b" in gold, "eat" in silver.
- *
- * Matches the playbeat.Digital brand identity (deep navy + gold + silver).
+ * Logo mark: rounded-square with logo.png image
+ * Wordmark: "PLAY" in silver/white, "BEAT" in red, "T" accent in blue
+ * Matches the PlayBeat Digital brand identity (black bg + silver + red + blue).
  */
 export function Logo({ className, showWordmark = true, size = 36 }: LogoProps) {
   return (
-    <div className={cn("flex items-center gap-2.5 cursor-pointer select-none", className)}>
+    <div className={cn("flex items-center gap-2 cursor-pointer select-none", className)}>
       <LogoMark size={size} />
       {showWordmark && <LogoWordmark />}
     </div>
@@ -32,7 +28,7 @@ export function LogoMark({ size = 36 }: { size?: number }) {
   return (
     <img
       src="/logo.png"
-      alt="playbeat logo"
+      alt="PLAYBEAT logo"
       width={size}
       height={size}
       className="shrink-0 rounded-lg"
@@ -43,10 +39,16 @@ export function LogoMark({ size = 36 }: { size?: number }) {
 
 export function LogoWordmark({ className }: { className?: string }) {
   return (
-    <span className={cn("text-lg font-extrabold tracking-tight lowercase text-foreground", className)}>
-      <span className="text-foreground">play</span>
-      <span className="text-primary">b</span>
-      <span className="text-foreground">eat</span>
+    <span
+      className={cn(
+        "text-xl font-black uppercase tracking-tight",
+        className
+      )}
+      style={{ letterSpacing: "-0.02em" }}
+    >
+      <span style={{ color: "#e2e8f0" }}>PLAY</span>
+      <span style={{ color: "#ef4444" }}>BEA</span>
+      <span style={{ color: "#3b82f6" }}>T</span>
     </span>
   );
 }
