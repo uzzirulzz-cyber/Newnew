@@ -67,6 +67,13 @@ export async function GET(request: NextRequest) {
         } catch {
           tags = [];
         }
+        let variants: string[] = [];
+        try {
+          const raw: unknown = p.variants ? JSON.parse(p.variants) : [];
+          if (Array.isArray(raw)) variants = raw as string[];
+        } catch {
+          variants = [];
+        }
         const effectivePrice =
           p.discountPrice !== null && p.discountPrice < p.price
             ? p.discountPrice
@@ -100,6 +107,9 @@ export async function GET(request: NextRequest) {
           fileSize: p.fileSize,
           version: p.version,
           featured: p.featured,
+          variants,
+          seoTitle: p.seoTitle,
+          seoDescription: p.seoDescription,
           rating: p.rating,
           reviewCount: p.reviewCount,
           salesCount: p.salesCount,

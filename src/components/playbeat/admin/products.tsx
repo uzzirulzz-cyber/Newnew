@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import {
   Plus,
   Search,
@@ -36,6 +38,11 @@ import {
   Clock,
   FileEdit,
   Layers,
+  DollarSign,
+  Tag,
+  Image as ImageIcon,
+  Upload,
+  Star,
 } from "lucide-react";
 import { api, formatPrice } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -51,6 +58,18 @@ const statusColors: Record<string, string> = {
   PENDING: "bg-amber-500/15 text-amber-400",
   DRAFT: "bg-gray-500/15 text-gray-400",
 };
+
+const PRODUCT_TYPES: Array<{ value: string; label: string }> = [
+  { value: "AI_TOOL", label: "AI Tool" },
+  { value: "SOFTWARE_LICENSE", label: "Software License" },
+  { value: "SAAS_SUBSCRIPTION", label: "SaaS Subscription" },
+  { value: "DIGITAL_DOWNLOAD", label: "Digital Download" },
+  { value: "EBOOK", label: "E-Book" },
+  { value: "TEMPLATE", label: "Template" },
+  { value: "GRAPHICS", label: "Graphics" },
+  { value: "COURSE", label: "Course" },
+  { value: "MEMBERSHIP", label: "Membership" },
+];
 
 function StatCard({
   icon: Icon,
@@ -90,17 +109,29 @@ export function AdminProducts() {
   const [showCreate, setShowCreate] = React.useState(false);
   const [editId, setEditId] = React.useState<string | null>(null);
   const [approvingId, setApprovingId] = React.useState<string | null>(null);
-  const [form, setForm] = React.useState({
-    name: "",
-    description: "",
-    price: "",
-    stock: "",
-    category: "",
-    imageUrl: "",
-    status: "PUBLISHED" as "PUBLISHED" | "PENDING" | "DRAFT",
-    sku: "",
-  });
+  const [saving, setSaving] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
 
+  // ===== Form state (rich ProductDialog) =====
+  const [title, setTitle] = React.useState("");
+  const [type, setType] = React.useState("DIGITAL_DOWNLOAD");
+  const [categorySlug, setCategorySlug] = React.useState("");
+  const [price, setPrice] = React.useState("");
+  const [discountPrice, setDiscountPrice] = React.useState("");
+  const [shortDescription, setShortDescription] = React.useState("");
+  const [description, setDescription] = React.useState("");
+  const [coverUrl, setCoverUrl] = React.useState("");
+  const [variants, setVariants] = React.useState("");
+  const [tags, setTags] = React.useState("");
+  const [sku, setSku] = React.useState("");
+  const [stock, setStock] = React.useState("");
+  const [version, setVersion] = React.useState("");
+  const [licenseType, setLicenseType] = React.useState("");
+  const [featured, setFeatured] = React.useState(false);
+  const [seoTitle, setSeoTitle] = React.useState("");
+  const [seoDescription, setSeoDescription] = React.useState("");
+
+  // ===== Data queries =====
   // Filtered list (table data)
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products-list", status, search],
@@ -121,6 +152,14 @@ export function AdminProducts() {
   });
   const allProducts = allData?.items || [];
 
+  // Categories dropdown
+  const { data: categoriesData } = useQuery({
+    queryKey: ["admin-categories-for-products"],
+    queryFn: () => api.categories(),
+    staleTime: 60_000,
+  });
+  const categories = categoriesData?.items || [];
+
   const stats = {
     total: allProducts.length,
     published: allProducts.filter((p: any) => p.status === "PUBLISHED").length,
@@ -128,36 +167,82 @@ export function AdminProducts() {
     draft: allProducts.filter((p: any) => p.status === "DRAFT").length,
   };
 
-  const resetForm = () =>
-    setForm({
-      name: "",
-      description: "",
-      price: "",
-      stock: "",
-      category: "",
-      imageUrl: "",
-      status: "PUBLISHED",
-      sku: "",
-    });
+  const resetForm = () => {
+    setTitle("");
+    setType("DIGITAL_DOWNLOAD");
+    setCategorySlug("");
+    setPrice("");
+    setDiscountPrice("");
+    setShortDescription("");
+    setDescription("");
+    setCoverUrl("");
+    setVariants("");
+    setTags("");
+    setSku("");
+    setStock("");
+    setVersion("");
+    setLicenseType("");
+    setFeatured(false);
+    setSeoTitle("");
+    setSeoDescription("");
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const result = await api.adminProductImageUpload(file);
+      setCoverUrl(result.url);
+      toast.success("Image uploaded");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      // Reset the input value so the same file can be re-selected
+      e.target.value = "";
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!form.name || !form.price) {
-      toast.error("Name and price are required");
+    if (!title.trim() || !price) {
+      toast.error("Title and price are required");
       return;
     }
+    setSaving(true);
     try {
-      const payload = {
-        title: form.name,
-        type: "DIGITAL_DOWNLOAD",
-        description: form.description,
-        price: Number(form.price),
-        stock: Number(form.stock),
-        categorySlug: form.category || undefined,
-        sku: form.sku,
-        status: form.status,
+      const payload: any = {
+        title: title.trim(),
+        type,
+        price: Number(price),
+        shortDescription: shortDescription.trim(),
+        description: description.trim(),
+        categorySlug: categorySlug || undefined,
+        sku: sku.trim() || undefined,
+        stock: Number(stock) || 0,
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        version: version.trim(),
+        licenseType: licenseType.trim(),
+        featured,
+        cover: coverUrl || undefined,
+        seoTitle: seoTitle.trim(),
+        seoDescription: seoDescription.trim(),
       };
+      if (discountPrice) payload.discountPrice = Number(discountPrice);
+      if (variants.trim()) {
+        payload.variants = JSON.stringify(
+          variants
+            .split("|")
+            .map((v) => v.trim())
+            .filter(Boolean),
+        );
+      }
       if (editId) {
-        await api.adminProductUpdate({ id: editId, ...payload });
+        payload.id = editId;
+        await api.adminProductUpdate(payload);
         toast.success("Product updated");
         setEditId(null);
       } else {
@@ -168,28 +253,70 @@ export function AdminProducts() {
       setShowCreate(false);
       qc.invalidateQueries({ queryKey: ["admin-products-list"] });
       qc.invalidateQueries({ queryKey: ["admin-products-all"] });
-    } catch {
-      toast.error("Failed to save product");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save product",
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleEdit = (p: any) => {
-    setForm({
-      name: p.title ?? p.name ?? "",
-      description: p.description ?? "",
-      price: String(p.price ?? p.effectivePrice ?? ""),
-      stock: String(p.stock ?? 0),
-      category: p.category?.slug ?? p.category ?? "",
-      imageUrl:
-        typeof p.cover === "string"
-          ? p.cover
-          : p.cover?.image ?? p.imageUrl ?? "",
-      status:
-        p.status === "PUBLISHED" || p.status === "PENDING" || p.status === "DRAFT"
-          ? p.status
-          : "PUBLISHED",
-      sku: p.sku ?? "",
-    });
+    // Cover can be a plain URL string, a JSON object string, or already
+    // parsed into an object by the serializer.
+    const rawCover = p.cover;
+    let coverStr = "";
+    if (typeof rawCover === "string") {
+      if (rawCover.startsWith("{")) {
+        try {
+          coverStr = (JSON.parse(rawCover) as any)?.image || "";
+        } catch {
+          coverStr = "";
+        }
+      } else {
+        coverStr = rawCover;
+      }
+    } else if (rawCover && typeof rawCover === "object") {
+      coverStr = (rawCover as any)?.image || "";
+    }
+    // Fall back to imageUrl if no cover image was extracted
+    if (!coverStr && typeof p.imageUrl === "string") coverStr = p.imageUrl;
+    setCoverUrl(coverStr);
+
+    // Variants — stored as JSON string in DB, parsed to array by admin GET
+    let v: string[] = [];
+    try {
+      const raw = p.variants;
+      if (raw) v = typeof raw === "string" ? JSON.parse(raw) : raw;
+    } catch {
+      v = [];
+    }
+    setVariants(Array.isArray(v) ? v.join(" | ") : "");
+
+    setTitle(p.title ?? p.name ?? "");
+    setType(
+      PRODUCT_TYPES.some((t) => t.value === p.type)
+        ? p.type
+        : "DIGITAL_DOWNLOAD",
+    );
+    setCategorySlug(p.category?.slug ?? "");
+    setPrice(String(p.price ?? p.effectivePrice ?? ""));
+    setDiscountPrice(
+      p.discountPrice !== null && p.discountPrice !== undefined
+        ? String(p.discountPrice)
+        : "",
+    );
+    setShortDescription(p.shortDescription ?? "");
+    setDescription(p.description ?? "");
+    setTags(Array.isArray(p.tags) ? p.tags.join(", ") : "");
+    setSku(p.sku ?? "");
+    setStock(String(p.stock ?? 0));
+    setVersion(p.version ?? "");
+    setLicenseType(p.licenseType ?? "");
+    setFeatured(Boolean(p.featured));
+    setSeoTitle(p.seoTitle ?? "");
+    setSeoDescription(p.seoDescription ?? "");
     setEditId(p._id ?? p.id);
     setShowCreate(true);
   };
@@ -201,8 +328,10 @@ export function AdminProducts() {
       toast.success("Product deleted");
       qc.invalidateQueries({ queryKey: ["admin-products-list"] });
       qc.invalidateQueries({ queryKey: ["admin-products-all"] });
-    } catch {
-      toast.error("Failed to delete product");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete product",
+      );
     }
   };
 
@@ -222,6 +351,12 @@ export function AdminProducts() {
     }
   };
 
+  const openCreate = () => {
+    resetForm();
+    setEditId(null);
+    setShowCreate(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -231,14 +366,7 @@ export function AdminProducts() {
             Manage your product catalog
           </p>
         </div>
-        <Button
-          onClick={() => {
-            resetForm();
-            setEditId(null);
-            setShowCreate(true);
-          }}
-          className="gap-2"
-        >
+        <Button onClick={openCreate} className="gap-2">
           <Plus size={16} />
           Add Product
         </Button>
@@ -312,7 +440,7 @@ export function AdminProducts() {
               className="mx-auto mb-3 text-muted-foreground"
             />
             <p className="text-muted-foreground">No products found</p>
-            <Button className="mt-4" onClick={() => setShowCreate(true)}>
+            <Button className="mt-4" onClick={openCreate}>
               Add your first product
             </Button>
           </CardContent>
@@ -373,13 +501,23 @@ export function AdminProducts() {
                             />
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium">{title}</p>
-                          {p.sku && (
-                            <p className="text-xs text-muted-foreground">
-                              SKU: {p.sku}
+                        <div className="flex items-center gap-1.5">
+                          <div>
+                            <p className="font-medium flex items-center gap-1.5">
+                              {title}
+                              {p.featured && (
+                                <Star
+                                  size={12}
+                                  className="fill-amber-400 text-amber-400"
+                                />
+                              )}
                             </p>
-                          )}
+                            {p.sku && (
+                              <p className="text-xs text-muted-foreground">
+                                SKU: {p.sku}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -387,7 +525,21 @@ export function AdminProducts() {
                       {category ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold">
-                      {formatPrice(Number(p.price ?? p.effectivePrice ?? 0))}
+                      {p.discountPrice &&
+                      Number(p.discountPrice) < Number(p.price ?? 0) ? (
+                        <span className="inline-flex flex-col items-end leading-tight">
+                          <span className="text-xs text-muted-foreground line-through">
+                            {formatPrice(Number(p.price ?? 0))}
+                          </span>
+                          <span>
+                            {formatPrice(Number(p.discountPrice))}
+                          </span>
+                        </span>
+                      ) : (
+                        formatPrice(
+                          Number(p.price ?? p.effectivePrice ?? 0),
+                        )
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right hidden sm:table-cell">
                       {p.stock ?? "—"}
@@ -443,6 +595,7 @@ export function AdminProducts() {
         </div>
       )}
 
+      {/* ===== Full-featured Product Dialog ===== */}
       <Dialog
         open={showCreate}
         onOpenChange={(o) => {
@@ -453,109 +606,314 @@ export function AdminProducts() {
           }
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editId ? "Edit Product" : "Add Product"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+
+          <div className="space-y-4">
+            {/* Title */}
             <div>
-              <Label>Name *</Label>
+              <Label>
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Product name"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Product title"
               />
             </div>
-            <div>
-              <Label>Description</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                placeholder="Description"
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            {/* Type + Category */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label>Price *</Label>
-                <Input
-                  type="number"
-                  value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label>Stock</Label>
-                <Input
-                  type="number"
-                  value={form.stock}
-                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>SKU</Label>
-                <Input
-                  value={form.sku}
-                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                  placeholder="SKU-001"
-                />
+                <Label>Product Type</Label>
+                <Select value={type} onValueChange={setType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRODUCT_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>Category</Label>
+                <Select
+                  value={categorySlug}
+                  onValueChange={setCategorySlug}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.length === 0 ? (
+                      <SelectItem value="_none" disabled>
+                        No categories
+                      </SelectItem>
+                    ) : (
+                      categories.map((c) => (
+                        <SelectItem key={c.id} value={c.slug}>
+                          {c.name}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Price + Discount */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>
+                  Price (PKR) <span className="text-destructive">*</span>
+                </Label>
+                <div className="relative">
+                  <DollarSign
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Discount Price / Offer</Label>
+                <div className="relative">
+                  <Tag
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
+                  <Input
+                    type="number"
+                    value={discountPrice}
+                    onChange={(e) => setDiscountPrice(e.target.value)}
+                    placeholder="Optional"
+                    className="pl-9"
+                  />
+                </div>
+                {discountPrice &&
+                  price &&
+                  Number(discountPrice) < Number(price) && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      Shows strikethrough on{" "}
+                      {formatPrice(Number(price))} →{" "}
+                      {formatPrice(Number(discountPrice))}
+                    </p>
+                  )}
+              </div>
+            </div>
+
+            {/* Short description */}
+            <div>
+              <Label>Short Description</Label>
+              <Input
+                value={shortDescription}
+                onChange={(e) => setShortDescription(e.target.value)}
+                placeholder="One-line summary"
+                maxLength={150}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {shortDescription.length}/150
+              </p>
+            </div>
+
+            {/* Full description */}
+            <div>
+              <Label>Full Description</Label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Detailed product description..."
+                rows={4}
+              />
+            </div>
+
+            {/* Cover image */}
+            <div>
+              <Label>Product Picture / Cover Image</Label>
+              <div className="flex items-start gap-3">
+                <div className="w-20 h-20 rounded-lg border bg-muted overflow-hidden shrink-0 flex items-center justify-center">
+                  {coverUrl ? (
+                    <img
+                      src={coverUrl}
+                      alt="Cover preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <ImageIcon className="size-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Input
+                    value={coverUrl}
+                    onChange={(e) => setCoverUrl(e.target.value)}
+                    placeholder="https://... or upload below"
+                  />
+                  <label className="inline-flex">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="sr-only"
+                      disabled={uploading}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 cursor-pointer"
+                      disabled={uploading}
+                      asChild
+                    >
+                      <span>
+                        {uploading ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Upload className="size-3.5" />
+                        )}
+                        {uploading ? "Uploading..." : "Upload Image"}
+                      </span>
+                    </Button>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Variants */}
+            <div>
+              <Label>Variants</Label>
+              <Input
+                value={variants}
+                onChange={(e) => setVariants(e.target.value)}
+                placeholder="1 Month | 3 Months | 1 Year"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Pipe-separated list. Saved as JSON array.
+              </p>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <Label>Tags</Label>
+              <Input
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="ai, marketing, premium"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Comma-separated.
+              </p>
+            </div>
+
+            {/* SKU + Stock */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>SKU</Label>
                 <Input
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value })
-                  }
-                  placeholder="Electronics"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  placeholder="Auto-generated if blank"
+                />
+              </div>
+              <div>
+                <Label>Stock Quantity</Label>
+                <Input
+                  type="number"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  placeholder="0"
                 />
               </div>
             </div>
-            <div>
-              <Label>Image URL</Label>
-              <Input
-                value={form.imageUrl}
-                onChange={(e) =>
-                  setForm({ ...form, imageUrl: e.target.value })
-                }
-                placeholder="https://..."
+
+            {/* Version + License */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label>Version</Label>
+                <Input
+                  value={version}
+                  onChange={(e) => setVersion(e.target.value)}
+                  placeholder="1.0.0"
+                />
+              </div>
+              <div>
+                <Label>License Type</Label>
+                <Input
+                  value={licenseType}
+                  onChange={(e) => setLicenseType(e.target.value)}
+                  placeholder="Lifetime, 1 Month, 1 Year"
+                />
+              </div>
+            </div>
+
+            {/* Featured toggle */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <Label className="cursor-pointer">Featured Product</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Show on homepage and category highlights.
+                </p>
+              </div>
+              <Switch
+                checked={featured}
+                onCheckedChange={setFeatured}
+                aria-label="Toggle featured"
               />
             </div>
-            <div>
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm({
-                    ...form,
-                    status: v as "PUBLISHED" | "PENDING" | "DRAFT",
-                  })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PUBLISHED">Published</SelectItem>
-                  <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="DRAFT">Draft</SelectItem>
-                </SelectContent>
-              </Select>
+
+            {/* SEO */}
+            <div className="space-y-3 rounded-lg border p-3 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">
+                  SEO
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  Optional — for search engines
+                </span>
+              </div>
+              <div>
+                <Label>SEO Title</Label>
+                <Input
+                  value={seoTitle}
+                  onChange={(e) => setSeoTitle(e.target.value)}
+                  placeholder="Override <title> tag"
+                />
+              </div>
+              <div>
+                <Label>SEO Description</Label>
+                <Textarea
+                  value={seoDescription}
+                  onChange={(e) => setSeoDescription(e.target.value)}
+                  placeholder="Meta description"
+                  rows={2}
+                />
+              </div>
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setShowCreate(false)}>
+            <Button
+              variant="secondary"
+              onClick={() => setShowCreate(false)}
+              disabled={saving}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>
+            <Button onClick={handleSubmit} disabled={saving || uploading}>
+              {saving && <Loader2 className="size-4 animate-spin mr-1" />}
               {editId ? "Save Changes" : "Create Product"}
             </Button>
           </DialogFooter>

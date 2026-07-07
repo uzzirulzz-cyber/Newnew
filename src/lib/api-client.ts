@@ -397,6 +397,35 @@ export const api = {
       `/admin/products/delete`,
       { method: "POST", body: JSON.stringify({ id }) },
     ),
+  adminProductImageUpload: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return fetch(`${BASE}/admin/products/upload-image`, {
+      method: "POST",
+      body: fd,
+      // NOTE: do not set Content-Type — fetch will set the multipart boundary.
+    })
+      .then(async (res) => {
+        const json = (await res.json()) as ApiResult<{
+          url: string;
+          name: string;
+          originalName: string;
+          size: number;
+          mimeType: string;
+        }>;
+        if (!res.ok || !json?.success || !json.data) {
+          throw new Error(
+            json?.error?.message || `Upload failed (${res.status})`,
+          );
+        }
+        return json.data;
+      })
+      .catch((e) => {
+        throw e instanceof Error
+          ? e
+          : new Error("Network error during upload");
+      });
+  },
 
   // ===== Admin demo seeder + order status update =====
   adminSeedDemo: () =>

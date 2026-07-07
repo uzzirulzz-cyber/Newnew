@@ -1547,3 +1547,62 @@ Task: upgrade-iptv-module
 - The `IptvSubscriber` schema doesn't have explicit `username` / `password` / `portalUrl` / `m3uUrl` / `notes` fields, so the slide-in Drawer *synthesises* these credentials from the existing record: username from the email prefix, password from the MAC (or the tail of the subscriber id as a fallback), portal URL from `window.location.origin + "/portal/iptv"`, M3U URL using the standard Xtream Codes `/get.php?username=...&password=...&type=m3u_plus&output=ts` format. If you later add real credential columns to the schema, swap the synthesised values for the DB fields in `SubscriberCredentialsDrawer`.
 - The channels API continues to return all channels for a given search query (no status filter), and the IPTV UI applies both the `status` Select filter and the new category pills client-side. This means the category pill counts reflect the *searched* set, not the platform-wide set — by design, so the pills stay in sync with what's visible in the table.
 - M3U import is sequential (one `adminIptvChannelCreate` per channel) to keep rate limits happy and surface clear per-call failures. For very large playlists (1000+ channels) this will take a few seconds — the button shows a "Importing..." label with a spinner while in-flight.
+
+---
+Task ID: fix-product-edit-dialog
+Agent: Sub-agent (general-purpose)
+Task: Restore full-featured admin Products edit dialog (price/discount/variants/cover upload/type/category/license/featured/SEO) without losing recent upgrades (status filter, stats cards, Approve & Publish).
+
+### Problem
+The admin Products module at `src/components/playbeat/admin/products.tsx` had been recently upgraded with a status filter, stats cards, and an Approve & Publish button, but the upgrade had **replaced** the rich ProductEditDialog with a simplified inline form that:
+- Was missing fields: `discountPrice` (offer), `variants`, image upload, `type` select, `licenseType`, `featured` toggle, SEO fields.
+- Set `imageUrl` in form state but never sent it in the payload (`cover` was missing).
+- Used a free-text Input for Category instead of a Select populated from `api.categories()`.
+- Had no real image upload endpoint — would have required base64 (which it didn't do either, so the field was effectively dead).
+
+### Files modified
+
+1. **`src/components/playbeat/admin/products.tsx`** — full rewrite (~927 → 924 lines). Kept the entire table/listing surface untouched (status filter, stats cards, Approve & Publish button, delete confirm, admin API calls). Replaced the simplified dialog with a full-featured ProductDialog:
+   - **Form state** moved to ~17 individual `useState` hooks (`title`, `type`, `categorySlug`, `price`, `discountPrice`, `shortDescription`, `description`, `coverUrl`, `variants`, `tags`, `sku`, `stock`, `version`, `licenseType`, `featured`, `seoTitle`, `seoDescription`) plus `uploading`, `saving`, `editId` flags. The old single `form` object was removed.
+   - **Title** — Input, marked required.
+   - **Product Type** — Select with all 9 task-spec values (AI_TOOL, SOFTWARE_LICENSE, SAAS_SUBSCRIPTION, DIGITAL_DOWNLOAD, EBOOK, TEMPLATE, GRAPHICS, COURSE, MEMBERSHIP). On edit, falls back to `DIGITAL_DOWNLOAD` if the loaded type isn't in the list.
+   - **Category** — Select populated by `api.categories()` (new TanStack Query key `admin-categories-for-products`, 60s staleTime). Empty state shows a disabled "No categories" item.
+   - **Price (PKR)** — Input type=number, required, with `DollarSign` icon prefix.
+   - **Discount Price / Offer** — Input type=number, optional, with `Tag` icon prefix. Shows a small amber hint when `discountPrice < price` describing the strikethrough that will appear on the storefront.
+   - **Short Description** — Input, `maxLength=150`, with a live counter (`{n}/150`).
+   - **Full Description** — Textarea, 4 rows.
+   - **Cover Image** — 80×80 thumbnail preview + URL Input + Upload button. The hidden `<input type="file" accept="image/*">` is wrapped in a label, and the visible `<Button asChild>` submits the form. While uploading, the button shows `Loader2` spinner + "Uploading..." text and is disabled. Calls `api.adminProductImageUpload(file)` and writes `result.url` to `coverUrl`. **No base64 / FileReader / readAsDataURL anywhere** (verified by `rg -c`).
+   - **Variants** — Input pipe-separated (`1 Month | 3 Months | 1 Year`). Saved to the API as `JSON.stringify(variants.split("|").map(trim).filter(Boolean))` per the task spec.
+   - **Tags** — Input comma-separated, sent as `string[]`.
+   - **SKU** — Input, with "Auto-generated if blank" placeholder (the create endpoint generates `SKU-${Date.now()}` when blank).
+   - **Stock Quantity** — Input type=number.
+   - **Version** — Input (e.g. `1.0.0`).
+   - **License Type** — Input (e.g. `Lifetime, 1 Month, 1 Year`).
+   - **Featured Product** — `Switch` toggle in a bordered row with helper text. `checked={featured}` + `onCheckedChange={setFeatured}`.
+   - **SEO Title** + **SEO Description** — Wrapped in a bordered `bg-muted/20` panel with a `Badge variant="secondary"` "SEO" label and helper text. Optional fields.
+   - **Footer** — Cancel (disabled while saving) + Save Changes / Create Product (disabled while saving OR uploading, shows spinner while saving).
+   - **Discount display in table** — Added strikethrough rendering when `discountPrice < price` (small line-through original above the discounted price). Also added a `Star` icon (amber, filled) next to featured product titles.
+   - **handleEdit** cover extraction handles all 3 cases per the task spec: plain URL string, JSON object string (parses `image`), already-parsed object. Falls back to `p.imageUrl` if no cover image was extracted. Variants extraction parses `p.variants` (which the API now returns as a `string[]` array — see below) defensively, joining with ` | `.
+   - **handleSubmit** payload includes ALL fields per spec: `title, type, price, shortDescription, description, categorySlug, sku, stock, tags (array), version, licenseType, featured (bool), cover, seoTitle, seoDescription`. Conditionally adds `discountPrice` (only if set) and `variants` (only if non-empty, as JSON string). Added `saving` state to disable buttons during the request.
+
+2. **`src/lib/api-client.ts`** — added `adminProductImageUpload(file: File)` method immediately after `adminProductDelete`. Uses native `fetch` with a `FormData` body (does NOT set `Content-Type` so the browser can set the multipart boundary). Parses the standard `ApiResult<T>` envelope and returns `{ url, name, originalName, size, mimeType }`. Throws the server error message on non-2xx.
+
+3. **`src/app/api/v1/admin/products/upload-image/route.ts`** — NEW. `POST /api/v1/admin/products/upload-image` accepts multipart/form-data with a `file` field. Validates: file is a `File` instance, non-empty, ≤8MB, and MIME in the allowed image set (jpeg/jpg/png/webp/gif/svg+xml/avif). Writes the file to `/public/uploads/products/<timestamp>-<sha256-16>.<ext>` (creating the directory if needed). Returns `{ url, name, originalName, size, mimeType }` with 201. `export const dynamic = "force-dynamic"`, 20/min rate limit. Created the `/public/uploads/products/` directory.
+
+4. **`src/app/api/v1/admin/products/create/route.ts`** — added `variants` to the destructured body fields and to the Prisma `data` payload (`variants: variants || null`). Updated JSDoc to document the new field.
+
+5. **`src/app/api/v1/admin/products/route.ts`** (GET list endpoint) — extended the per-product serializer to also return `variants` (parsed from the JSON string in DB into `string[]`), `seoTitle`, and `seoDescription` so the edit dialog can populate them.
+
+6. **`src/app/api/v1/admin/products/update/route.ts`** — no code changes needed. The existing `...rest` pattern already passes `variants`, `seoTitle`, `seoDescription`, `featured`, `version`, `licenseType` through as-is (only `price`, `discountPrice`, `fileSize`, `stock` get coerced to Number and `featured` to Boolean).
+
+### Verification
+- `bun run lint` → exits 0, zero warnings, zero errors. (After removing 2 unused `@next/next/no-img-element` eslint-disable directives — the project doesn't enable that rule.)
+- `npx tsc --noEmit` → 14 errors total, **all pre-existing** in unrelated files (`examples/websocket/*`, `skills/image-edit/*`, `skills/stock-analysis-skill/*`, `src/app/api/v1/analytics/dashboard/route.ts`, `src/app/api/v1/payments/crypto/confirm/route.ts`, `src/app/api/v1/payments/jazzcash/return/route.ts`, `src/components/playbeat/cart-sheet.tsx`, `src/components/playbeat/product-cover.tsx`). **Zero** new TS errors in any of the 5 modified/created files.
+- `rg -c "base64|FileReader|readAsDataURL" src/components/playbeat/admin/products.tsx` → 0 matches (exit 1, confirming 0).
+- Manual field-presence audit of `products.tsx`: title ✓, type (9-value Select) ✓, category (DB-backed Select) ✓, price ✓, discountPrice ✓, shortDescription (maxLength 150) ✓, description (Textarea 4 rows) ✓, cover image upload (`api.adminProductImageUpload`) ✓, variants (pipe-separated → JSON string) ✓, tags (comma-separated → array) ✓, sku ✓, stock ✓, version ✓, licenseType ✓, featured (Switch) ✓, seoTitle ✓, seoDescription ✓.
+- All 4 preserved upgrades verified present in code: status filter Select (All/Published/Pending/Draft), 4-card stats grid (Total/Published/Pending/Draft), Approve & Publish button on PENDING rows (with per-row `approvingId` spinner), delete with `confirm()` dialog. All API calls still use `api.adminProducts/adminProductUpdate/adminProductCreate/adminProductDelete`.
+
+### Notes for future runs
+- The new upload endpoint writes files directly to `/public/uploads/products/`. This works in dev and in `next start`, but if the project ever moves to a serverless/edge deploy where `/public` is read-only, switch the endpoint to write to a persistent blob store (S3, R2, etc.) and update `adminProductImageUpload` accordingly.
+- The cart-sheet.tsx TS error (`cryptoCreate` does not exist on the api object) is pre-existing and unrelated — left untouched per scope.
+- The discount price rendering in the table is a small enhancement that came for free with the discountPrice field being restored — it mirrors the marketplace strikethrough pattern. Easy to revert if it's not desired.

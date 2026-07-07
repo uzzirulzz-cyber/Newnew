@@ -25,6 +25,7 @@ import { db } from "@/lib/db";
  *   version?: string,
  *   cover?: string,          // JSON { type, colors, icon, seed } or image URL
  *   images?: string[],       // JSON-serialized array of URLs
+ *   variants?: string,       // JSON-stringified array of variant options e.g. ["1 Month","3 Months"]
  *   featured?: boolean,
  *   seoTitle?: string,
  *   seoDescription?: string,
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
   const {
     title, shortDescription, description, type, price, discountPrice,
     categorySlug, vendorId, sku, stock, tags, licenseType, downloadFile,
-    fileSize, version, cover, images, featured, seoTitle, seoDescription,
+    fileSize, version, cover, images, variants, featured, seoTitle, seoDescription,
   } = body;
 
   if (!title) return error("Product title is required", 422);
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
         version: version || "1.0.0",
         cover: cover || JSON.stringify({ type: "gradient", colors: ["#3b82f6", "#8b5cf6"], icon: "Package", seed: slug }),
         images: JSON.stringify(images || []),
+        variants: variants || null,
         featured: featured || false,
         seoTitle: seoTitle || "",
         seoDescription: seoDescription || "",
