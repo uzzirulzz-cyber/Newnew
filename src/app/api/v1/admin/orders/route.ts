@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { ok, error, applyRateLimit, paginate } from "@/lib/api";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/v1/admin/orders
  *

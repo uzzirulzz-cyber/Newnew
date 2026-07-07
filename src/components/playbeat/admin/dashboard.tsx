@@ -7,19 +7,17 @@ import {
   DollarSign,
   Users,
   ShoppingCart,
-  RefreshCw,
   CreditCard,
   TrendingUp,
   TrendingDown,
   Activity,
   Server,
   Globe,
-  Zap,
-  Bell,
   Package,
-  ArrowRight,
   RotateCcw,
   Loader2,
+  Sparkles,
+  CheckCircle2,
 } from "lucide-react";
 import {
   Area,
@@ -111,6 +109,8 @@ function ChartTooltip({ active, payload, label }: any) {
 export function AdminDashboard() {
   const qc = useQueryClient();
   const [resetting, setResetting] = React.useState(false);
+  const [seeding, setSeeding] = React.useState(false);
+  const [approvingId, setApprovingId] = React.useState<string | null>(null);
   const { data: dash, isLoading } = useQuery({
     queryKey: ["admin-analytics"],
     queryFn: () => api.analytics(),
@@ -119,7 +119,7 @@ export function AdminDashboard() {
 
   const { data: ordersData } = useQuery({
     queryKey: ["admin-orders"],
-    queryFn: () => api.adminOrders(),
+    queryFn: () => api.adminOrders({ limit: 1000 }),
     staleTime: 30_000,
   });
 
@@ -129,13 +129,35 @@ export function AdminDashboard() {
     staleTime: 30_000,
   });
 
+  const { data: pendingProductsData } = useQuery({
+    queryKey: ["admin-products-pending"],
+    queryFn: () => api.adminProducts({ status: "PENDING" }),
+    staleTime: 30_000,
+  });
+
   const summary = dash?.summary;
-  const recentOrders = (ordersData?.items || []).slice(0, 6);
+  const allOrders = ordersData?.items || [];
+  const recentOrders = allOrders.slice(0, 6);
   const notifications = (notifData?.items || []).slice(0, 5);
   const revenueData = (dash?.revenueTimeseries || []).slice(-14);
   const trafficData = dash?.trafficSources || [];
   const topProducts = dash?.topProducts || [];
   const topVendors = dash?.topVendors || [];
+  const pendingProducts = (pendingProductsData?.items || []) as Array<{
+    id: string;
+    _id?: string;
+    title: string;
+    price: number;
+    sku?: string;
+  }>;
+
+  // Compute order breakdown by status
+  const ORDER_STATUSES = ["COMPLETED", "PENDING", "PAID", "REFUNDED", "CANCELLED"];
+  const orderBreakdown = ORDER_STATUSES.map((s) => ({
+    name: s,
+    value: allOrders.filter((o) => o.status === s).length,
+  })).filter((d) => d.value > 0);
+  const totalOrdersForChart = orderBreakdown.reduce((s, d) => s + d.value, 0);
 
   const statusColor: Record<string, string> = {
     COMPLETED: "bg-green-500/15 text-green-400",
@@ -152,14 +174,51 @@ export function AdminDashboard() {
       className="space-y-6"
     >
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
             Real-time overview of your PlayBeat Digital marketplace
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            className="border-blue-500/20 bg-blue-500/5 text-blue-400 hover:bg-blue-500/10"
+            disabled={seeding}
+            onClick={async () => {
+              if (
+                !confirm(
+                  "Seed demo data?\n\nThis will create 10 sample products (Netflix, Spotify, ChatGPT Plus, etc. with PKR prices) and 10 sample orders with various statuses. Useful for testing the dashboard.",
+                )
+              )
+                return;
+              setSeeding(true);
+              try {
+                const result = await api.adminSeedDemo();
+                qc.invalidateQueries({ queryKey: ["admin-analytics"] });
+                qc.invalidateQueries({ queryKey: ["admin-orders"] });
+                qc.invalidateQueries({ queryKey: ["admin-notifications"] });
+                qc.invalidateQueries({ queryKey: ["admin-products-pending"] });
+                toast.success(
+                  `Seeded ${result.products} products and ${result.orders} orders.`,
+                );
+              } catch (e) {
+                toast.error(
+                  e instanceof Error ? e.message : "Seed failed",
+                );
+              } finally {
+                setSeeding(false);
+              }
+            }}
+          >
+            {seeding ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Sparkles className="size-4" />
+            )}
+            Seed Demo Data
+          </Button>
           <Button
             variant="outline"
             className="border-red-500/20 bg-red-500/5 text-red-400 hover:bg-red-500/10"
@@ -203,6 +262,7 @@ export function AdminDashboard() {
               qc.invalidateQueries({ queryKey: ["admin-analytics"] });
               qc.invalidateQueries({ queryKey: ["admin-orders"] });
               qc.invalidateQueries({ queryKey: ["admin-notifications"] });
+              qc.invalidateQueries({ queryKey: ["admin-products-pending"] });
               toast.success("Dashboard refreshed");
             }}
           >
@@ -260,7 +320,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Revenue trend */}
         <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
           <CardHeader>
@@ -295,6 +355,76 @@ export function AdminDashboard() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order breakdown donut */}
+        <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+          <CardHeader>
+            <CardTitle className="text-base">Order Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-64 w-full" />
+            ) : totalOrdersForChart === 0 ? (
+              <div className="flex h-[260px] items-center justify-center text-xs text-muted-foreground">
+                No orders yet
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={orderBreakdown}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={85}
+                      paddingAngle={3}
+                    >
+                      {orderBreakdown.map((d, i) => {
+                        const colorIdx = ORDER_STATUSES.indexOf(d.name);
+                        return (
+                          <Cell
+                            key={d.name}
+                            fill={
+                              CHART_COLORS[
+                                (colorIdx >= 0 ? colorIdx : i) %
+                                  CHART_COLORS.length
+                              ]
+                            }
+                          />
+                        );
+                      })}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-2 grid grid-cols-2 gap-1.5 text-xs">
+                  {orderBreakdown.map((d) => {
+                    const colorIdx = ORDER_STATUSES.indexOf(d.name);
+                    return (
+                      <div key={d.name} className="flex items-center gap-1.5">
+                        <span
+                          className="size-2.5 rounded-full"
+                          style={{
+                            backgroundColor:
+                              CHART_COLORS[
+                                (colorIdx >= 0 ? colorIdx : 0) %
+                                  CHART_COLORS.length
+                              ],
+                          }}
+                        />
+                        <span className="text-muted-foreground">{d.name}</span>
+                        <span className="font-medium">{d.value}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -373,25 +503,83 @@ export function AdminDashboard() {
 
         <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
           <CardHeader>
-            <CardTitle className="text-base">Quick Actions</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Pending Products Approvals</CardTitle>
+              {pendingProducts.length > 0 && (
+                <Badge className="bg-amber-500/15 text-amber-400">
+                  {pendingProducts.length} pending
+                </Badge>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2">
-            {[
-              { label: "Add Product", icon: Package },
-              { label: "Create Coupon", icon: Zap },
-              { label: "Send Newsletter", icon: Bell },
-              { label: "View Reports", icon: TrendingUp },
-            ].map((a) => (
-              <Button
-                key={a.label}
-                variant="outline"
-                className="h-auto flex-col gap-1 border-white/10 bg-white/5 py-3 text-xs"
-                onClick={() => toast.message(`${a.label} — coming soon`)}
-              >
-                <a.icon className="size-4 text-blue-400" />
-                {a.label}
-              </Button>
-            ))}
+          <CardContent className="space-y-2">
+            {pendingProducts.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <div className="grid size-10 place-items-center rounded-full bg-green-500/15">
+                  <CheckCircle2 className="size-5 text-green-400" />
+                </div>
+                <Badge className="bg-green-500/15 text-green-400">
+                  All products published
+                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  No products awaiting approval
+                </p>
+              </div>
+            ) : (
+              pendingProducts.slice(0, 5).map((p) => {
+                const pid = p.id || p._id || "";
+                return (
+                  <div
+                    key={pid}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-white/5 p-2 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{p.title}</p>
+                      <p className="text-muted-foreground">
+                        {formatPrice(p.price)} · {p.sku ?? "—"}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-7 gap-1 bg-green-500/15 text-xs text-green-400 hover:bg-green-500/25"
+                      disabled={approvingId === pid}
+                      onClick={async () => {
+                        setApprovingId(pid);
+                        try {
+                          await api.adminProductUpdate({
+                            id: pid,
+                            status: "PUBLISHED",
+                          });
+                          toast.success(`"${p.title}" approved & published`);
+                          qc.invalidateQueries({
+                            queryKey: ["admin-products-pending"],
+                          });
+                          qc.invalidateQueries({
+                            queryKey: ["admin-analytics"],
+                          });
+                          qc.invalidateQueries({
+                            queryKey: ["admin-products-list"],
+                          });
+                        } catch (e) {
+                          toast.error(
+                            e instanceof Error ? e.message : "Failed to approve",
+                          );
+                        } finally {
+                          setApprovingId(null);
+                        }
+                      }}
+                    >
+                      {approvingId === pid ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="size-3" />
+                      )}
+                      Approve & Publish
+                    </Button>
+                  </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
 

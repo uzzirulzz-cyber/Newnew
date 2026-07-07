@@ -5,12 +5,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -28,15 +25,63 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Package, Edit, Trash2 } from "lucide-react";
-import { api } from "@/lib/api-client";
+import {
+  Plus,
+  Search,
+  Package,
+  Edit,
+  Trash2,
+  CheckCircle2,
+  Loader2,
+  Clock,
+  FileEdit,
+  Layers,
+} from "lucide-react";
+import { api, formatPrice } from "@/lib/api-client";
 import { toast } from "sonner";
 
-const statusColors: Record<string, string> = {
-  active: "bg-green-100 text-green-700",
-  draft: "bg-yellow-100 text-yellow-700",
-  archived: "bg-gray-100 text-gray-500",
+const STATUS_LABEL: Record<string, string> = {
+  PUBLISHED: "Published",
+  PENDING: "Pending",
+  DRAFT: "Draft",
 };
+
+const statusColors: Record<string, string> = {
+  PUBLISHED: "bg-green-500/15 text-green-400",
+  PENDING: "bg-amber-500/15 text-amber-400",
+  DRAFT: "bg-gray-500/15 text-gray-400",
+};
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: typeof Package;
+  label: string;
+  value: number;
+  accent: string;
+}) {
+  return (
+    <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+      <CardContent className="flex items-center justify-between p-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1 text-2xl font-bold">{value}</p>
+        </div>
+        <div
+          className="grid size-10 place-items-center rounded-xl"
+          style={{ backgroundColor: `${accent}1a` }}
+        >
+          <Icon className="size-5" style={{ color: accent }} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function AdminProducts() {
   const qc = useQueryClient();
@@ -44,6 +89,7 @@ export function AdminProducts() {
   const [status, setStatus] = React.useState("all");
   const [showCreate, setShowCreate] = React.useState(false);
   const [editId, setEditId] = React.useState<string | null>(null);
+  const [approvingId, setApprovingId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState({
     name: "",
     description: "",
@@ -51,10 +97,11 @@ export function AdminProducts() {
     stock: "",
     category: "",
     imageUrl: "",
-    status: "active" as "active" | "draft" | "archived",
+    status: "PUBLISHED" as "PUBLISHED" | "PENDING" | "DRAFT",
     sku: "",
   });
 
+  // Filtered list (table data)
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products-list", status, search],
     queryFn: () =>
@@ -66,6 +113,21 @@ export function AdminProducts() {
   });
   const products = data?.items || [];
 
+  // Unfiltered list (for stats cards)
+  const { data: allData } = useQuery({
+    queryKey: ["admin-products-all"],
+    queryFn: () => api.adminProducts({}),
+    staleTime: 30_000,
+  });
+  const allProducts = allData?.items || [];
+
+  const stats = {
+    total: allProducts.length,
+    published: allProducts.filter((p: any) => p.status === "PUBLISHED").length,
+    pending: allProducts.filter((p: any) => p.status === "PENDING").length,
+    draft: allProducts.filter((p: any) => p.status === "DRAFT").length,
+  };
+
   const resetForm = () =>
     setForm({
       name: "",
@@ -74,7 +136,7 @@ export function AdminProducts() {
       stock: "",
       category: "",
       imageUrl: "",
-      status: "active",
+      status: "PUBLISHED",
       sku: "",
     });
 
@@ -105,6 +167,7 @@ export function AdminProducts() {
       resetForm();
       setShowCreate(false);
       qc.invalidateQueries({ queryKey: ["admin-products-list"] });
+      qc.invalidateQueries({ queryKey: ["admin-products-all"] });
     } catch {
       toast.error("Failed to save product");
     }
@@ -114,14 +177,17 @@ export function AdminProducts() {
     setForm({
       name: p.title ?? p.name ?? "",
       description: p.description ?? "",
-      price: String(p.price ?? p.regularPrice ?? ""),
+      price: String(p.price ?? p.effectivePrice ?? ""),
       stock: String(p.stock ?? 0),
       category: p.category?.slug ?? p.category ?? "",
       imageUrl:
         typeof p.cover === "string"
           ? p.cover
           : p.cover?.image ?? p.imageUrl ?? "",
-      status: p.status === "DRAFT" ? "draft" : (p.status ?? "active").toLowerCase(),
+      status:
+        p.status === "PUBLISHED" || p.status === "PENDING" || p.status === "DRAFT"
+          ? p.status
+          : "PUBLISHED",
       sku: p.sku ?? "",
     });
     setEditId(p._id ?? p.id);
@@ -134,8 +200,25 @@ export function AdminProducts() {
       await api.adminProductDelete(id);
       toast.success("Product deleted");
       qc.invalidateQueries({ queryKey: ["admin-products-list"] });
+      qc.invalidateQueries({ queryKey: ["admin-products-all"] });
     } catch {
       toast.error("Failed to delete product");
+    }
+  };
+
+  const handleApprove = async (id: string, title: string) => {
+    setApprovingId(id);
+    try {
+      await api.adminProductUpdate({ id, status: "PUBLISHED" });
+      toast.success(`"${title}" approved & published`);
+      qc.invalidateQueries({ queryKey: ["admin-products-list"] });
+      qc.invalidateQueries({ queryKey: ["admin-products-all"] });
+      qc.invalidateQueries({ queryKey: ["admin-products-pending"] });
+      qc.invalidateQueries({ queryKey: ["admin-analytics"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to approve product");
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -161,6 +244,34 @@ export function AdminProducts() {
         </Button>
       </div>
 
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard
+          icon={Layers}
+          label="Total Products"
+          value={stats.total}
+          accent="#3b82f6"
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Published"
+          value={stats.published}
+          accent="#10b981"
+        />
+        <StatCard
+          icon={Clock}
+          label="Pending"
+          value={stats.pending}
+          accent="#f59e0b"
+        />
+        <StatCard
+          icon={FileEdit}
+          label="Draft"
+          value={stats.draft}
+          accent="#6b7280"
+        />
+      </div>
+
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-48">
           <Search
@@ -175,14 +286,14 @@ export function AdminProducts() {
           />
         </div>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-36">
+          <SelectTrigger className="w-40">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="draft">Draft</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
+            <SelectItem value="PUBLISHED">Published</SelectItem>
+            <SelectItem value="PENDING">Pending</SelectItem>
+            <SelectItem value="DRAFT">Draft</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -239,9 +350,11 @@ export function AdminProducts() {
                     : p.cover?.image ?? p.imageUrl;
                 const title = p.title ?? p.name ?? "Untitled";
                 const category = p.category?.name ?? p.category;
+                const pid = p._id ?? p.id;
+                const isPending = p.status === "PENDING";
                 return (
                   <tr
-                    key={p._id ?? p.id}
+                    key={pid}
                     className="border-b last:border-0 hover:bg-muted/30 transition-colors"
                   >
                     <td className="px-4 py-3">
@@ -274,39 +387,55 @@ export function AdminProducts() {
                       {category ?? "—"}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold">
-                      ${Number(p.price ?? p.effectivePrice ?? 0).toFixed(2)}
+                      {formatPrice(Number(p.price ?? p.effectivePrice ?? 0))}
                     </td>
                     <td className="px-4 py-3 text-right hidden sm:table-cell">
                       {p.stock ?? "—"}
                     </td>
-                  <td className="px-4 py-3 text-center">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[p.status] ?? ""}`}
-                    >
-                      {p.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleEdit(p)}
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[p.status] ?? "bg-gray-500/15 text-gray-400"}`}
                       >
-                        <Edit size={13} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-destructive"
-                        onClick={() => handleDelete(p._id ?? p.id)}
-                      >
-                        <Trash2 size={13} />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
+                        {STATUS_LABEL[p.status] ?? p.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {isPending && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 gap-1 border-green-500/20 bg-green-500/10 text-xs text-green-400 hover:bg-green-500/20"
+                            disabled={approvingId === pid}
+                            onClick={() => handleApprove(pid, title)}
+                          >
+                            {approvingId === pid ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="size-3" />
+                            )}
+                            Approve & Publish
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => handleEdit(p)}
+                        >
+                          <Edit size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive"
+                          onClick={() => handleDelete(pid)}
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
@@ -357,7 +486,7 @@ export function AdminProducts() {
                   type="number"
                   value={form.price}
                   onChange={(e) => setForm({ ...form, price: e.target.value })}
-                  placeholder="0.00"
+                  placeholder="0"
                 />
               </div>
               <div>
@@ -407,7 +536,7 @@ export function AdminProducts() {
                 onValueChange={(v) =>
                   setForm({
                     ...form,
-                    status: v as "active" | "draft" | "archived",
+                    status: v as "PUBLISHED" | "PENDING" | "DRAFT",
                   })
                 }
               >
@@ -415,9 +544,9 @@ export function AdminProducts() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="archived">Archived</SelectItem>
+                  <SelectItem value="PUBLISHED">Published</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="DRAFT">Draft</SelectItem>
                 </SelectContent>
               </Select>
             </div>

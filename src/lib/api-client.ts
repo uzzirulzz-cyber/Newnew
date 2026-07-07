@@ -398,6 +398,18 @@ export const api = {
       { method: "POST", body: JSON.stringify({ id }) },
     ),
 
+  // ===== Admin demo seeder + order status update =====
+  adminSeedDemo: () =>
+    apiFetch<{ products: number; orders: number; message?: string }>(
+      `/admin/seed-demo`,
+      { method: "POST" },
+    ),
+  adminOrderUpdateStatus: (id: string, status: string) =>
+    apiFetch<{ order: any; message?: string }>(
+      `/admin/orders/${encodeURIComponent(id)}/status`,
+      { method: "PATCH", body: JSON.stringify({ status }) },
+    ),
+
   // ===== Support Tickets =====
   adminSupportList: (params?: { status?: string; priority?: string; search?: string }) => {
     const qs = new URLSearchParams();
@@ -449,8 +461,20 @@ export const api = {
     apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/create`, { method: "POST", body: JSON.stringify(payload) }),
   adminIptvSubscriberUpdate: (payload: { id: string; status: string }) =>
     apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/update`, { method: "POST", body: JSON.stringify(payload) }),
+  adminIptvSubscriberAction: (id: string, action: "activate" | "suspend" | "delete") =>
+    apiFetch<{ subscriber?: any; success?: boolean; message?: string }>(`/admin/iptv/subscribers/${id}/action`, { method: "PATCH", body: JSON.stringify({ action }) }),
+  adminIptvChannelToggle: (id: string) =>
+    apiFetch<{ channel: any; message?: string }>(`/admin/iptv/channels/${id}/toggle`, { method: "PATCH" }),
   adminIptvStats: () =>
-    apiFetch<{ totalChannels: number; activeChannels: number; errorChannels: number; totalSubscribers: number; activeSubscribers: number }>(`/admin/iptv/stats`),
+    apiFetch<{
+      totalChannels: number;
+      activeChannels: number;
+      errorChannels: number;
+      totalSubscribers: number;
+      activeSubscribers: number;
+      expiredSubscribers: number;
+      suspendedSubscribers: number;
+    }>(`/admin/iptv/stats`),
 
   // ===== Finance =====
   adminTransactions: (params?: { status?: string; type?: string; search?: string }) => {
