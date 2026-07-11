@@ -16,10 +16,10 @@ const LIVE_BASE = "https://api-m.paypal.com";
 
 // === EMBEDDED LIVE CREDENTIALS (fallback when env vars not set) ===
 const EMBEDDED_PAYPAL_CLIENT_ID =
-  "AbqQ1geIbV60QcMwuUKXV3webajuQdeSs7W5wxjapr3JPk7vDKPzgAEcKYdiijVSztsmPn6gAfP3ALg7";
+  "Ab_aBQ-cWw7sD-MBpP7MecrgJEjwHLtRH9EYVCC8CnnJNBXw6Eono5UdOXyn-Ot92PUXF-9j7XmwI_o6";
 const EMBEDDED_PAYPAL_SECRET =
-  "EGtpHQEWSRl1MeQIYDaD3Dg6QwaJQRsnow1VYbrCzOegm49pxM1UnRwEhLAEOmbCPeCrZwmnBJmOfraw";
-const EMBEDDED_PAYPAL_SANDBOX = "true"; // Sandbox mode — switch to "false" when you have LIVE credentials
+  "EEH0oo-zIctPxJtlHK5CJC8rpnu_l7I3LG5gOdpCzD4HNiPFRIjGpKfxfjDU_YJIMhzKYNvH81osiPNU";
+const EMBEDDED_PAYPAL_SANDBOX = "false"; // LIVE mode — real payments
 
 // === Env var accessors with embedded fallback ===
 export function getPayPalClientId(): string {
