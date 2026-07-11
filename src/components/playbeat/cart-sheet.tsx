@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
   { value: "JAZZCASH", label: "JazzCash — Mobile Wallet / Card" },
+  { value: "PAYPAL", label: "PayPal — International / Cards" },
   { value: "CRYPTO", label: "Crypto (Binance) — BTC/ETH/USDT" },
 ];
 
@@ -335,6 +336,38 @@ export function CartSheet() {
         toast.success("Redirecting to crypto payment page…");
         setPlacedOrder(orderResult.order);
         clearCart();
+      } else if (provider === "PAYPAL") {
+        // PayPal — create order, then redirect to PayPal approval URL
+        const orderResult = await api.placeOrder({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+          provider: "PAYPAL",
+        });
+        const paypalRes = await fetch("/api/v1/payments/paypal/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: total,
+            currency: "USD",
+            description: cart
+              .map((c) => `${c.product.title} ×${c.quantity}`)
+              .join(", ")
+              .slice(0, 127),
+            billReference: orderResult.order.orderNumber,
+            customerEmail: email.trim(),
+          }),
+        });
+        const paypalData = await paypalRes.json();
+        if (paypalData.success && paypalData.data.approveUrl) {
+          window.location.href = paypalData.data.approveUrl;
+          toast.success("Redirecting to PayPal to complete payment…");
+        } else {
+          toast.error("PayPal payment initiation failed");
+        }
+        setPlacedOrder(orderResult.order);
+        clearCart();
       } else {
         // Fallback: create order as PENDING
         const result = await api.placeOrder({
@@ -541,9 +574,11 @@ export function CartSheet() {
                 )}
                 {provider === "JAZZCASH"
                   ? `Pay with JazzCash · ${formatPrice(total, currency)}`
-                  : provider === "CRYPTO"
-                    ? `Pay with Crypto · ${formatPrice(total, currency)}`
-                    : `Place order · ${formatPrice(total, currency)}`}
+                  : provider === "PAYPAL"
+                    ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
+                    : provider === "CRYPTO"
+                      ? `Pay with Crypto · ${formatPrice(total, currency)}`
+                      : `Place order · ${formatPrice(total, currency)}`}
               </Button>
               <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
                 <Lock className="size-3" />

@@ -57,19 +57,14 @@ const CATEGORY_LINKS: NavLink[] = [
   { label: "Top-Up", category: "memberships", icon: Smartphone },
 ];
 
-// Payment methods accepted — matches playbeatdigital.world "We Accept" row
+// Payment methods accepted — JazzCash (default) + PayPal + cryptocurrency
 const PAYMENTS = [
-  "Visa",
-  "Mastercard",
-  "Stripe",
-  "PayPal",
-  "Lemon Squeezy",
   "JazzCash",
-  "EasyPaisa",
-  "UBL",
-  "Meezan Bank",
-  "Bank Alfalah",
+  "PayPal",
+  "Bitcoin (BTC)",
+  "Ethereum (ETH)",
   "Tether (USDT)",
+  "USD Coin (USDC)",
 ];
 
 function FooterLink({
