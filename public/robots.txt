@@ -1,14 +1,24 @@
-User-agent: Googlebot
-Allow: /
+# PlayBeat Digital — robots.txt
+# https://playbeat.digital
 
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Allow all bots to index the storefront
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /playbeat
+Disallow: /iptv/view/
+
+# Block AI crawlers from admin
+User-agent: GPTBot
+Disallow: /admin
+
+User-agent: CCBot
+Disallow: /admin
+
+User-agent: Google-Extended
+Disallow: /admin
+
+# Sitemap
+Sitemap: https://playbeat.digital/sitemap.xml

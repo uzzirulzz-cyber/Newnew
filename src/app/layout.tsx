@@ -25,35 +25,61 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "PlayBeat Storefront — AI Tools, Software & Digital Products Marketplace",
+  metadataBase: new URL("https://playbeat.digital"),
+  title: {
+    default: "PlayBeat Digital — Premium Digital Products Marketplace",
+    template: "%s | PlayBeat Digital",
+  },
   description:
-    "PlayBeat is a global digital marketplace for AI tools, software licenses, SaaS subscriptions, digital downloads, templates, graphics, courses and affiliate offers.",
+    "Pakistan's premier digital marketplace for game keys, software licenses, AI tools, streaming subscriptions (Netflix, Spotify, YouTube Premium), IPTV, and gift cards. Instant delivery. JazzCash + PayPal accepted.",
   keywords: [
-    "PlayBeat",
-    "AI tools marketplace",
+    "PlayBeat Digital",
+    "digital marketplace Pakistan",
+    "Netflix Pakistan",
+    "Spotify Premium",
+    "YouTube Premium",
+    "AI tools",
+    "software licenses",
+    "IPTV",
+    "game keys",
+    "gift cards",
+    "JazzCash",
     "digital products",
-    "software subscriptions",
-    "SaaS marketplace",
-    "digital downloads",
-    "affiliate offers",
   ],
-  authors: [{ name: "PlayBeat Inc." }],
+  authors: [{ name: "Playbeat Digital (Private) Limited" }],
+  creator: "Playbeat Digital (Private) Limited",
+  publisher: "Playbeat Digital (Private) Limited",
   icons: {
     icon: "/favicon.png",
     apple: "/favicon.png",
   },
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "PlayBeat Storefront",
+    title: "PlayBeat Digital — Premium Digital Products Marketplace",
     description:
-      "The global marketplace for AI tools, software subscriptions & digital products.",
-    siteName: "PlayBeat",
+      "Pakistan's premier digital marketplace for game keys, software licenses, AI tools, streaming subscriptions, IPTV, and gift cards. Instant delivery.",
+    url: "https://playbeat.digital",
+    siteName: "PlayBeat Digital",
     type: "website",
+    locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "PlayBeat Storefront",
+    title: "PlayBeat Digital — Premium Digital Products Marketplace",
     description:
-      "The global marketplace for AI tools, software subscriptions & digital products.",
+      "Pakistan's premier digital marketplace. Instant delivery. JazzCash + PayPal accepted.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
 };
 
