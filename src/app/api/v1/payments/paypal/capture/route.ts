@@ -54,8 +54,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Redirect to storefront with success
-    return NextResponse.redirect(new URL("/?payment=success", request.url));
+    // Redirect to storefront with success + order reference
+    const successUrl = new URL("/?payment=success", request.url);
+    if (orderRef) successUrl.searchParams.set("order", orderRef);
+    return NextResponse.redirect(successUrl);
   } catch (e) {
     console.error("[paypal/capture] Error:", e);
     return NextResponse.redirect(new URL("/?payment=failed", request.url));

@@ -173,10 +173,42 @@ function OrderSuccess({ order }: { order: Order }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">Payment</span>
           <span className="font-medium">
-            {order.provider || "—"}
+            {order.provider === "BANK_ALFALAH" ? "Bank Alfalah (Manual)" : 
+             order.provider === "EASYPAISA" ? "Easypaisa (Manual)" :
+             order.provider || "—"}
           </span>
         </div>
       </div>
+
+      {/* Manual payment instructions for Bank Alfalah / Easypaisa */}
+      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA") && (
+        <div className="w-full rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-left text-sm">
+          <p className="font-semibold text-foreground">Payment Instructions</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Send the exact amount to the account below, then email your transaction reference to
+            <a href="mailto:support@playbeat.digital" className="text-primary hover:underline"> support@playbeat.digital</a> with your order number.
+          </p>
+          {order.provider === "BANK_ALFALAH" ? (
+            <div className="mt-3 space-y-1 text-xs">
+              <p><strong>Bank:</strong> Bank Alfalah</p>
+              <p><strong>Account Title:</strong> PLAYBEAT DIGITAL (PRIVATE LIMITED)</p>
+              <p><strong>Account Number:</strong> 00681011050474</p>
+              <p><strong>Currency:</strong> PKR</p>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-1 text-xs">
+              <p><strong>Bank:</strong> Easypaisa (Telenor Microfinance Bank)</p>
+              <p><strong>Account Title:</strong> Playbeat Digital</p>
+              <p><strong>Account Number:</strong> 0000000094799151</p>
+              <p><strong>IBAN:</strong> PK25TMFB0000000094799151</p>
+              <p><strong>Currency:</strong> PKR</p>
+            </div>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Your order will be confirmed once payment is verified (usually within 30 minutes).
+          </p>
+        </div>
+      )}
 
       <div className="flex w-full gap-2">
         <Button
@@ -369,6 +401,20 @@ export function CartSheet() {
           toast.error("PayPal payment initiation failed");
         }
         setPlacedOrder(orderResult.order);
+        clearCart();
+      } else if (provider === "BANK_ALFALAH" || provider === "EASYPAISA") {
+        // Bank Alfalah / Easypaisa — manual payment: create order as PENDING,
+        // show account details in the order confirmation, customer sends money
+        // then submits the transaction reference
+        const orderResult = await api.placeOrder({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+          provider,
+        });
+        setPlacedOrder(orderResult.order);
+        toast.success(`Order ${orderResult.order.orderNumber} created — see payment instructions below`);
         clearCart();
       } else {
         // Fallback: create order as PENDING
@@ -576,11 +622,15 @@ export function CartSheet() {
                 )}
                 {provider === "JAZZCASH"
                   ? `Pay with JazzCash · ${formatPrice(total, currency)}`
-                  : provider === "PAYPAL"
-                    ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
-                    : provider === "CRYPTO"
-                      ? `Pay with Crypto · ${formatPrice(total, currency)}`
-                      : `Place order · ${formatPrice(total, currency)}`}
+                  : provider === "BANK_ALFALAH"
+                    ? `Bank Alfalah · ${formatPrice(total, currency)}`
+                    : provider === "EASYPAISA"
+                      ? `Easypaisa · ${formatPrice(total, currency)}`
+                      : provider === "PAYPAL"
+                        ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
+                        : provider === "CRYPTO"
+                          ? `Pay with Crypto · ${formatPrice(total, currency)}`
+                          : `Place order · ${formatPrice(total, currency)}`}
               </Button>
               <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
                 <Lock className="size-3" />
