@@ -112,6 +112,102 @@ function CartRow({
   );
 }
 
+// Payment proof upload form for manual payment methods
+function PaymentProofForm({ order }: { order: Order }) {
+  const [transactionId, setTransactionId] = React.useState("");
+  const [screenshot, setScreenshot] = React.useState<File | null>(null);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const handleSubmit = async () => {
+    if (!transactionId.trim()) {
+      toast.error("Enter your transaction ID / TRN");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("orderNumber", order.orderNumber);
+      formData.append("method", order.provider === "BANK_ALFALAH" ? "bank-alfalah" : "easypaisa");
+      formData.append("amount", String(order.total));
+      formData.append("customerName", order.customerName || "");
+      formData.append("customerEmail", order.customerEmail || "");
+      formData.append("transactionId", transactionId.trim());
+      if (screenshot) formData.append("screenshot", screenshot);
+
+      const res = await fetch("/api/v1/payments/submit", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Payment proof submitted! We'll verify within 30 minutes.");
+        setSubmitted(true);
+      } else {
+        toast.error(data.error?.message || "Submission failed");
+      }
+    } catch {
+      toast.error("Failed to submit payment proof");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="w-full rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-center text-sm">
+        <CheckCircle2 className="mx-auto mb-2 size-6 text-green-500" />
+        <p className="font-medium text-foreground">Payment proof submitted!</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Transaction ID: {transactionId}. Your order will be confirmed within 30 minutes.
+          We'll email you at {order.customerEmail} once verified.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full rounded-lg border border-primary/30 bg-primary/5 p-4 text-left">
+      <p className="text-sm font-semibold text-foreground">Submit Payment Proof</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">
+        Enter your transaction reference and upload a screenshot of your payment.
+      </p>
+      <div className="mt-3 space-y-3">
+        <div>
+          <label className="text-xs font-medium text-foreground">Transaction ID / TRN *</label>
+          <Input
+            value={transactionId}
+            onChange={(e) => setTransactionId(e.target.value)}
+            placeholder="e.g. 1234567890"
+            className="mt-1 h-9 text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-foreground">Payment Screenshot (optional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setScreenshot(e.target.files?.[0] || null)}
+            className="mt-1 block w-full text-xs text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary/15 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-primary hover:file:bg-primary/25"
+          />
+          {screenshot && (
+            <p className="mt-1 text-[10px] text-green-500">✓ {screenshot.name} ({(screenshot.size / 1024).toFixed(0)} KB)</p>
+          )}
+        </div>
+        <Button
+          onClick={handleSubmit}
+          disabled={submitting || !transactionId.trim()}
+          className="w-full"
+          size="sm"
+        >
+          {submitting ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          {submitting ? "Submitting..." : "Submit Payment Proof"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function OrderSuccess({ order }: { order: Order }) {
   const close = usePlaybeatStore((s) => s.setCartOpen);
   const clearCart = usePlaybeatStore((s) => s.clearCart);
@@ -211,6 +307,11 @@ function OrderSuccess({ order }: { order: Order }) {
             Your order will be confirmed once payment is verified (usually within 30 minutes).
           </p>
         </div>
+      )}
+
+      {/* Payment proof upload form for manual payments */}
+      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA") && (
+        <PaymentProofForm order={order} />
       )}
 
       <div className="flex w-full gap-2">

@@ -368,7 +368,7 @@ model Subscription {
 
 model Transaction {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  transactionId String   @unique
+  transactionId String?
   type          String   // sale | refund | subscription | withdrawal
   amount        Float
   currency      String   @default("PKR")
@@ -453,4 +453,25 @@ model AuditLog {
   ipAddress  String?
   metadata   String   @default("{}") // JSON record
   createdAt  DateTime @default(now())
+}
+
+// ----------------------------------------------------------------------------
+// Payment Submissions — manual payment proof (screenshot + transaction ID)
+// ----------------------------------------------------------------------------
+
+model PaymentSubmission {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId         String?  @db.ObjectId
+  orderNumber     String
+  method          String   // bank-alfalah | easypaisa | jazzcash
+  amount          Float
+  currency        String   @default("PKR")
+  customerName    String
+  customerEmail   String
+  transactionId   String   // customer's transaction reference / TRN
+  screenshotUrl   String?  // path to uploaded screenshot
+  status          String   @default("pending") // pending | confirmed | rejected
+  adminNote       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
