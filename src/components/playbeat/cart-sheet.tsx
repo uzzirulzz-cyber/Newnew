@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
 const PROVIDERS = [
   { value: "JAZZCASH", label: "JazzCash — Mobile Wallet / Card (Default)" },
   { value: "BANK_ALFALAH", label: "Bank Alfalah — IBFT / Cash Deposit" },
-  { value: "EASYPAISA", label: "Easypaisa — Mobile Wallet" },
+  { value: "EASYPAISA", label: "Easypaisa — Hosted Checkout" },
   { value: "PAYPAL", label: "PayPal — International / Cards" },
   { value: "CRYPTO", label: "Crypto — BTC/ETH/USDT/USDC" },
 ];
@@ -405,7 +405,35 @@ export function CartSheet() {
         }
         setPlacedOrder(orderResult.order);
         clearCart();
-      } else if (provider === "BANK_ALFALAH" || provider === "EASYPAISA") {
+      } else if (provider === "EASYPAISA") {
+        // Easypaisa — hosted checkout: create order, redirect to Easypaisa payment page
+        const orderResult = await api.placeOrder({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+          provider: "EASYPAISA",
+        });
+        const easypaisaRes = await fetch("/api/v1/payments/easypaisa/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: total,
+            orderRefNum: orderResult.order.orderNumber.slice(0, 24),
+          }),
+        });
+        const easypaisaData = await easypaisaRes.json();
+        if (easypaisaData.success && easypaisaData.data.checkoutUrl) {
+          window.location.href = easypaisaData.data.checkoutUrl;
+          toast.success("Redirecting to Easypaisa to complete payment…");
+        } else {
+          toast.error("Easypaisa payment initiation failed — showing manual instructions instead");
+          // Fallback to manual payment instructions
+          setPlacedOrder(orderResult.order);
+        }
+        setPlacedOrder(orderResult.order);
+        clearCart();
+      } else if (provider === "BANK_ALFALAH") {
         // Bank Alfalah / Easypaisa — manual payment: create order as PENDING,
         // show account details in the order confirmation, customer sends money
         // then submits the transaction reference

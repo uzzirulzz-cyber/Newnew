@@ -888,6 +888,17 @@ export function formatPrice(
 }
 
 /**
+ * Format an amount that is ALREADY in the given currency (no conversion).
+ * Use this for PKR prices — does NOT multiply by 280.
+ */
+export function formatInCurrency(
+  amount: number,
+  currency: Currency = "PKR",
+): string {
+  return formatPrice(amount, currency);
+}
+
+/**
  * Auto-detect the preferred currency from the browser timezone.
  * Pakistan (Asia/Karachi) → PKR, everything else → USD.
  */
