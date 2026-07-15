@@ -202,8 +202,8 @@ function OrderSuccess({ order }: { order: Order }) {
             <div className="mt-3 space-y-1 text-xs">
               <p><strong>Bank:</strong> Easypaisa (Telenor Microfinance Bank)</p>
               <p><strong>Account Title:</strong> Playbeat Digital</p>
-              <p><strong>Account Number:</strong> 0000000094799151</p>
-              <p><strong>IBAN:</strong> PK25TMFB0000000094799151</p>
+              <p><strong>Account Number:</strong> 03341079333</p>
+              <p><strong>IBAN:</strong> PK25TMFB03341079333</p>
               <p><strong>Currency:</strong> PKR</p>
             </div>
           )}

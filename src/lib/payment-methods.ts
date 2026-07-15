@@ -37,7 +37,7 @@ export function getManualMethods(): ManualMethod[] {
       label: 'Easypaisa',
       bankName: process.env.EASYPAISA_BANK_NAME || 'Easypaisa (Telenor Microfinance Bank)',
       accountTitle: process.env.EASYPAISA_ACCOUNT_TITLE || 'Playbeat Digital',
-      accountNumber: process.env.EASYPAISA_ACCOUNT_NUMBER || '0000000094799151',
+      accountNumber: process.env.EASYPAISA_ACCOUNT_NUMBER || "03341079333",
       iban: process.env.EASYPAISA_IBAN || 'PK25TMFB0000000094799151',
       currency: process.env.EASYPAISA_CURRENCY || 'PKR',
       instructions: [
