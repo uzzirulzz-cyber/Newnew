@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { ProductCover } from "./product-cover";
 import { usePlaybeatStore } from "@/lib/store";
-import { api, formatPrice, type Order } from "@/lib/api-client";
+import { api, formatInCurrency, displayProductPrice, type Order } from "@/lib/api-client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -101,7 +101,10 @@ function CartRow({
             </button>
           </div>
           <div className="text-sm font-semibold">
-            {formatPrice(p.effectivePrice * item.quantity, currency)}
+            {displayProductPrice(
+              { effectivePrice: p.effectivePrice * item.quantity, currency: p.currency },
+              currency,
+            )}
           </div>
         </div>
       </div>
@@ -168,7 +171,7 @@ function OrderSuccess({ order }: { order: Order }) {
       <div className="w-full rounded-lg border border-border/60 bg-card/40 p-3 text-left text-sm">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Total paid</span>
-          <span className="font-bold">{formatPrice(order.total, currency)}</span>
+          <span className="font-bold">{formatInCurrency(order.total, currency)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted-foreground">Payment</span>
@@ -293,7 +296,7 @@ export function CartSheet() {
       });
       setCouponInput("");
       toast.success(
-        `Coupon applied — you saved ${formatPrice(result.discount, currency)}`
+        `Coupon applied — you saved ${formatInCurrency(result.discount, currency)}`
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Invalid coupon");
@@ -505,7 +508,7 @@ export function CartSheet() {
                     <div className="text-xs">
                       <div className="font-medium">{appliedCoupon.code}</div>
                       <div className="text-muted-foreground">
-                        −{formatPrice(appliedCoupon.discount, currency)}
+                        −{formatInCurrency(appliedCoupon.discount, currency)}
                       </div>
                     </div>
                   </div>
@@ -550,18 +553,18 @@ export function CartSheet() {
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
-                  <span>{formatPrice(subtotal, currency)}</span>
+                  <span>{formatInCurrency(subtotal, currency)}</span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between text-primary">
                     <span>Discount</span>
-                    <span>−{formatPrice(discount, currency)}</span>
+                    <span>−{formatInCurrency(discount, currency)}</span>
                   </div>
                 )}
                 <Separator className="my-1" />
                 <div className="flex justify-between text-base font-bold">
                   <span>Total</span>
-                  <span>{formatPrice(total, currency)}</span>
+                  <span>{formatInCurrency(total, currency)}</span>
                 </div>
               </div>
 
@@ -621,16 +624,16 @@ export function CartSheet() {
                   <CheckCircle2 className="size-4" />
                 )}
                 {provider === "JAZZCASH"
-                  ? `Pay with JazzCash · ${formatPrice(total, currency)}`
+                  ? `Pay with JazzCash · ${formatInCurrency(total, currency)}`
                   : provider === "BANK_ALFALAH"
-                    ? `Bank Alfalah · ${formatPrice(total, currency)}`
+                    ? `Bank Alfalah · ${formatInCurrency(total, currency)}`
                     : provider === "EASYPAISA"
-                      ? `Easypaisa · ${formatPrice(total, currency)}`
+                      ? `Easypaisa · ${formatInCurrency(total, currency)}`
                       : provider === "PAYPAL"
                         ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
                         : provider === "CRYPTO"
-                          ? `Pay with Crypto · ${formatPrice(total, currency)}`
-                          : `Place order · ${formatPrice(total, currency)}`}
+                          ? `Pay with Crypto · ${formatInCurrency(total, currency)}`
+                          : `Place order · ${formatInCurrency(total, currency)}`}
               </Button>
               <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
                 <Lock className="size-3" />
