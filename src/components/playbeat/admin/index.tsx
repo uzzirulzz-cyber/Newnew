@@ -16,6 +16,7 @@ import {
   CreditCard,
   FileText,
   FileText as WordPressIcon,
+  FileCheck,
   Megaphone,
   Image as ImageIcon,
   Layout,
@@ -52,6 +53,7 @@ import { AdminWooCommerce } from "./woocommerce";
 import { AdminWordPress } from "./wordpress";
 import { AdminJazzCash } from "./jazzcash";
 import { AdminPayments } from "./payments";
+import { PaymentSubmissions } from "./payment-submissions";
 import { AdminReports } from "./reports";
 import { AdminMarketing } from "./marketing";
 import { AdminMedia } from "./media";
@@ -85,7 +87,7 @@ type ModuleKey =
   | "support"
   | "iptv"
   | "finance"
-  | "payments"
+  | "payments" | "payment-submissions"
   | "reports"
   | "marketing"
   | "media"
@@ -142,6 +144,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: "finance", label: "Finance", icon: DollarSign },
       { key: "payments", label: "Payment Gateways", icon: CreditCard },
+      { key: "payment-submissions", label: "Payment Proof", icon: FileCheck },
       { key: "jazzcash", label: "JazzCash", icon: CreditCard },
       { key: "reports", label: "Reports", icon: FileText },
     ],
@@ -471,6 +474,8 @@ export function AdminConsole() {
       case "jazzcash":
         return <AdminJazzCash />;
       case "payments":
+      case "payment-submissions":
+        return <PaymentSubmissions />;
         return <AdminPayments />;
       case "reports":
         return <AdminReports />;

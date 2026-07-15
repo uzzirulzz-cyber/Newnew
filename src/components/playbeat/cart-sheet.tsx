@@ -42,7 +42,6 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
-  { value: "JAZZCASH", label: "JazzCash — Mobile Wallet / Card (Default)" },
   { value: "BANK_ALFALAH", label: "Bank Alfalah — IBFT / Cash Deposit" },
   { value: "EASYPAISA", label: "Easypaisa — Hosted Checkout" },
   { value: "PAYPAL", label: "PayPal — International / Cards" },
@@ -358,7 +357,7 @@ export function CartSheet() {
   const [couponLoading, setCouponLoading] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [provider, setProvider] = React.useState("JAZZCASH");
+  const [provider, setProvider] = React.useState("BANK_ALFALAH");
   const [placing, setPlacing] = React.useState(false);
   const [placedOrder, setPlacedOrder] = React.useState<Order | null>(null);
 
@@ -753,17 +752,15 @@ export function CartSheet() {
                 ) : (
                   <CheckCircle2 className="size-4" />
                 )}
-                {provider === "JAZZCASH"
-                  ? `Pay with JazzCash · ${formatInCurrency(total, currency)}`
-                  : provider === "BANK_ALFALAH"
-                    ? `Bank Alfalah · ${formatInCurrency(total, currency)}`
-                    : provider === "EASYPAISA"
-                      ? `Easypaisa · ${formatInCurrency(total, currency)}`
-                      : provider === "PAYPAL"
-                        ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
-                        : provider === "CRYPTO"
-                          ? `Pay with Crypto · ${formatInCurrency(total, currency)}`
-                          : `Place order · ${formatInCurrency(total, currency)}`}
+                {provider === "BANK_ALFALAH"
+                  ? `Bank Alfalah · ${formatInCurrency(total, currency)}`
+                  : provider === "EASYPAISA"
+                    ? `Easypaisa · ${formatInCurrency(total, currency)}`
+                    : provider === "PAYPAL"
+                      ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
+                      : provider === "CRYPTO"
+                        ? `Pay with Crypto · ${formatInCurrency(total, currency)}`
+                        : `Place order · ${formatInCurrency(total, currency)}`}
               </Button>
               <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
                 <Lock className="size-3" />

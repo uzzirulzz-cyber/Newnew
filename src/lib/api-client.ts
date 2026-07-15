@@ -837,6 +837,17 @@ export const api = {
         body: JSON.stringify(payload),
       },
     ),
+
+  // Payment submissions (manual payment proof)
+  adminPaymentSubmissions: (status?: string) =>
+    apiFetch<{ items: any[]; total: number }>(
+      `/admin/payments/submissions${status ? `?status=${status}` : ""}`,
+    ),
+  adminPaymentSubmissionAction: (id: string, status: "confirmed" | "rejected") =>
+    apiFetch<{ submission: any }>(`/admin/payments/submissions/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
 };
 
 // ===== Utilities =====
