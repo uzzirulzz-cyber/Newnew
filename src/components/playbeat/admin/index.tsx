@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   BarChart3,
   Package,
+  ShoppingBag,
   ShoppingCart,
   RefreshCw,
   Ticket,
@@ -603,6 +604,33 @@ export function AdminConsole() {
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* Mobile bottom navigation — app-like experience */}
+        <nav className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-around border-t border-white/10 bg-black/90 backdrop-blur-xl lg:hidden">
+          {[
+            { key: "dashboard", icon: LayoutDashboard, label: "Home" },
+            { key: "products", icon: Package,
+  ShoppingBag, label: "Products" },
+            { key: "orders", icon: ShoppingBag, label: "Orders" },
+            { key: "payment-submissions", icon: FileCheck, label: "Payments" },
+            { key: "finance", icon: DollarSign, label: "Finance" },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = active === item.key;
+            return (
+              <button
+                key={item.key}
+                onClick={() => select(item.key as any)}
+                className={`flex flex-1 flex-col items-center gap-0.5 py-2 transition-colors ${
+                  isActive ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <Icon className="size-5" />
+                <span className="text-[9px] font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
