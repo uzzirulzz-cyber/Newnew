@@ -1,24 +1,23 @@
 # PlayBeat Digital — robots.txt
 # https://playbeat.digital
 
-# Allow all bots to index the storefront
 User-agent: *
 Allow: /
+Allow: /subscriptions
+Allow: /ai-tools
+Allow: /software
+Allow: /iptv
+Allow: /product/
 Disallow: /admin
 Disallow: /admin/
 Disallow: /api/
 Disallow: /playbeat
 Disallow: /iptv/view/
 
-# Block AI crawlers from admin
 User-agent: GPTBot
 Disallow: /admin
 
 User-agent: CCBot
 Disallow: /admin
 
-User-agent: Google-Extended
-Disallow: /admin
-
-# Sitemap
 Sitemap: https://playbeat.digital/sitemap.xml
