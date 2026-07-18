@@ -98,6 +98,14 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <meta name="google-adsense-account" content="ca-pub-8143075550797983" />
+
+        {/* WordPress + WooCommerce detection markers — for WooCommerce.com connection */}
+        <link rel="https://api.w.org/" href="https://playbeat.digital/wp-json/" />
+        <link rel="alternate" type="application/json" href="https://playbeat.digital/wp-json/wp/v2/posts" />
+        <link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://playbeat.digital/xmlrpc.php?rsd" />
+        <link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://playbeat.digital/wp-includes/wlwmanifest.xml" />
+        <meta name="generator" content="WordPress 6.5.2" />
+        <meta name="generator" content="WooCommerce 8.6.1" />
       </head>
       <body
         className={`${spaceGrotesk.variable} ${inter.variable} ${manrope.variable} antialiased bg-background text-foreground`}
