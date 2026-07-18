@@ -1772,3 +1772,49 @@ Work Log:
 - The `Reset Marketing` button only deletes campaigns now — social posts have their own delete flow on the Social Media module page; trying to clear them via the existing `DELETE /admin/social-media/posts` endpoint required an `{id}` payload and didn't support a bulk "delete all" operation, so I removed that part to avoid silently no-op'ing.
 - The campaign toggle button cycles: `active` → `paused` (and `paused`/`draft`/`completed` → `active`). Editing the campaign via the dialog lets admins set any other status (e.g. mark completed).
 - Blog post slugs are auto-generated from the title via `slugify()` + `uniqueSlug()`. Editing the title regenerates the slug (with a uniqueness check that ignores the post's own id) so old slugs don't get stuck.
+
+---
+Task ID: iptv-xtream-codes
+Agent: Main (Z.ai Code)
+Task: IPTV section — add Xtream Codes integration (profile name, host URL, username, password) per subscriber, with auto-generated M3U URL + server-side channel import proxy
+
+Work Log:
+- Read existing `src/components/playbeat/admin/iptv.tsx` — found an Xtream import dialog already existed but it fetched the Xtream `player_api.php` directly from the browser (CORS-blocked in production) and the SubscriberCredentialsDrawer only synthesized fake credentials from email/mac (no real per-subscriber Xtream storage).
+- Read `prisma/schema.prisma` IptvSubscriber model — confirmed it had NO Xtream fields (only name/email/mac/deviceType/plan/expiresAt/status/maxConnections/activeConnections).
+- Read IPTV API routes (`subscribers/route.ts`, `subscribers/[id]/action/route.ts`, `subscribers/create/route.ts`) + `api-client.ts` IPTV methods to understand existing patterns.
+
+- **`prisma/schema.prisma`** — Added 7 nullable fields to `IptvSubscriber`: `profileName`, `hostUrl`, `xtreamUsername`, `xtreamPassword`, `portalUrl`, `m3uUrl`, `notes`. Ran `DATABASE_URL=<mongo atlas> npx prisma db push` — MongoDB is schemaless so additive optional fields are a no-op ("already in sync"); regenerated Prisma client and verified the new fields appear in `node_modules/.prisma/client/index.d.ts`.
+
+- **`src/app/api/v1/admin/iptv/subscribers/[id]/credentials/route.ts`** — NEW. `POST` sets or clears Xtream credentials for one subscriber. Set path: validates profileName/hostUrl/username/password (all required), normalizes hostUrl (strips trailing slashes, requires `http(s)://` scheme), derives `portalUrl = hostUrl` and `m3uUrl = ${hostUrl}/get.php?username=...&password=...&type=m3u_plus&output=ts`, persists all 7 fields. Clear path: `{ clear: true }` nulls all 7 fields. Added a `/^[a-f\d]{24}$/i` ObjectId guard so malformed ids return a clean 422 instead of an ugly Prisma P2023 error. Returns the full updated subscriber via a `serialize()` helper that includes the new fields.
+
+- **`src/app/api/v1/admin/iptv/xtream/import/route.ts`** — NEW. Server-side proxy that talks to an Xtream Codes server and imports channels into `IptvChannel`. This fixes the CORS problem — browsers block cross-origin fetches to arbitrary Xtream host URLs, but the Next.js server can reach them directly. Flow: (1) authenticate via `player_api.php` with no action → check `user_info.auth !== 0` (returns 401 on bad credentials, 502 on unreachable host / timeout); (2) for each content type in `types` (live/vod/series, default live), fetch `get_live_streams` / `get_vod_streams` / `get_series`, cap at `limit` (default 500, max 2000) per type, and `db.iptvChannel.create()` each with the correct stream URL pattern (`/live/...m3u8`, `/movie/...mp4`, `/series/...mp4`), logo, category (`${profileName} / ${category_name}`), and HD detection. Uses `AbortSignal.timeout(20-30s)` per fetch. Returns `{ imported, skipped, live, vod, series, profileName, message }`.
+
+- **`src/app/api/v1/admin/iptv/subscribers/route.ts`** (GET) — Added the 7 new Xtream fields to the response mapper so the subscribers list returns them.
+
+- **`src/app/api/v1/admin/iptv/subscribers/[id]/action/route.ts`** (PATCH) — Added the 7 new Xtream fields to the activate/suspend response so the open drawer stays in sync after status changes.
+
+- **`src/lib/api-client.ts`** — Added 3 new methods: `adminIptvSubscriberCredentials(id, {profileName, hostUrl, username, password, notes?})`, `adminIptvSubscriberCredentialsClear(id)`, `adminIptvXtreamImport({hostUrl, username, password, profileName?, limit?, types?})`.
+
+- **`src/components/playbeat/admin/iptv.tsx`** — Three changes:
+  1. **Xtream import dialog** (`Add Xtream` button) — replaced the client-side `fetch(apiUrl)` + manual channel-create loop with a single `api.adminIptvXtreamImport()` call. The dialog's 4 fields (profileName, hostUrl, username, password) are unchanged, but the import now runs server-side (CORS-safe) and returns a richer `{ imported, live, ... }` result used in the toast.
+  2. **`SubscriberCredentialsDrawer`** — rewrote. Now accepts an `onCredentialsUpdated(updatedSub)` callback. Detects `hasXtream = !!(sub.hostUrl && sub.xtreamUsername)`:
+     - When `hasXtream`: shows a green "Xtream Linked · {profileName}" badge, renders Profile / Host URL / Username / Password / Portal URL / M3U URL rows from the REAL stored credentials, shows an "Open portal" link, and offers "Edit" + "Clear" buttons.
+     - When `!hasXtream`: shows an amber "No Xtream profile — credentials are auto-generated" badge and a "Set" button, falling back to the old synthesized credentials (email-derived username, mac-derived password, local portal URL) so the drawer still shows something for legacy subscribers.
+     - "Set/Edit" opens a `Dialog` with 5 fields (Profile Name *, Host URL *, Username *, Password *, Notes) + an info box explaining the M3U URL is auto-generated. Save → `api.adminIptvSubscriberCredentials()` → `onCredentialsUpdated(res.subscriber)` → dialog closes + drawer refreshes in place.
+     - "Clear" → confirm → `api.adminIptvSubscriberCredentialsClear()` → `onCredentialsUpdated(res.subscriber)` → drawer reverts to the auto-generated state.
+  3. **`IptvModule` parent** — added `handleCredentialsUpdated` that merges the fresh subscriber into `selectedSub` (preserving the `_id` shape) and invalidates `["admin-iptv-subscribers"]`. Also improved `handleSubscriberAction` to refresh `selectedSub` after activate/suspend (was leaving the open drawer stale). Wired `onCredentialsUpdated={handleCredentialsUpdated}` into the drawer.
+  - Added 5 lucide icons to the imports: `KeyRound`, `Pencil`, `Save`, `ShieldCheck`, `ExternalLink`.
+
+### Verification
+- `bun run lint` → exits 0, zero warnings, zero errors.
+- `DATABASE_URL=<mongo atlas> npx prisma db push` + `npx prisma generate` → schema synced, client regenerated with the 7 new fields.
+- End-to-end API test (curl): create subscriber → POST credentials → GET subscribers returns the new fields (profileName="Main Server", hostUrl, xtreamUsername, portalUrl, m3uUrl auto-generated correctly, notes) → PATCH action still returns the fields → delete cleanup. Invalid 24-hex id returns clean 422.
+- Agent Browser verification (admin at /wp-admin, password playbeat123):
+  - IPTV module loads; "Add Xtream" button opens the import dialog with all 4 fields (profile name, host URL, username, password) + "Import Channels" button (disabled until all filled).
+  - Subscribers tab: created a test subscriber, clicked the row → credentials drawer opened with the amber "No Xtream profile — credentials are auto-generated" badge and auto-generated creds (username from email, local portal/M3U URL).
+  - Clicked "Set" → "Set Xtream Credentials" dialog with all 5 fields (Profile Name, Host URL, Username, Password, Notes) + auto-generation info box + "Save Credentials" button (disabled until required fields filled).
+  - Filled all fields + saved → drawer updated in place to the green "Xtream Linked · Main Server" badge, "Edit"/"Clear" buttons appeared, and the real credentials rendered: Profile=Main Server, Host URL=http://xtream.example.com:8080, Portal URL=http://xtream.example.com:8080, M3U URL=http://xtream.example.com:8080/get.php?username=testuser&password=testpass&type=m3u_plus&output=ts (auto-generated from the Xtream creds), Notes="Demo line for testing".
+  - No console errors, no dev.log runtime errors during the flow. Cleaned up the test subscriber via API.
+
+Stage Summary:
+- Xtream Codes is now a first-class, persisted per-subscriber feature in the IPTV module. Each subscriber can have a real Xtream profile (name + host URL + username + password) with an auto-generated M3U URL, editable and clearable from the credentials drawer. The "Add Xtream" channel-import button now runs through a server-side proxy (fixing the CORS issue that would have blocked the previous client-side fetch in production). All 7 new fields are stored in MongoDB on the IptvSubscriber collection and surfaced through the subscribers list + action + credentials API routes.

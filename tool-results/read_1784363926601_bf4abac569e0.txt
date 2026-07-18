@@ -1,0 +1,1607 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { useQuery, useQueryClient } from "@tanstack/react-query";
+     5→import { Card, CardContent } from "@/components/ui/card";
+     6→import { Button } from "@/components/ui/button";
+     7→import { Input } from "@/components/ui/input";
+     8→import { Label } from "@/components/ui/label";
+     9→import { Skeleton } from "@/components/ui/skeleton";
+    10→import { Badge } from "@/components/ui/badge";
+    11→import { Switch } from "@/components/ui/switch";
+    12→import { Textarea } from "@/components/ui/textarea";
+    13→import {
+    14→  Select,
+    15→  SelectContent,
+    16→  SelectItem,
+    17→  SelectTrigger,
+    18→  SelectValue,
+    19→} from "@/components/ui/select";
+    20→import {
+    21→  Dialog,
+    22→  DialogContent,
+    23→  DialogHeader,
+    24→  DialogTitle,
+    25→  DialogFooter,
+    26→} from "@/components/ui/dialog";
+    27→import {
+    28→  Drawer,
+    29→  DrawerContent,
+    30→  DrawerHeader,
+    31→  DrawerTitle,
+    32→  DrawerDescription,
+    33→} from "@/components/ui/drawer";
+    34→import {
+    35→  Tv2,
+    36→  Search,
+    37→  Plus,
+    38→  Trash2,
+    39→  Users,
+    40→  Activity,
+    41→  Eye,
+    42→  EyeOff,
+    43→  Copy,
+    44→  ClipboardList,
+    45→  CheckCircle2,
+    46→  Ban,
+    47→  Globe,
+    48→  Loader2,
+    49→  Upload,
+    50→  Filter,
+    51→  X,
+    52→  Radio,
+    53→  Clock,
+    54→  AlertTriangle,
+    55→  UserX,
+    56→  Power,
+    57→  Link2,
+    58→} from "lucide-react";
+    59→import { api } from "@/lib/api-client";
+    60→import { toast } from "sonner";
+    61→
+    62→// ---------------------------------------------------------------------------
+    63→// Constants & helpers
+    64→// ---------------------------------------------------------------------------
+    65→
+    66→const IPTV_PORTAL_BASE =
+    67→  typeof window !== "undefined"
+    68→    ? `${window.location.origin}/portal/iptv`
+    69→    : "https://portal.playbeat.tv/iptv";
+    70→
+    71→const channelStatusColors: Record<string, string> = {
+    72→  active: "bg-green-100 text-green-700",
+    73→  inactive: "bg-gray-100 text-gray-500",
+    74→  error: "bg-red-100 text-red-600",
+    75→};
+    76→
+    77→const subStatusColors: Record<string, string> = {
+    78→  active: "bg-green-100 text-green-700",
+    79→  expired: "bg-red-100 text-red-600",
+    80→  suspended: "bg-orange-100 text-orange-700",
+    81→};
+    82→
+    83→/**
+    84→ * Returns an expiry-state descriptor used to colour-code the countdown:
+    85→ *   - "expired"  → red
+    86→ *   - "soon"     → yellow  (≤ 7 days)
+    87→ *   - "active"   → green
+    88→ *   - "unknown"  → gray
+    89→ */
+    90→function getExpiryState(expiresAt: string | undefined | null): {
+    91→  state: "expired" | "soon" | "active" | "unknown";
+    92→  daysLeft: number;
+    93→  label: string;
+    94→} {
+    95→  if (!expiresAt) return { state: "unknown", daysLeft: 0, label: "—" };
+    96→  const d = new Date(expiresAt);
+    97→  if (isNaN(d.getTime())) return { state: "unknown", daysLeft: 0, label: "—" };
+    98→  const now = new Date();
+    99→  // Reset to date-only to get clean day-count.
+   100→  const dayMs = 24 * 60 * 60 * 1000;
+   101→  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+   102→  const startOfExpiry = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+   103→  const daysLeft = Math.floor((startOfExpiry - startOfToday) / dayMs);
+   104→  if (daysLeft < 0) return { state: "expired", daysLeft, label: `Expired ${Math.abs(daysLeft)}d ago` };
+   105→  if (daysLeft === 0) return { state: "soon", daysLeft, label: "Expires today" };
+   106→  if (daysLeft <= 7) return { state: "soon", daysLeft, label: `${daysLeft}d left` };
+   107→  return { state: "active", daysLeft, label: `${daysLeft}d left` };
+   108→}
+   109→
+   110→const expiryColorClasses: Record<string, string> = {
+   111→  expired: "text-red-600 bg-red-50 border-red-200",
+   112→  soon: "text-yellow-700 bg-yellow-50 border-yellow-200",
+   113→  active: "text-green-700 bg-green-50 border-green-200",
+   114→  unknown: "text-gray-500 bg-gray-50 border-gray-200",
+   115→};
+   116→
+   117→/** Detect HD/SD quality from a channel name + isHD flag. */
+   118→function detectQuality(c: any): "HD" | "SD" | "4K" | null {
+   119→  const name = (c?.name || "").toUpperCase();
+   120→  if (c?.isHD || /\bHD\b/.test(name) || /1080|720/.test(name)) return "HD";
+   121→  if (/4K|2160|UHD/.test(name)) return "4K";
+   122→  if (/\bSD\b/.test(name) || /480|360/.test(name)) return "SD";
+   123→  return null;
+   124→}
+   125→
+   126→function qualityBadgeClass(q: string | null): string {
+   127→  switch (q) {
+   128→    case "HD":
+   129→      return "bg-blue-100 text-blue-700 border-blue-200";
+   130→    case "SD":
+   131→      return "bg-gray-100 text-gray-600 border-gray-200";
+   132→    case "4K":
+   133→      return "bg-purple-100 text-purple-700 border-purple-200";
+   134→    default:
+   135→      return "bg-gray-100 text-gray-400 border-gray-200";
+   136→  }
+   137→}
+   138→
+   139→async function copyToClipboard(text: string, label = "Copied to clipboard") {
+   140→  try {
+   141→    await navigator.clipboard.writeText(text);
+   142→    toast.success(label);
+   143→  } catch {
+   144→    toast.error("Failed to copy");
+   145→  }
+   146→}
+   147→
+   148→/**
+   149→ * Parses an M3U playlist into a list of channel descriptors.
+   150→ *
+   151→ * Each entry looks like:
+   152→ *   #EXTINF:-1 tvg-id="..." tvg-name="..." tvg-logo="..." group-title="Sports",Channel Name
+   153→ *   http://stream.url/path.m3u8
+   154→ *
+   155→ * Returns: Array<{ name, streamUrl, logoUrl, category, isHD }>
+   156→ */
+   157→function parseM3U(content: string) {
+   158→  const lines = content.split(/\r?\n/);
+   159→  const out: Array<{
+   160→    name: string;
+   161→    streamUrl: string;
+   162→    logoUrl: string;
+   163→    category: string;
+   164→    isHD: boolean;
+   165→  }> = [];
+   166→
+   167→  let current: Partial<{
+   168→    name: string;
+   169→    streamUrl: string;
+   170→    logoUrl: string;
+   171→    category: string;
+   172→    isHD: boolean;
+   173→  }> | null = null;
+   174→
+   175→  for (const raw of lines) {
+   176→    const line = raw.trim();
+   177→    if (!line) continue;
+   178→    if (line.startsWith("#EXTM3U")) continue;
+   179→    if (line.startsWith("#EXTINF")) {
+   180→      // Attributes portion is between the colon and the last comma.
+   181→      const commaIdx = line.lastIndexOf(",");
+   182→      const name = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : "Untitled";
+   183→      const attrPart = commaIdx >= 0 ? line.slice(0, commaIdx) : line;
+   184→
+   185→      const tvgLogo = /tvg-logo="([^"]*)"/i.exec(attrPart)?.[1] ?? "";
+   186→      const groupTitle = /group-title="([^"]*)"/i.exec(attrPart)?.[1] ?? "";
+   187→      const upperName = name.toUpperCase();
+   188→
+   189→      current = {
+   190→        name,
+   191→        logoUrl: tvgLogo || "",
+   192→        category: groupTitle || "Uncategorized",
+   193→        isHD: /\bHD\b|1080|720/.test(upperName),
+   194→        streamUrl: "",
+   195→      };
+   196→    } else if (!line.startsWith("#")) {
+   197→      // URL line — flush the current entry.
+   198→      if (current) {
+   199→        current.streamUrl = line;
+   200→        if (current.streamUrl && current.name) {
+   201→          out.push(current as {
+   202→            name: string;
+   203→            streamUrl: string;
+   204→            logoUrl: string;
+   205→            category: string;
+   206→            isHD: boolean;
+   207→          });
+   208→        }
+   209→        current = null;
+   210→      } else if (line) {
+   211→        // URL with no preceding EXTINF — still capture as an unnamed channel.
+   212→        out.push({
+   213→          name: `Channel ${out.length + 1}`,
+   214→          streamUrl: line,
+   215→          logoUrl: "",
+   216→          category: "Uncategorized",
+   217→          isHD: false,
+   218→        });
+   219→      }
+   220→    }
+   221→  }
+   222→  return out;
+   223→}
+   224→
+   225→// ---------------------------------------------------------------------------
+   226→// Component
+   227→// ---------------------------------------------------------------------------
+   228→
+   229→export function IptvModule() {
+   230→  const qc = useQueryClient();
+   231→  const [tab, setTab] = React.useState<"channels" | "subscribers">("channels");
+   232→  const [search, setSearch] = React.useState("");
+   233→  const [status, setStatus] = React.useState("all");
+   234→  const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
+   235→  const [showCreate, setShowCreate] = React.useState(false);
+   236→  const [showM3u, setShowM3u] = React.useState(false);
+   237→  const [showXtream, setShowXtream] = React.useState(false);
+   238→  const [xtreamForm, setXtreamForm] = React.useState({
+   239→    profileName: "",
+   240→    hostUrl: "",
+   241→    username: "",
+   242→    password: "",
+   243→  });
+   244→  const [xtreamImporting, setXtreamImporting] = React.useState(false);
+   245→  const [selectedSub, setSelectedSub] = React.useState<any | null>(null);
+   246→
+   247→  // Per-row loading flags for quick actions / toggles.
+   248→  const [channelTogglingId, setChannelTogglingId] = React.useState<string | null>(null);
+   249→  const [subActionId, setSubActionId] = React.useState<string | null>(null);
+   250→
+   251→  const [channelForm, setChannelForm] = React.useState({
+   252→    name: "",
+   253→    category: "",
+   254→    streamUrl: "",
+   255→    logoUrl: "",
+   256→    language: "",
+   257→    country: "",
+   258→    isHD: false,
+   259→    status: "active" as string,
+   260→  });
+   261→  const [subForm, setSubForm] = React.useState({
+   262→    name: "",
+   263→    email: "",
+   264→    mac: "",
+   265→    deviceType: "",
+   266→    plan: "Basic",
+   267→    expiresAt: "",
+   268→    maxConnections: "",
+   269→  });
+   270→
+   271→  // M3U import state
+   272→  const [m3uText, setM3uText] = React.useState("");
+   273→  const [m3uParsed, setM3uParsed] = React.useState<
+   274→    Array<{ name: string; streamUrl: string; logoUrl: string; category: string; isHD: boolean }>
+   275→  >([]);
+   276→  const [m3uImporting, setM3uImporting] = React.useState(false);
+   277→
+   278→  // --- Queries -------------------------------------------------------------
+   279→  const { data: stats } = useQuery({
+   280→    queryKey: ["admin-iptv-stats"],
+   281→    queryFn: () => api.adminIptvStats(),
+   282→    staleTime: 30_000,
+   283→  });
+   284→
+   285→  // Channels: load all (no status filter) so we can compute category pills
+   286→  // client-side, then apply both status + category filters in the UI.
+   287→  const { data: channelsData, isLoading: channelsLoading } = useQuery({
+   288→    queryKey: ["admin-iptv-channels", search],
+   289→    queryFn: () =>
+   290→      api.adminIptvChannels({
+   291→        search: search || undefined,
+   292→      }),
+   293→    staleTime: 30_000,
+   294→  });
+   295→  const { data: subsData, isLoading: subsLoading } = useQuery({
+   296→    queryKey: ["admin-iptv-subscribers", search, status],
+   297→    queryFn: () =>
+   298→      api.adminIptvSubscribers({
+   299→        search: search || undefined,
+   300→        status: status === "all" ? undefined : status,
+   301→      }),
+   302→    staleTime: 30_000,
+   303→  });
+   304→
+   305→  const allChannels = channelsData?.items || [];
+   306→  const subscribers = subsData?.items || [];
+   307→
+   308→  // Derive category counts for the filter pills.
+   309→  const categories = React.useMemo(() => {
+   310→    const map = new Map<string, number>();
+   311→    for (const c of allChannels) {
+   312→      const key = c.category?.trim() || "Uncategorized";
+   313→      map.set(key, (map.get(key) ?? 0) + 1);
+   314→    }
+   315→    return Array.from(map.entries())
+   316→      .sort((a, b) => b[1] - a[1])
+   317→      .map(([name, count]) => ({ name, count }));
+   318→  }, [allChannels]);
+   319→
+   320→  // Apply local status + category filters on top of search-driven channels.
+   321→  const filteredChannels = React.useMemo(() => {
+   322→    return allChannels.filter((c: any) => {
+   323→      if (status !== "all" && c.status !== status) return false;
+   324→      if (categoryFilter !== "all") {
+   325→        const cat = c.category?.trim() || "Uncategorized";
+   326→        if (cat !== categoryFilter) return false;
+   327→      }
+   328→      return true;
+   329→    });
+   330→  }, [allChannels, status, categoryFilter]);
+   331→
+   332→  // --- Mutations -----------------------------------------------------------
+   333→  const handleCreateChannel = async () => {
+   334→    if (!channelForm.name || !channelForm.streamUrl) {
+   335→      toast.error("Name and stream URL required");
+   336→      return;
+   337→    }
+   338→    try {
+   339→      await api.adminIptvChannelCreate(channelForm);
+   340→      toast.success("Channel created");
+   341→      setShowCreate(false);
+   342→      setChannelForm({
+   343→        name: "",
+   344→        category: "",
+   345→        streamUrl: "",
+   346→        logoUrl: "",
+   347→        language: "",
+   348→        country: "",
+   349→        isHD: false,
+   350→        status: "active",
+   351→      });
+   352→      qc.invalidateQueries({ queryKey: ["admin-iptv-channels"] });
+   353→      qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+   354→    } catch {
+   355→      toast.error("Failed to create channel");
+   356→    }
+   357→  };
+   358→
+   359→  const handleCreateSubscriber = async () => {
+   360→    if (!subForm.name || !subForm.email || !subForm.expiresAt) {
+   361→      toast.error("Fill required fields");
+   362→      return;
+   363→    }
+   364→    try {
+   365→      await api.adminIptvSubscriberCreate({
+   366→        ...subForm,
+   367→        maxConnections: subForm.maxConnections
+   368→          ? Number(subForm.maxConnections)
+   369→          : undefined,
+   370→      });
+   371→      toast.success("Subscriber added");
+   372→      setShowCreate(false);
+   373→      setSubForm({
+   374→        name: "",
+   375→        email: "",
+   376→        mac: "",
+   377→        deviceType: "",
+   378→        plan: "Basic",
+   379→        expiresAt: "",
+   380→        maxConnections: "",
+   381→      });
+   382→      qc.invalidateQueries({ queryKey: ["admin-iptv-subscribers"] });
+   383→      qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+   384→    } catch {
+   385→      toast.error("Failed to add subscriber");
+   386→    }
+   387→  };
+   388→
+   389→  const handleToggleChannel = async (c: any) => {
+   390→    const id = c._id ?? c.id;
+   391→    setChannelTogglingId(id);
+   392→    try {
+   393→      await api.adminIptvChannelToggle(id);
+   394→      qc.invalidateQueries({ queryKey: ["admin-iptv-channels"] });
+   395→      qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+   396→    } catch {
+   397→      toast.error("Failed to toggle channel");
+   398→    } finally {
+   399→      setChannelTogglingId(null);
+   400→    }
+   401→  };
+   402→
+   403→  const handleDeleteChannel = async (id: string) => {
+   404→    if (!confirm("Delete this channel?")) return;
+   405→    try {
+   406→      await api.adminIptvChannelDelete(id);
+   407→      toast.success("Channel deleted");
+   408→      qc.invalidateQueries({ queryKey: ["admin-iptv-channels"] });
+   409→      qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+   410→    } catch {
+   411→      toast.error("Failed to delete channel");
+   412→    }
+   413→  };
+   414→
+   415→  const handleSubscriberAction = async (
+   416→    sub: any,
+   417→    action: "activate" | "suspend" | "delete",
+   418→  ) => {
+   419→    const id = sub._id ?? sub.id;
+   420→    if (action === "delete" && !confirm(`Delete subscriber "${sub.name}"?`)) return;
+   421→    setSubActionId(id);
+   422→    try {
+   423→      const res = await api.adminIptvSubscriberAction(id, action);
+   424→      if (action === "delete") {
+   425→        toast.success(res.message || "Subscriber deleted");
+   426→        if (selectedSub?._id === id || selectedSub?.id === id) setSelectedSub(null);
+   427→      } else {
+   428→        toast.success(res.message || `Subscriber ${action}d`);
+   429→      }
+   430→      qc.invalidateQueries({ queryKey: ["admin-iptv-subscribers"] });
+   431→      qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+   432→    } catch {
+   433→      toast.error(`Failed to ${action} subscriber`);
+   434→    } finally {
+   435→      setSubActionId(null);
+   436→    }
+   437→  };
+   438→
+   439→  const handleParseM3u = () => {
+   440→    const parsed = parseM3U(m3uText);
+   441→    setM3uParsed(parsed);
+   442→    if (parsed.length === 0) {
+   443→      toast.error("No channels found in playlist");
+   444→    } else {
+   445→      toast.success(`Parsed ${parsed.length} channels`);
+   446→    }
+   447→  };
+   448→
+   449→  const handleImportM3u = async () => {
+   450→    if (m3uParsed.length === 0) return;
+   451→    setM3uImporting(true);
+   452→    let created = 0;
+   453→    let failed = 0;
+   454→    // Sequential to avoid hammering the API and to show clear progress.
+   455→    for (const c of m3uParsed) {
+   456→      try {
+   457→        await api.adminIptvChannelCreate({
+   458→          name: c.name,
+   459→          streamUrl: c.streamUrl,
+   460→          logoUrl: c.logoUrl || undefined,
+   461→          category: c.category !== "Uncategorized" ? c.category : undefined,
+   462→          isHD: c.isHD,
+   463→          status: "active",
+   464→        });
+   465→        created++;
+   466→      } catch {
+   467→        failed++;
+   468→      }
+   469→    }
+   470→    setM3uImporting(false);
+   471→    toast.success(`Imported ${created} channel(s)${failed ? `, ${failed} failed` : ""}`);
+   472→    setShowM3u(false);
+   473→    setM3uText("");
+   474→    setM3uParsed([]);
+   475→    qc.invalidateQueries({ queryKey: ["admin-iptv-channels"] });
+   476→    qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+   477→  };
+   478→
+   479→  // --- Stats cards data ----------------------------------------------------
+   480→  const statsCards = [
+   481→    {
+   482→      label: "Active Subscribers",
+   483→      value: stats?.activeSubscribers ?? 0,
+   484→      icon: <Users size={16} className="text-green-500" />,
+   485→      tint: "text-green-600",
+   486→    },
+   487→    {
+   488→      label: "Expired",
+   489→      value: stats?.expiredSubscribers ?? 0,
+   490→      icon: <Clock size={16} className="text-red-500" />,
+   491→      tint: "text-red-600",
+   492→    },
+   493→    {
+   494→      label: "Suspended",
+   495→      value: stats?.suspendedSubscribers ?? 0,
+   496→      icon: <UserX size={16} className="text-orange-500" />,
+   497→      tint: "text-orange-600",
+   498→    },
+   499→    {
+   500→      label: "Total Channels",
+   501→      value: stats?.totalChannels ?? 0,
+   502→      icon: <Tv2 size={16} className="text-blue-500" />,
+   503→      tint: "text-blue-600",
+   504→    },
+   505→    {
+   506→      label: "Active Channels",
+   507→      value: stats?.activeChannels ?? 0,
+   508→      icon: <Activity size={16} className="text-teal-500" />,
+   509→      tint: "text-teal-600",
+   510→    },
+   511→  ];
+   512→
+   513→  // --- Render --------------------------------------------------------------
+   514→  return (
+   515→    <div className="space-y-6">
+   516→      {/* Header */}
+   517→      <div className="flex items-center justify-between flex-wrap gap-3">
+   518→        <div>
+   519→          <h1 className="text-2xl font-bold">IPTV Management</h1>
+   520→          <p className="text-muted-foreground text-sm mt-1">
+   521→            Manage channels, subscribers &amp; credentials
+   522→          </p>
+   523→        </div>
+   524→        <div className="flex items-center gap-2">
+   525→          {tab === "channels" && (
+   526→            <>
+   527→              <Button
+   528→                variant="outline"
+   529→                className="gap-2"
+   530→                onClick={() => {
+   531→                  setShowXtream(true);
+   532→                  setXtreamForm({ profileName: "", hostUrl: "", username: "", password: "" });
+   533→                }}
+   534→              >
+   535→                <Link2 size={16} />
+   536→                Add Xtream
+   537→              </Button>
+   538→              <Button
+   539→                variant="outline"
+   540→                className="gap-2"
+   541→                onClick={() => {
+   542→                  setShowM3u(true);
+   543→                  setM3uParsed([]);
+   544→                }}
+   545→              >
+   546→                <Upload size={16} />
+   547→                Import M3U
+   548→              </Button>
+   549→            </>
+   550→          )}
+   551→          <Button onClick={() => setShowCreate(true)} className="gap-2">
+   552→            <Plus size={16} />
+   553→            Add {tab === "channels" ? "Channel" : "Subscriber"}
+   554→          </Button>
+   555→        </div>
+   556→      </div>
+   557→
+   558→      {/* Stats header */}
+   559→      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+   560→        {statsCards.map((s) => (
+   561→          <Card key={s.label}>
+   562→            <CardContent className="p-4 flex items-center gap-3">
+   563→              <div className="w-9 h-9 rounded-lg bg-muted/60 flex items-center justify-center">
+   564→                {s.icon}
+   565→              </div>
+   566→              <div>
+   567→                <p className="text-xs text-muted-foreground">{s.label}</p>
+   568→                <p className={`font-bold text-lg ${s.tint}`}>{s.value}</p>
+   569→              </div>
+   570→            </CardContent>
+   571→          </Card>
+   572→        ))}
+   573→      </div>
+   574→
+   575→      {/* Tabs */}
+   576→      <div className="flex gap-2 border-b">
+   577→        {(["channels", "subscribers"] as const).map((t) => (
+   578→          <button
+   579→            key={t}
+   580→            onClick={() => {
+   581→              setTab(t);
+   582→              setSearch("");
+   583→              setStatus("all");
+   584→              setCategoryFilter("all");
+   585→            }}
+   586→            className={`px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors ${tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+   587→          >
+   588→            {t}
+   589→          </button>
+   590→        ))}
+   591→      </div>
+   592→
+   593→      {/* Filters */}
+   594→      <div className="flex gap-3 flex-wrap">
+   595→        <div className="relative flex-1 min-w-48">
+   596→          <Search
+   597→            size={15}
+   598→            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+   599→          />
+   600→          <Input
+   601→            placeholder={`Search ${tab}...`}
+   602→            className="pl-9"
+   603→            value={search}
+   604→            onChange={(e) => setSearch(e.target.value)}
+   605→          />
+   606→        </div>
+   607→        <Select value={status} onValueChange={setStatus}>
+   608→          <SelectTrigger className="w-36">
+   609→            <SelectValue />
+   610→          </SelectTrigger>
+   611→          <SelectContent>
+   612→            <SelectItem value="all">All Status</SelectItem>
+   613→            <SelectItem value="active">Active</SelectItem>
+   614→            <SelectItem value="inactive">Inactive</SelectItem>
+   615→            {tab === "channels" ? (
+   616→              <SelectItem value="error">Error</SelectItem>
+   617→            ) : (
+   618→              <>
+   619→                <SelectItem value="expired">Expired</SelectItem>
+   620→                <SelectItem value="suspended">Suspended</SelectItem>
+   621→              </>
+   622→            )}
+   623→          </SelectContent>
+   624→        </Select>
+   625→      </div>
+   626→
+   627→      {/* Channels tab */}
+   628→      {tab === "channels" && (
+   629→        <>
+   630→          {/* Category filter pills */}
+   631→          {!channelsLoading && categories.length > 0 && (
+   632→            <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+   633→              <Filter size={14} className="text-muted-foreground shrink-0" />
+   634→              <button
+   635→                onClick={() => setCategoryFilter("all")}
+   636→                className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${categoryFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:bg-muted/60"}`}
+   637→              >
+   638→                All
+   639→                <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${categoryFilter === "all" ? "bg-primary-foreground/20" : "bg-muted"}`}>
+   640→                  {allChannels.length}
+   641→                </span>
+   642→              </button>
+   643→              {categories.map((cat) => (
+   644→                <button
+   645→                  key={cat.name}
+   646→                  onClick={() => setCategoryFilter(cat.name)}
+   647→                  className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${categoryFilter === cat.name ? "bg-primary text-primary-foreground border-primary" : "bg-card text-muted-foreground border-border hover:bg-muted/60"}`}
+   648→                >
+   649→                  {cat.name}
+   650→                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${categoryFilter === cat.name ? "bg-primary-foreground/20" : "bg-muted"}`}>
+   651→                    {cat.count}
+   652→                  </span>
+   653→                </button>
+   654→              ))}
+   655→            </div>
+   656→          )}
+   657→
+   658→          {channelsLoading ? (
+   659→            <div className="space-y-2">
+   660→              {Array.from({ length: 4 }).map((_, i) => (
+   661→                <Skeleton key={i} className="h-14 w-full" />
+   662→              ))}
+   663→            </div>
+   664→          ) : filteredChannels.length === 0 ? (
+   665→            <Card>
+   666→              <CardContent className="p-8 text-center text-muted-foreground text-sm">
+   667→                No channels match the current filters.
+   668→              </CardContent>
+   669→            </Card>
+   670→          ) : (
+   671→            <div className="overflow-x-auto rounded-lg border bg-card">
+   672→              <table className="w-full text-sm">
+   673→                <thead className="border-b bg-muted/40">
+   674→                  <tr>
+   675→                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+   676→                      Channel
+   677→                    </th>
+   678→                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+   679→                      Category
+   680→                    </th>
+   681→                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">
+   682→                      Country
+   683→                    </th>
+   684→                    <th className="text-center px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+   685→                      Viewers
+   686→                    </th>
+   687→                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+   688→                      Status
+   689→                    </th>
+   690→                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+   691→                      Active
+   692→                    </th>
+   693→                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+   694→                      Actions
+   695→                    </th>
+   696→                  </tr>
+   697→                </thead>
+   698→                <tbody>
+   699→                  {filteredChannels.map((c: any) => {
+   700→                    const id = c._id ?? c.id;
+   701→                    const q = detectQuality(c);
+   702→                    return (
+   703→                      <tr
+   704→                        key={id}
+   705→                        className="border-b last:border-0 hover:bg-muted/30"
+   706→                      >
+   707→                        <td className="px-4 py-3">
+   708→                          <div className="flex items-center gap-2">
+   709→                            {c.logoUrl ? (
+   710→                              <img
+   711→                                src={c.logoUrl}
+   712→                                alt={c.name}
+   713→                                className="w-7 h-7 rounded object-cover"
+   714→                              />
+   715→                            ) : (
+   716→                              <div className="w-7 h-7 rounded bg-muted flex items-center justify-center">
+   717→                                <Tv2 size={12} className="text-muted-foreground" />
+   718→                              </div>
+   719→                            )}
+   720→                            <div className="flex items-center gap-1.5">
+   721→                              <p className="font-medium">{c.name}</p>
+   722→                              {q && (
+   723→                                <Badge
+   724→                                  variant="outline"
+   725→                                  className={`text-[10px] px-1 py-0 h-4 ${qualityBadgeClass(q)}`}
+   726→                                >
+   727→                                  {q}
+   728→                                </Badge>
+   729→                              )}
+   730→                            </div>
+   731→                          </div>
+   732→                        </td>
+   733→                        <td className="px-4 py-3 text-muted-foreground hidden md:table-cell">
+   734→                          {c.category ?? "—"}
+   735→                        </td>
+   736→                        <td className="px-4 py-3 hidden lg:table-cell">
+   737→                          {c.country ? (
+   738→                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+   739→                              <Globe size={12} />
+   740→                              {c.country}
+   741→                            </span>
+   742→                          ) : (
+   743→                            <span className="text-muted-foreground">—</span>
+   744→                          )}
+   745→                        </td>
+   746→                        <td className="px-4 py-3 text-center hidden md:table-cell">
+   747→                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+   748→                            <Radio size={12} />
+   749→                            {c.viewerCount ?? 0}
+   750→                          </span>
+   751→                        </td>
+   752→                        <td className="px-4 py-3 text-center">
+   753→                          <span
+   754→                            className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${channelStatusColors[c.status] ?? ""}`}
+   755→                          >
+   756→                            {c.status}
+   757→                          </span>
+   758→                        </td>
+   759→                        <td className="px-4 py-3 text-center">
+   760→                          <Switch
+   761→                            checked={c.status === "active"}
+   762→                            disabled={channelTogglingId === id}
+   763→                            onCheckedChange={() => handleToggleChannel(c)}
+   764→                          />
+   765→                        </td>
+   766→                        <td className="px-4 py-3 text-right">
+   767→                          <div className="flex items-center justify-end gap-1">
+   768→                            <Button
+   769→                              variant="ghost"
+   770→                              size="icon"
+   771→                              className="h-7 w-7"
+   772→                              title="Copy stream URL"
+   773→                              onClick={() =>
+   774→                                copyToClipboard(c.streamUrl, "Stream URL copied")
+   775→                              }
+   776→                            >
+   777→                              <Copy size={13} />
+   778→                            </Button>
+   779→                            <Button
+   780→                              variant="ghost"
+   781→                              size="icon"
+   782→                              className="h-7 w-7 text-destructive"
+   783→                              title="Delete channel"
+   784→                              onClick={() => handleDeleteChannel(id)}
+   785→                            >
+   786→                              <Trash2 size={13} />
+   787→                            </Button>
+   788→                          </div>
+   789→                        </td>
+   790→                      </tr>
+   791→                    );
+   792→                  })}
+   793→                </tbody>
+   794→              </table>
+   795→            </div>
+   796→          )}
+   797→        </>
+   798→      )}
+   799→
+   800→      {/* Subscribers tab */}
+   801→      {tab === "subscribers" && (
+   802→        <>
+   803→          {subsLoading ? (
+   804→            <div className="space-y-2">
+   805→              {Array.from({ length: 4 }).map((_, i) => (
+   806→                <Skeleton key={i} className="h-14 w-full" />
+   807→              ))}
+   808→            </div>
+   809→          ) : subscribers.length === 0 ? (
+   810→            <Card>
+   811→              <CardContent className="p-8 text-center text-muted-foreground text-sm">
+   812→                No subscribers match the current filters.
+   813→              </CardContent>
+   814→            </Card>
+   815→          ) : (
+   816→            <div className="overflow-x-auto rounded-lg border bg-card">
+   817→              <table className="w-full text-sm">
+   818→                <thead className="border-b bg-muted/40">
+   819→                  <tr>
+   820→                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+   821→                      Subscriber
+   822→                    </th>
+   823→                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden md:table-cell">
+   824→                      Plan
+   825→                    </th>
+   826→                    <th className="text-left px-4 py-3 font-medium text-muted-foreground hidden lg:table-cell">
+   827→                      Expires
+   828→                    </th>
+   829→                    <th className="text-center px-4 py-3 font-medium text-muted-foreground">
+   830→                      Status
+   831→                    </th>
+   832→                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">
+   833→                      Quick Actions
+   834→                    </th>
+   835→                  </tr>
+   836→                </thead>
+   837→                <tbody>
+   838→                  {subscribers.map((s: any) => {
+   839→                    const id = s._id ?? s.id;
+   840→                    const expiry = getExpiryState(s.expiresAt);
+   841→                    return (
+   842→                      <tr
+   843→                        key={id}
+   844→                        className="border-b last:border-0 hover:bg-muted/30 cursor-pointer"
+   845→                        onClick={() => setSelectedSub(s)}
+   846→                      >
+   847→                        <td className="px-4 py-3">
+   848→                          <p className="font-medium">{s.name}</p>
+   849→                          <p className="text-xs text-muted-foreground">{s.email}</p>
+   850→                        </td>
+   851→                        <td className="px-4 py-3 hidden md:table-cell">
+   852→                          <Badge variant="secondary" className="font-medium">
+   853→                            {s.plan}
+   854→                          </Badge>
+   855→                        </td>
+   856→                        <td className="px-4 py-3 hidden lg:table-cell">
+   857→                          <div className="flex flex-col gap-1">
+   858→                            <span className="text-xs text-muted-foreground">
+   859→                              {s.expiresAt
+   860→                                ? new Date(s.expiresAt).toLocaleDateString()
+   861→                                : "—"}
+   862→                            </span>
+   863→                            <span
+   864→                              className={`text-[11px] px-1.5 py-0.5 rounded border w-fit ${expiryColorClasses[expiry.state]}`}
+   865→                            >
+   866→                              {expiry.state === "expired" && <AlertTriangle size={10} className="inline mr-1" />}
+   867→                              {expiry.state === "soon" && <Clock size={10} className="inline mr-1" />}
+   868→                              {expiry.state === "active" && <CheckCircle2 size={10} className="inline mr-1" />}
+   869→                              {expiry.label}
+   870→                            </span>
+   871→                          </div>
+   872→                        </td>
+   873→                        <td className="px-4 py-3 text-center">
+   874→                          <span
+   875→                            className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${subStatusColors[s.status] ?? ""}`}
+   876→                          >
+   877→                            {s.status}
+   878→                          </span>
+   879→                        </td>
+   880→                        <td
+   881→                          className="px-4 py-3 text-right"
+   882→                          onClick={(e) => e.stopPropagation()}
+   883→                        >
+   884→                          <div className="flex items-center justify-end gap-1">
+   885→                            <Button
+   886→                              variant="ghost"
+   887→                              size="sm"
+   888→                              className="h-7 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+   889→                              disabled={subActionId === id || s.status === "active"}
+   890→                              title="Activate"
+   891→                              onClick={() => handleSubscriberAction(s, "activate")}
+   892→                            >
+   893→                              <CheckCircle2 size={13} className="mr-1" />
+   894→                              Activate
+   895→                            </Button>
+   896→                            <Button
+   897→                              variant="ghost"
+   898→                              size="sm"
+   899→                              className="h-7 px-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+   900→                              disabled={subActionId === id || s.status === "suspended"}
+   901→                              title="Suspend"
+   902→                              onClick={() => handleSubscriberAction(s, "suspend")}
+   903→                            >
+   904→                              <Ban size={13} className="mr-1" />
+   905→                              Suspend
+   906→                            </Button>
+   907→                            <Button
+   908→                              variant="ghost"
+   909→                              size="icon"
+   910→                              className="h-7 w-7 text-destructive"
+   911→                              disabled={subActionId === id}
+   912→                              title="Delete"
+   913→                              onClick={() => handleSubscriberAction(s, "delete")}
+   914→                            >
+   915→                              {subActionId === id ? (
+   916→                                <Loader2 size={13} className="animate-spin" />
+   917→                              ) : (
+   918→                                <Trash2 size={13} />
+   919→                              )}
+   920→                            </Button>
+   921→                          </div>
+   922→                        </td>
+   923→                      </tr>
+   924→                    );
+   925→                  })}
+   926→                </tbody>
+   927→              </table>
+   928→            </div>
+   929→          )}
+   930→        </>
+   931→      )}
+   932→
+   933→      {/* Create dialog */}
+   934→      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+   935→        <DialogContent>
+   936→          <DialogHeader>
+   937→            <DialogTitle>
+   938→              {tab === "channels" ? "Add Channel" : "Add Subscriber"}
+   939→            </DialogTitle>
+   940→          </DialogHeader>
+   941→          {tab === "channels" ? (
+   942→            <div className="space-y-3">
+   943→              <div>
+   944→                <Label>Name *</Label>
+   945→                <Input
+   946→                  value={channelForm.name}
+   947→                  onChange={(e) =>
+   948→                    setChannelForm({ ...channelForm, name: e.target.value })
+   949→                  }
+   950→                  placeholder="BBC News"
+   951→                />
+   952→              </div>
+   953→              <div>
+   954→                <Label>Stream URL *</Label>
+   955→                <Input
+   956→                  value={channelForm.streamUrl}
+   957→                  onChange={(e) =>
+   958→                    setChannelForm({
+   959→                      ...channelForm,
+   960→                      streamUrl: e.target.value,
+   961→                    })
+   962→                  }
+   963→                  placeholder="rtsp://..."
+   964→                />
+   965→              </div>
+   966→              <div className="grid grid-cols-2 gap-3">
+   967→                <div>
+   968→                  <Label>Category</Label>
+   969→                  <Input
+   970→                    value={channelForm.category}
+   971→                    onChange={(e) =>
+   972→                      setChannelForm({
+   973→                        ...channelForm,
+   974→                        category: e.target.value,
+   975→                      })
+   976→                    }
+   977→                    placeholder="News"
+   978→                  />
+   979→                </div>
+   980→                <div>
+   981→                  <Label>Country</Label>
+   982→                  <Input
+   983→                    value={channelForm.country}
+   984→                    onChange={(e) =>
+   985→                      setChannelForm({
+   986→                        ...channelForm,
+   987→                        country: e.target.value,
+   988→                      })
+   989→                    }
+   990→                    placeholder="UK"
+   991→                  />
+   992→                </div>
+   993→              </div>
+   994→              <div className="grid grid-cols-2 gap-3">
+   995→                <div>
+   996→                  <Label>Language</Label>
+   997→                  <Input
+   998→                    value={channelForm.language}
+   999→                    onChange={(e) =>
+  1000→                      setChannelForm({
+  1001→                        ...channelForm,
+  1002→                        language: e.target.value,
+  1003→                      })
+  1004→                    }
+  1005→                    placeholder="English"
+  1006→                  />
+  1007→                </div>
+  1008→                <div>
+  1009→                  <Label>Logo URL</Label>
+  1010→                  <Input
+  1011→                    value={channelForm.logoUrl}
+  1012→                    onChange={(e) =>
+  1013→                      setChannelForm({
+  1014→                        ...channelForm,
+  1015→                        logoUrl: e.target.value,
+  1016→                      })
+  1017→                    }
+  1018→                    placeholder="https://..."
+  1019→                  />
+  1020→                </div>
+  1021→              </div>
+  1022→              <label className="flex items-center gap-2 text-sm">
+  1023→                <Switch
+  1024→                  checked={channelForm.isHD}
+  1025→                  onCheckedChange={(v) =>
+  1026→                    setChannelForm({ ...channelForm, isHD: v })
+  1027→                  }
+  1028→                />
+  1029→                HD channel
+  1030→              </label>
+  1031→            </div>
+  1032→          ) : (
+  1033→            <div className="space-y-3">
+  1034→              <div>
+  1035→                <Label>Name *</Label>
+  1036→                <Input
+  1037→                  value={subForm.name}
+  1038→                  onChange={(e) =>
+  1039→                    setSubForm({ ...subForm, name: e.target.value })
+  1040→                  }
+  1041→                  placeholder="John Smith"
+  1042→                />
+  1043→              </div>
+  1044→              <div>
+  1045→                <Label>Email *</Label>
+  1046→                <Input
+  1047→                  value={subForm.email}
+  1048→                  onChange={(e) =>
+  1049→                    setSubForm({ ...subForm, email: e.target.value })
+  1050→                  }
+  1051→                  placeholder="john@example.com"
+  1052→                />
+  1053→              </div>
+  1054→              <div className="grid grid-cols-2 gap-3">
+  1055→                <div>
+  1056→                  <Label>Plan</Label>
+  1057→                  <Input
+  1058→                    value={subForm.plan}
+  1059→                    onChange={(e) =>
+  1060→                      setSubForm({ ...subForm, plan: e.target.value })
+  1061→                    }
+  1062→                    placeholder="Basic"
+  1063→                  />
+  1064→                </div>
+  1065→                <div>
+  1066→                  <Label>Expires *</Label>
+  1067→                  <Input
+  1068→                    type="date"
+  1069→                    onChange={(e) =>
+  1070→                      setSubForm({
+  1071→                        ...subForm,
+  1072→                        expiresAt: e.target.value
+  1073→                          ? new Date(e.target.value).toISOString()
+  1074→                          : "",
+  1075→                      })
+  1076→                    }
+  1077→                  />
+  1078→                </div>
+  1079→              </div>
+  1080→              <div className="grid grid-cols-2 gap-3">
+  1081→                <div>
+  1082→                  <Label>MAC Address</Label>
+  1083→                  <Input
+  1084→                    value={subForm.mac}
+  1085→                    onChange={(e) =>
+  1086→                      setSubForm({ ...subForm, mac: e.target.value })
+  1087→                    }
+  1088→                    placeholder="00:1A:2B:3C:4D:5E"
+  1089→                  />
+  1090→                </div>
+  1091→                <div>
+  1092→                  <Label>Max Connections</Label>
+  1093→                  <Input
+  1094→                    type="number"
+  1095→                    min={1}
+  1096→                    value={subForm.maxConnections}
+  1097→                    onChange={(e) =>
+  1098→                      setSubForm({
+  1099→                        ...subForm,
+  1100→                        maxConnections: e.target.value,
+  1101→                      })
+  1102→                    }
+  1103→                    placeholder="1"
+  1104→                  />
+  1105→                </div>
+  1106→              </div>
+  1107→              <div>
+  1108→                <Label>Device Type</Label>
+  1109→                <Input
+  1110→                  value={subForm.deviceType}
+  1111→                  onChange={(e) =>
+  1112→                    setSubForm({ ...subForm, deviceType: e.target.value })
+  1113→                  }
+  1114→                  placeholder="Smart TV / MAG / Android box"
+  1115→                />
+  1116→              </div>
+  1117→            </div>
+  1118→          )}
+  1119→          <DialogFooter>
+  1120→            <Button variant="secondary" onClick={() => setShowCreate(false)}>
+  1121→              Cancel
+  1122→            </Button>
+  1123→            <Button
+  1124→              onClick={
+  1125→                tab === "channels"
+  1126→                  ? handleCreateChannel
+  1127→                  : handleCreateSubscriber
+  1128→              }
+  1129→            >
+  1130→              Add
+  1131→            </Button>
+  1132→          </DialogFooter>
+  1133→        </DialogContent>
+  1134→      </Dialog>
+  1135→
+  1136→      {/* M3U Import dialog */}
+  1137→      <Dialog open={showM3u} onOpenChange={setShowM3u}>
+  1138→        <DialogContent className="max-w-2xl">
+  1139→          <DialogHeader>
+  1140→            <DialogTitle>Import M3U Playlist</DialogTitle>
+  1141→          </DialogHeader>
+  1142→          <div className="space-y-3">
+  1143→            <div>
+  1144→              <Label>Paste M3U content</Label>
+  1145→              <Textarea
+  1146→                value={m3uText}
+  1147→                onChange={(e) => setM3uText(e.target.value)}
+  1148→                rows={8}
+  1149→                placeholder={`#EXTM3U\n#EXTINF:-1 tvg-logo="..." group-title="Sports",Sky Sports HD\nhttp://stream.url/play.m3u8`}
+  1150→                className="font-mono text-xs"
+  1151→              />
+  1152→            </div>
+  1153→
+  1154→            {m3uParsed.length > 0 && (
+  1155→              <div className="space-y-2">
+  1156→                <div className="flex items-center justify-between">
+  1157→                  <p className="text-sm font-medium">
+  1158→                    Found {m3uParsed.length} channel
+  1159→                    {m3uParsed.length === 1 ? "" : "s"}. Import all?
+  1160→                  </p>
+  1161→                  <Button
+  1162→                    variant="ghost"
+  1163→                    size="sm"
+  1164→                    onClick={() => setM3uParsed([])}
+  1165→                  >
+  1166→                    <X size={14} className="mr-1" />
+  1167→                    Clear
+  1168→                  </Button>
+  1169→                </div>
+  1170→                <div className="border rounded-md max-h-60 overflow-y-auto divide-y">
+  1171→                  {m3uParsed.slice(0, 50).map((c, i) => (
+  1172→                    <div
+  1173→                      key={i}
+  1174→                      className="flex items-center gap-2 px-3 py-2 text-xs"
+  1175→                    >
+  1176→                      {c.logoUrl ? (
+  1177→                        <img
+  1178→                          src={c.logoUrl}
+  1179→                          alt=""
+  1180→                          className="w-5 h-5 rounded object-cover"
+  1181→                        />
+  1182→                      ) : (
+  1183→                        <div className="w-5 h-5 rounded bg-muted flex items-center justify-center">
+  1184→                          <Tv2 size={10} className="text-muted-foreground" />
+  1185→                        </div>
+  1186→                      )}
+  1187→                      <span className="font-medium truncate flex-1">{c.name}</span>
+  1188→                      {c.isHD && (
+  1189→                        <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">
+  1190→                          HD
+  1191→                        </Badge>
+  1192→                      )}
+  1193→                      <span className="text-muted-foreground">{c.category}</span>
+  1194→                    </div>
+  1195→                  ))}
+  1196→                  {m3uParsed.length > 50 && (
+  1197→                    <div className="px-3 py-2 text-center text-xs text-muted-foreground">
+  1198→                      … and {m3uParsed.length - 50} more
+  1199→                    </div>
+  1200→                  )}
+  1201→                </div>
+  1202→              </div>
+  1203→            )}
+  1204→          </div>
+  1205→          <DialogFooter>
+  1206→            <Button variant="secondary" onClick={() => setShowM3u(false)}>
+  1207→              Cancel
+  1208→            </Button>
+  1209→            {m3uParsed.length === 0 ? (
+  1210→              <Button onClick={handleParseM3u} disabled={!m3uText.trim()}>
+  1211→                Parse Playlist
+  1212→              </Button>
+  1213→            ) : (
+  1214→              <Button
+  1215→                onClick={handleImportM3u}
+  1216→                disabled={m3uImporting}
+  1217→                className="gap-2"
+  1218→              >
+  1219→                {m3uImporting && <Loader2 size={14} className="animate-spin" />}
+  1220→                {m3uImporting
+  1221→                  ? `Importing...`
+  1222→                  : `Import ${m3uParsed.length} Channel${m3uParsed.length === 1 ? "" : "s"}`}
+  1223→              </Button>
+  1224→            )}
+  1225→          </DialogFooter>
+  1226→        </DialogContent>
+  1227→      </Dialog>
+  1228→
+  1229→      {/* Xtream Codes dialog */}
+  1230→      <Dialog open={showXtream} onOpenChange={setShowXtream}>
+  1231→        <DialogContent className="sm:max-w-md">
+  1232→          <DialogHeader>
+  1233→            <DialogTitle>Add Xtream Codes Profile</DialogTitle>
+  1234→          </DialogHeader>
+  1235→          <div className="space-y-4">
+  1236→            <div>
+  1237→              <Label>Profile Name *</Label>
+  1238→              <Input
+  1239→                value={xtreamForm.profileName}
+  1240→                onChange={(e) => setXtreamForm({ ...xtreamForm, profileName: e.target.value })}
+  1241→                placeholder="e.g. Main Server"
+  1242→              />
+  1243→            </div>
+  1244→            <div>
+  1245→              <Label>Host URL *</Label>
+  1246→              <Input
+  1247→                value={xtreamForm.hostUrl}
+  1248→                onChange={(e) => setXtreamForm({ ...xtreamForm, hostUrl: e.target.value })}
+  1249→                placeholder="http://your-server.com:8080"
+  1250→              />
+  1251→              <p className="mt-1 text-[10px] text-muted-foreground">The Xtream Codes server URL (with port)</p>
+  1252→            </div>
+  1253→            <div>
+  1254→              <Label>Username *</Label>
+  1255→              <Input
+  1256→                value={xtreamForm.username}
+  1257→                onChange={(e) => setXtreamForm({ ...xtreamForm, username: e.target.value })}
+  1258→                placeholder="Your Xtream username"
+  1259→              />
+  1260→            </div>
+  1261→            <div>
+  1262→              <Label>Password *</Label>
+  1263→              <Input
+  1264→                type="password"
+  1265→                value={xtreamForm.password}
+  1266→                onChange={(e) => setXtreamForm({ ...xtreamForm, password: e.target.value })}
+  1267→                placeholder="Your Xtream password"
+  1268→              />
+  1269→            </div>
+  1270→            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+  1271→              <strong className="text-foreground">How it works:</strong> Enter your Xtream Codes
+  1272→              credentials. The system will fetch all live channels, VOD, and series from your
+  1273→              Xtream provider and import them into the channel list.
+  1274→            </div>
+  1275→          </div>
+  1276→          <DialogFooter>
+  1277→            <Button variant="outline" onClick={() => setShowXtream(false)}>Cancel</Button>
+  1278→            <Button
+  1279→              disabled={xtreamImporting || !xtreamForm.profileName || !xtreamForm.hostUrl || !xtreamForm.username || !xtreamForm.password}
+  1280→              onClick={async () => {
+  1281→                setXtreamImporting(true);
+  1282→                try {
+  1283→                  // Fetch channels from Xtream Codes API
+  1284→                  const { hostUrl, username, password, profileName } = xtreamForm;
+  1285→                  const apiUrl = `${hostUrl}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`;
+  1286→
+  1287→                  const res = await fetch(apiUrl);
+  1288→                  const streams = await res.json();
+  1289→
+  1290→                  if (!Array.isArray(streams)) {
+  1291→                    toast.error("Failed to fetch channels from Xtream server");
+  1292→                    setXtreamImporting(false);
+  1293→                    return;
+  1294→                  }
+  1295→
+  1296→                  // Import each stream as a channel
+  1297→                  let imported = 0;
+  1298→                  for (const stream of streams.slice(0, 500)) {
+  1299→                    try {
+  1300→                      await api.adminIptvChannelCreate({
+  1301→                        name: stream.name || `Channel ${stream.stream_id}`,
+  1302→                        streamUrl: `${hostUrl}/live/${username}/${password}/${stream.stream_id}.m3u8`,
+  1303→                        logoUrl: stream.stream_icon || "",
+  1304→                        category: stream.category_name || "Xtream",
+  1305→                        country: "",
+  1306→                        isHD: (stream.name || "").includes("HD") || (stream.name || "").includes("4K"),
+  1307→                      });
+  1308→                      imported++;
+  1309→                    } catch {}
+  1310→                  }
+  1311→
+  1312→                  toast.success(`Imported ${imported} channels from Xtream "${profileName}"`);
+  1313→                  setShowXtream(false);
+  1314→                  qc.invalidateQueries({ queryKey: ["admin-iptv-channels"] });
+  1315→                  qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+  1316→                } catch (e) {
+  1317→                  toast.error("Failed to connect to Xtream server — check host URL and credentials");
+  1318→                } finally {
+  1319→                  setXtreamImporting(false);
+  1320→                }
+  1321→              }}
+  1322→              className="gap-2"
+  1323→            >
+  1324→              {xtreamImporting ? <Loader2 className="size-4 animate-spin" /> : <Link2 size={16} />}
+  1325→              {xtreamImporting ? "Importing..." : "Import Channels"}
+  1326→            </Button>
+  1327→          </DialogFooter>
+  1328→        </DialogContent>
+  1329→      </Dialog>
+  1330→
+  1331→      {/* Subscriber credentials slide-in Drawer */}
+  1332→      <SubscriberCredentialsDrawer
+  1333→        sub={selectedSub}
+  1334→        onClose={() => setSelectedSub(null)}
+  1335→        onAction={handleSubscriberAction}
+  1336→        busyId={subActionId}
+  1337→      />
+  1338→    </div>
+  1339→  );
+  1340→}
+  1341→
+  1342→// ---------------------------------------------------------------------------
+  1343→// SubscriberCredentialsDrawer
+  1344→// ---------------------------------------------------------------------------
+  1345→
+  1346→function SubscriberCredentialsDrawer({
+  1347→  sub,
+  1348→  onClose,
+  1349→  onAction,
+  1350→  busyId,
+  1351→}: {
+  1352→  sub: any | null;
+  1353→  onClose: () => void;
+  1354→  onAction: (
+  1355→    sub: any,
+  1356→    action: "activate" | "suspend" | "delete",
+  1357→  ) => void;
+  1358→  busyId: string | null;
+  1359→}) {
+  1360→  const [showPassword, setShowPassword] = React.useState(false);
+  1361→  React.useEffect(() => {
+  1362→    if (!sub) setShowPassword(false);
+  1363→  }, [sub]);
+  1364→
+  1365→  if (!sub) return null;
+  1366→  const id = sub._id ?? sub.id;
+  1367→  const expiry = getExpiryState(sub.expiresAt);
+  1368→
+  1369→  // Synthesise credentials from the subscriber record.
+  1370→  const username = sub.email?.split("@")[0] || sub.email || `user_${id?.slice(-6)}`;
+  1371→  const password = sub.mac || id?.slice(-12) || "••••••••";
+  1372→  const portalUrl = IPTV_PORTAL_BASE;
+  1373→  const m3uUrl = `${portalUrl}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus&output=ts`;
+  1374→  const notes = [
+  1375→    sub.plan ? `Plan: ${sub.plan}` : null,
+  1376→    sub.deviceType ? `Device: ${sub.deviceType}` : null,
+  1377→    sub.maxConnections ? `Max connections: ${sub.maxConnections}` : null,
+  1378→    `Active connections: ${sub.activeConnections ?? 0}`,
+  1379→  ]
+  1380→    .filter(Boolean)
+  1381→    .join(" · ");
+  1382→
+  1383→  const allCredentials = [
+  1384→    `Name: ${sub.name}`,
+  1385→    `Email: ${sub.email}`,
+  1386→    `Username: ${username}`,
+  1387→    `Password: ${password}`,
+  1388→    `Portal URL: ${portalUrl}`,
+  1389→    `M3U URL: ${m3uUrl}`,
+  1390→    sub.mac ? `MAC: ${sub.mac}` : null,
+  1391→    `Plan: ${sub.plan}`,
+  1392→    `Status: ${sub.status}`,
+  1393→    `Expires: ${sub.expiresAt ? new Date(sub.expiresAt).toLocaleString() : "—"}`,
+  1394→    notes ? `Notes: ${notes}` : null,
+  1395→  ]
+  1396→    .filter(Boolean)
+  1397→    .join("\n");
+  1398→
+  1399→  return (
+  1400→    <Drawer open={!!sub} onOpenChange={(o) => !o && onClose()} direction="right">
+  1401→      <DrawerContent className="sm:max-w-md">
+  1402→        <DrawerHeader className="border-b">
+  1403→          <DrawerTitle className="flex items-center gap-2">
+  1404→            <Users size={16} />
+  1405→            {sub.name}
+  1406→          </DrawerTitle>
+  1407→          <DrawerDescription>
+  1408→            Subscriber credentials &amp; connection details
+  1409→          </DrawerDescription>
+  1410→        </DrawerHeader>
+  1411→
+  1412→        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+  1413→          {/* Status row */}
+  1414→          <div className="flex items-center justify-between">
+  1415→            <span
+  1416→              className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${subStatusColors[sub.status] ?? ""}`}
+  1417→            >
+  1418→              {sub.status}
+  1419→            </span>
+  1420→            <span
+  1421→              className={`text-[11px] px-1.5 py-0.5 rounded border ${expiryColorClasses[expiry.state]}`}
+  1422→            >
+  1423→              {expiry.label}
+  1424→            </span>
+  1425→          </div>
+  1426→
+  1427→          {/* Basic info */}
+  1428→          <div className="space-y-1.5">
+  1429→            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+  1430→              Subscriber
+  1431→            </p>
+  1432→            <CredRow label="Name" value={sub.name} onCopy={() => copyToClipboard(sub.name, "Name copied")} />
+  1433→            <CredRow label="Email" value={sub.email} onCopy={() => copyToClipboard(sub.email, "Email copied")} />
+  1434→            {sub.mac && (
+  1435→              <CredRow label="MAC" value={sub.mac} onCopy={() => copyToClipboard(sub.mac, "MAC copied")} />
+  1436→            )}
+  1437→            <CredRow
+  1438→              label="Plan"
+  1439→              value={sub.plan}
+  1440→              onCopy={() => copyToClipboard(sub.plan, "Plan copied")}
+  1441→            />
+  1442→            <CredRow
+  1443→              label="Expires"
+  1444→              value={sub.expiresAt ? new Date(sub.expiresAt).toLocaleString() : "—"}
+  1445→              onCopy={
+  1446→                sub.expiresAt
+  1447→                  ? () => copyToClipboard(sub.expiresAt, "Expiry copied")
+  1448→                  : undefined
+  1449→              }
+  1450→            />
+  1451→          </div>
+  1452→
+  1453→          {/* Credentials */}
+  1454→          <div className="space-y-1.5">
+  1455→            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+  1456→              Connection Credentials
+  1457→            </p>
+  1458→            <CredRow label="Username" value={username} onCopy={() => copyToClipboard(username, "Username copied")} />
+  1459→            <div className="flex items-center justify-between gap-2 py-1.5 border-b">
+  1460→              <div className="min-w-0 flex-1">
+  1461→                <p className="text-[11px] text-muted-foreground">Password</p>
+  1462→                <p className="font-mono text-sm truncate">
+  1463→                  {showPassword ? password : "•".repeat(Math.min(password.length, 16))}
+  1464→                </p>
+  1465→              </div>
+  1466→              <div className="flex items-center gap-1 shrink-0">
+  1467→                <Button
+  1468→                  variant="ghost"
+  1469→                  size="icon"
+  1470→                  className="h-7 w-7"
+  1471→                  onClick={() => setShowPassword((v) => !v)}
+  1472→                  title={showPassword ? "Hide password" : "Show password"}
+  1473→                >
+  1474→                  {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+  1475→                </Button>
+  1476→                <Button
+  1477→                  variant="ghost"
+  1478→                  size="icon"
+  1479→                  className="h-7 w-7"
+  1480→                  onClick={() => copyToClipboard(password, "Password copied")}
+  1481→                  title="Copy password"
+  1482→                >
+  1483→                  <Copy size={13} />
+  1484→                </Button>
+  1485→              </div>
+  1486→            </div>
+  1487→            <CredRow
+  1488→              label="Portal URL"
+  1489→              value={portalUrl}
+  1490→              mono
+  1491→              onCopy={() => copyToClipboard(portalUrl, "Portal URL copied")}
+  1492→            />
+  1493→            <CredRow
+  1494→              label="M3U URL"
+  1495→              value={m3uUrl}
+  1496→              mono
+  1497→              onCopy={() => copyToClipboard(m3uUrl, "M3U URL copied")}
+  1498→            />
+  1499→          </div>
+  1500→
+  1501→          {/* Notes */}
+  1502→          <div className="space-y-1.5">
+  1503→            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+  1504→              Notes
+  1505→            </p>
+  1506→            <p className="text-xs text-muted-foreground bg-muted/40 border rounded-md p-2.5">
+  1507→              {notes || "No additional notes."}
+  1508→            </p>
+  1509→          </div>
+  1510→        </div>
+  1511→
+  1512→        {/* Footer actions */}
+  1513→        <div className="border-t p-3 space-y-2">
+  1514→          <Button
+  1515→            className="w-full gap-2"
+  1516→            onClick={() => copyToClipboard(allCredentials, "All credentials copied")}
+  1517→          >
+  1518→            <ClipboardList size={14} />
+  1519→            Copy All
+  1520→          </Button>
+  1521→          <div className="grid grid-cols-3 gap-2">
+  1522→            <Button
+  1523→              variant="outline"
+  1524→              size="sm"
+  1525→              className="text-green-600 hover:bg-green-50"
+  1526→              disabled={busyId === id || sub.status === "active"}
+  1527→              onClick={() => onAction(sub, "activate")}
+  1528→            >
+  1529→              <CheckCircle2 size={13} className="mr-1" />
+  1530→              Activate
+  1531→            </Button>
+  1532→            <Button
+  1533→              variant="outline"
+  1534→              size="sm"
+  1535→              className="text-orange-600 hover:bg-orange-50"
+  1536→              disabled={busyId === id || sub.status === "suspended"}
+  1537→              onClick={() => onAction(sub, "suspend")}
+  1538→            >
+  1539→              <Ban size={13} className="mr-1" />
+  1540→              Suspend
+  1541→            </Button>
+  1542→            <Button
+  1543→              variant="outline"
+  1544→              size="sm"
+  1545→              className="text-destructive hover:bg-destructive/10"
+  1546→              disabled={busyId === id}
+  1547→              onClick={() => onAction(sub, "delete")}
+  1548→            >
+  1549→              {busyId === id ? (
+  1550→                <Loader2 size={13} className="mr-1 animate-spin" />
+  1551→              ) : (
+  1552→                <Trash2 size={13} className="mr-1" />
+  1553→              )}
+  1554→              Delete
+  1555→            </Button>
+  1556→          </div>
+  1557→          <Button
+  1558→            variant="ghost"
+  1559→            size="sm"
+  1560→            className="w-full"
+  1561→            onClick={onClose}
+  1562→          >
+  1563→            <Power size={13} className="mr-1" />
+  1564→            Close
+  1565→          </Button>
+  1566→        </div>
+  1567→      </DrawerContent>
+  1568→    </Drawer>
+  1569→  );
+  1570→}
+  1571→
+  1572→// ---------------------------------------------------------------------------
+  1573→// CredRow — single labelled credential line with optional copy button
+  1574→// ---------------------------------------------------------------------------
+  1575→
+  1576→function CredRow({
+  1577→  label,
+  1578→  value,
+  1579→  mono,
+  1580→  onCopy,
+  1581→}: {
+  1582→  label: string;
+  1583→  value: string;
+  1584→  mono?: boolean;
+  1585→  onCopy?: () => void;
+  1586→}) {
+  1587→  return (
+  1588→    <div className="flex items-center justify-between gap-2 py-1.5 border-b last:border-0">
+  1589→      <div className="min-w-0 flex-1">
+  1590→        <p className="text-[11px] text-muted-foreground">{label}</p>
+  1591→        <p className={`text-sm truncate ${mono ? "font-mono" : ""}`}>{value}</p>
+  1592→      </div>
+  1593→      {onCopy && (
+  1594→        <Button
+  1595→          variant="ghost"
+  1596→          size="icon"
+  1597→          className="h-7 w-7 shrink-0"
+  1598→          onClick={onCopy}
+  1599→          title={`Copy ${label}`}
+  1600→        >
+  1601→          <Copy size={13} />
+  1602→        </Button>
+  1603→      )}
+  1604→    </div>
+  1605→  );
+  1606→}
+  1607→

@@ -492,6 +492,34 @@ export const api = {
     apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/update`, { method: "POST", body: JSON.stringify(payload) }),
   adminIptvSubscriberAction: (id: string, action: "activate" | "suspend" | "delete") =>
     apiFetch<{ subscriber?: any; success?: boolean; message?: string }>(`/admin/iptv/subscribers/${id}/action`, { method: "PATCH", body: JSON.stringify({ action }) }),
+  /** Set Xtream Codes credentials (profile name, host URL, username, password) for a subscriber. */
+  adminIptvSubscriberCredentials: (
+    id: string,
+    payload: { profileName: string; hostUrl: string; username: string; password: string; notes?: string },
+  ) =>
+    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/${id}/credentials`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  /** Clear the Xtream Codes credentials for a subscriber. */
+  adminIptvSubscriberCredentialsClear: (id: string) =>
+    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/${id}/credentials`, {
+      method: "POST",
+      body: JSON.stringify({ clear: true }),
+    }),
+  /** Import channels from an Xtream Codes server (server-side proxy — bypasses CORS). */
+  adminIptvXtreamImport: (payload: {
+    hostUrl: string;
+    username: string;
+    password: string;
+    profileName?: string;
+    limit?: number;
+    types?: ("live" | "vod" | "series")[];
+  }) =>
+    apiFetch<{ imported: number; skipped: number; live: number; vod: number; series: number; profileName: string; message: string }>(
+      `/admin/iptv/xtream/import`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
   adminIptvChannelToggle: (id: string) =>
     apiFetch<{ channel: any; message?: string }>(`/admin/iptv/channels/${id}/toggle`, { method: "PATCH" }),
   adminIptvStats: () =>
