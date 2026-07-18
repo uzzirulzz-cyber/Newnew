@@ -3,7 +3,7 @@ import type { Metadata, Viewport } from "next";
 export const metadata: Metadata = {
   title: "Admin — PlayBeat Digital",
   description: "Admin portal — restricted access",
-  manifest: "/admin-manifest.json",
+  manifest: "/manifests/admin-manifest.json",
   robots: {
     index: false,
     follow: false,
@@ -45,7 +45,7 @@ export default function AdminLayout({
           __html: `
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/admin-sw.js')
+                navigator.serviceWorker.register('/sw/admin-sw.js')
                   .then(() => console.log('[PWA] Service Worker registered'))
                   .catch((e) => console.log('[PWA] SW registration failed:', e));
               });
