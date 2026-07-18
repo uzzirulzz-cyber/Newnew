@@ -511,6 +511,7 @@ export function AdminConsole() {
       case "seo":
         return <SeoModule />;
       case "website-builder":
+      case "website":
         return <WebsiteBuilderModule />;
       case "iptv":
         return <IptvModule />;
