@@ -42,7 +42,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
-  { value: "JAZZCASH", label: "JazzCash — Debit/Credit Card, Wallet, IBFT" },
+  { value: "JAZZCASH", label: "JazzCash — Mobile Account / Wallet" },
   { value: "EASYPAISA", label: "Easypaisa — Hosted Checkout" },
   { value: "STRIPE", label: "Card — Visa / Mastercard (Stripe)" },
   { value: "BANK_ALFALAH", label: "Bank Alfalah — IBFT / Cash Deposit" },
@@ -130,7 +130,11 @@ function PaymentProofForm({ order }: { order: Order }) {
     try {
       const formData = new FormData();
       formData.append("orderNumber", order.orderNumber);
-      formData.append("method", order.provider === "BANK_ALFALAH" ? "bank-alfalah" : "easypaisa");
+      formData.append("method",
+        order.provider === "BANK_ALFALAH" ? "bank-alfalah" :
+        order.provider === "EASYPAISA" ? "easypaisa" :
+        order.provider === "JAZZCASH" ? "jazzcash" : "bank-alfalah"
+      );
       formData.append("amount", String(order.total));
       formData.append("customerName", order.customerName || "");
       formData.append("customerEmail", order.customerEmail || "");
@@ -285,8 +289,8 @@ function OrderSuccess({ order }: { order: Order }) {
         </div>
       </div>
 
-      {/* Manual payment instructions for Bank Alfalah / Easypaisa */}
-      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA") && (
+      {/* Manual payment instructions for Bank Alfalah / Easypaisa / JazzCash */}
+      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA" || order.provider === "JAZZCASH") && (
         <div className="w-full rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-left text-sm">
           <p className="font-semibold text-foreground">Payment Instructions</p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -300,12 +304,19 @@ function OrderSuccess({ order }: { order: Order }) {
               <p><strong>Account Number:</strong> 00681011050474</p>
               <p><strong>Currency:</strong> PKR</p>
             </div>
-          ) : (
+          ) : order.provider === "EASYPAISA" ? (
             <div className="mt-3 space-y-1 text-xs">
               <p><strong>Bank:</strong> Easypaisa (Telenor Microfinance Bank)</p>
               <p><strong>Account Title:</strong> Playbeat Digital</p>
               <p><strong>Account Number:</strong> 03390005715</p>
               <p><strong>IBAN:</strong> PK25TMFB03390005715</p>
+              <p><strong>Currency:</strong> PKR</p>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-1 text-xs">
+              <p><strong>JazzCash Mobile Account:</strong> 03390005715</p>
+              <p><strong>Account Title:</strong> Playbeat Digital</p>
+              <p><strong>How to pay:</strong> JazzCash app → Send Money → Mobile Account, or dial *786#</p>
               <p><strong>Currency:</strong> PKR</p>
             </div>
           )}
@@ -316,7 +327,7 @@ function OrderSuccess({ order }: { order: Order }) {
       )}
 
       {/* Payment proof upload form for manual payments */}
-      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA") && (
+      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA" || order.provider === "JAZZCASH") && (
         <PaymentProofForm order={order} />
       )}
 
@@ -421,11 +432,10 @@ export function CartSheet() {
     setPlacing(true);
     try {
       if (provider === "JAZZCASH") {
-        // JazzCash — live Pakistani payment gateway.
-        // 1. Create the order record locally (PENDING).
-        // 2. Create a JazzCash transaction with the order total.
-        // 3. Build + submit a POST form to the JazzCash gateway URL so the
-        //    browser redirects the customer to the JazzCash payment page.
+        // JazzCash — MANUAL payment: create order as PENDING, show the
+        // JazzCash mobile account number in the order confirmation, customer
+        // sends money via JazzCash app / *786# and submits the transaction ID
+        // + screenshot. No live gateway redirect (was erroring out).
         const orderResult = await api.placeOrder({
           items: cart.map((c) => ({ productId: c.product.id })),
           customerName: name.trim(),
@@ -433,30 +443,8 @@ export function CartSheet() {
           couponCode: appliedCoupon?.code,
           provider: "JAZZCASH",
         });
-        const txn = await api.jazzcashCreate({
-          amount: total,
-          description: cart
-            .map((c) => `${c.product.title} ×${c.quantity}`)
-            .join(", ")
-            .slice(0, 255),
-          billReference: orderResult.order.orderNumber.slice(0, 24),
-          customerEmail: email.trim(),
-        });
-        // Submit the signed params to the JazzCash gateway via a hidden form.
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = txn.gatewayUrl;
-        for (const [key, val] of Object.entries(txn.params)) {
-          const input = document.createElement("input");
-          input.type = "hidden";
-          input.name = key;
-          input.value = val;
-          form.appendChild(input);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        toast.success("Redirecting to JazzCash to complete payment…");
         setPlacedOrder(orderResult.order);
+        toast.success(`Order ${orderResult.order.orderNumber} created — see JazzCash payment instructions below`);
         clearCart();
       } else if (provider === "CRYPTO") {
         // Crypto (Binance) — create order, then redirect to crypto payment page
