@@ -67,9 +67,9 @@ export async function GET() {
       "/wc/store/v1/checkout": { methods: ["GET", "POST"] },
     },
     authentication: {
-      application-passwords: {
+      "application-passwords": {
         endpoints: {
-          authorization: "https://playbeat.digital/wp-admin/authorize-application.php",
+          authorization: "https://playbeat.digital/wp-admin/authorize-application",
         },
       },
       wc_v3: {
