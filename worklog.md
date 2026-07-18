@@ -1818,3 +1818,81 @@ Work Log:
 
 Stage Summary:
 - Xtream Codes is now a first-class, persisted per-subscriber feature in the IPTV module. Each subscriber can have a real Xtream profile (name + host URL + username + password) with an auto-generated M3U URL, editable and clearable from the credentials drawer. The "Add Xtream" channel-import button now runs through a server-side proxy (fixing the CORS issue that would have blocked the previous client-side fetch in production). All 7 new fields are stored in MongoDB on the IptvSubscriber collection and surfaced through the subscribers list + action + credentials API routes.
+
+---
+Task ID: wpcom-ai-gateway
+Agent: Main (Z.ai Code)
+Task: Connect PlayBeat to the real WordPress.com site (playbeatdotdigital.wordpress.com) + integrate the Vercel AI Gateway (https://ai-gateway.vercel.sh/v1) as an AI provider in the admin
+
+Work Log:
+
+### Part A — Vercel AI Gateway integration
+
+1. **`src/lib/ai-gateway.ts`** — NEW. OpenAI-compatible client for the Vercel AI Gateway at `https://ai-gateway.vercel.sh/v1`.
+   - `getAiGatewayApiKey()` — resolves the key from the `ai_gateway` Settings row first (so admins can set it in the UI without redeploying), falling back to the `AI_GATEWAY_API_KEY` env var.
+   - `isAiGatewayConfigured()` — boolean check.
+   - `listAiGatewayModels()` — `GET /v1/models` → `{ configured, baseUrl, models[], error? }`. Handles timeouts (20s) and non-OK responses with helpful messages.
+   - `streamAiGatewayChat({ model, messages, temperature?, maxTokens? })` — `POST /v1/chat/completions` with `stream: true`, returns the raw `Response` so the caller can pipe the SSE body. 120s timeout.
+   - `saveAiGatewayApiKey()` / `clearAiGatewayApiKey()` — upserts/deletes the `ai_gateway` Settings row (stored as `{ apiKey, updatedAt }` JSON).
+
+2. **`src/app/api/v1/ai/models/route.ts`** — NEW. `GET` → proxies `listAiGatewayModels()`. "Not configured" is NOT an error (returns `{ configured: false }`); only surfaces 502 if the gateway was reachable but returned an error.
+
+3. **`src/app/api/v1/ai/chat/route.ts`** — NEW. `POST` streaming chat. Validates `{ model, messages }`, normalizes messages to `{role, content}` with role ∈ {system,user,assistant}, then calls `streamAiGatewayChat()` and pipes the gateway's OpenAI-compatible SSE body straight to the client with `text/event-stream` + streaming-friendly headers (`no-cache`, `Connection: keep-alive`, `X-Accel-Buffering: no`). On error returns JSON `{ success:false, error:{message} }` with the right status. Guards: 401 if no key configured, 422 for missing/invalid body.
+
+4. **`src/app/api/v1/ai/key/route.ts`** — NEW. `GET` → `{ configured }` (never returns the key). `POST` with `{ apiKey }` validates format (`sk-…`, `vck_…`, or 20+ char alphanum) and saves; `POST` with `{ clear: true }` clears.
+
+5. **`src/lib/api-client.ts`** — Added 5 methods: `aiKeyStatus`, `aiKeySet`, `aiKeyClear`, `aiModels`, plus (for Part B) `wordpressConnection`, `wordpressConnectionSave`, `wordpressConnectionClear`.
+
+6. **`src/components/playbeat/admin/ai-tools.tsx`** — Added the `AiGatewayPlayground` component (rendered at the top of the AI Tools module, above the existing product grid). Full streaming chat UI:
+   - **Key setup card** (amber, when not configured): password input + "Save Key" button → `api.aiKeySet()`. Links to the Vercel dashboard.
+   - **Connected badge** (emerald, when configured): "API key saved — models are ready" + "Remove key" button.
+   - **Model picker** (shadcn Select) — loads all gateway models via `api.aiModels()`, auto-selects the first, shows model id + provider.
+   - **System prompt** textarea (editable, defaults to "You are a helpful assistant for the PlayBeat Digital store.").
+   - **Chat transcript** (max-h-96, auto-scrolls): user bubbles (purple, right-aligned) + assistant bubbles (muted, left-aligned) with copy button. Empty state with Bot icon.
+   - **Streaming**: on Send, `fetch('/api/v1/ai/chat')` → reads the `ReadableStream` → parses `data: {…}` SSE chunks → extracts `choices[0].delta.content` → accumulates into a live "streaming" bubble with a blinking cursor. On `[DONE]` or stream end, finalizes the assistant message into the transcript. Enter to send, Shift+Enter for newline. Stop button (AbortController) cancels mid-stream and keeps the partial text. Clear button resets the transcript.
+   - Added the `ChatBubble` sub-component (system/user/assistant variants).
+   - Imports added: `Label`, `Textarea`, `Select`/`SelectContent`/`SelectItem`/`SelectTrigger`/`SelectValue`, lucide `KeyRound`, `Send`, `Loader2`, `Trash2`, `Zap`, `ExternalLink`, `Copy`.
+
+### Part B — Real WordPress.com connection
+
+7. **`src/lib/wordpress.ts`** — NEW. Runtime-configurable WordPress connection resolver.
+   - `getWordPressConnection()` — loads from the `wordpress_connection` Settings row first (DB takes precedence), falls back to `WORDPRESS_API_URL`/`WORDPRESS_USERNAME`/`WORDPRESS_APP_PASSWORD` env vars, finally null.
+   - `isWordPressConfigured()` / `wpAuthHeader(conn)` — builds the Basic auth header (strips extra spaces from app passwords for client compatibility).
+   - `saveWordPressConnection({ apiUrl, username, appPassword, label })` — validates URL scheme, upserts the Settings row. Auto-detects `isWpCom` via `\.wordpress\.com/` regex.
+   - `clearWordPressConnection()` — deletes the Settings row.
+   - `testWordPressConnection(conn)` — hits `GET /users/me` with Basic auth; maps 401/403 → "Authentication failed", 404 → "REST API not found", timeout → "Timed out", success → returns `{ ok, message, user: {id, name, username} }`.
+
+8. **`src/app/api/v1/wordpress/connection/route.ts`** — NEW. `GET` → `{ configured, apiUrl, username, label, isWpCom, updatedAt }` (never returns the password). `POST` `{ apiUrl, username, appPassword, label?, test? }` → saves + optionally tests (default test:true). `DELETE` → clears.
+
+9. **`src/lib/woocommerce.ts`** — Updated `getWordPressPosts()` to prefer the DB-backed connection (`getWordPressConnection()` + `wpAuthHeader(conn)`) over the env vars, with env as fallback. Added the import + a doc note.
+
+10. **`src/app/api/v1/wordpress/account/route.ts`** — Updated both GET and POST to use `getWordPressConnection()` first, env fallback. The GET now reports `available`/`apiUrl` from the DB connection if set. POST builds the auth header from the DB connection when available, so "Create Account" syncs to the real WP.com site.
+
+11. **`src/components/playbeat/admin/wordpress.tsx`** — Added the `WordPressConnectionCard` component (rendered at the top of the WordPress CMS module, before the Studio card). 
+    - Header: "WordPress Connection" + Connected/Not connected badge + "WordPress.com" badge when isWpCom.
+    - **Connected state** (emerald summary): label, API URL (mono), "Signed in as {username}", updated timestamp, "Open site" link (strips `/wp-json/wp/v2` to get the site root), "Disconnect" button.
+    - **Not-connected state** (amber): explains to connect the real WP.com site.
+    - **Setup form** (always visible): API URL (prefilled with `https://playbeatdotdigital.wordpress.com/wp-json/wp/v2`), Username, Application Password (type=password, never echoes back), Label. "Save Connection" + "Save & Test" buttons (disabled until all required fields filled).
+    - **Instructions box**: step-by-step how to generate an application password on WordPress.com (WP Admin → Users → Profile → Application Passwords).
+    - Prefills apiUrl/username/label from the existing connection (password left blank — admin re-types to change it).
+    - Added lucide imports: `KeyRound`, `Link2`, `CheckCircle2`, `AlertCircle`, `ShieldCheck`.
+
+### Verification
+- `bun run lint` → exits 0, zero warnings, zero errors (after all files).
+- Dev server running on port 3000, no runtime errors in `dev.log`.
+- API smoke tests (curl):
+  - `GET /api/v1/ai/key` → `{ configured: false }` ✓
+  - `GET /api/v1/ai/models` → `{ configured: false, baseUrl: "https://ai-gateway.vercel.sh/v1", models: [] }` ✓
+  - `GET /api/v1/wordpress/connection` → `{ configured: false }` ✓
+  - `POST /api/v1/wordpress/connection` (dummy creds + test:true) → saved + `test.ok:false` with helpful message (the site `playbeatdotdigital.wordpress.com` returns 404 because it doesn't exist yet — admin needs their real site URL); password NOT echoed back ✓
+  - `GET /api/v1/wordpress/connection` after save → `{ configured: true, apiUrl, username, label, isWpCom:true, updatedAt }` (no password) ✓
+  - `POST /api/v1/ai/key` (dummy key) → saved; `GET /api/v1/ai/key` → `{ configured: true }` ✓
+  - `DELETE /api/v1/wordpress/connection` + `POST /api/v1/ai/key {clear:true}` → both cleared ✓
+- Agent Browser verification (admin at /wp-admin, password playbeat123):
+  - **AI Tools module**: "AI Playground" card renders with "Vercel AI Gateway" badge. When no key is set: amber "Connect your Vercel AI Gateway" prompt + password input + "Save Key" button. No console errors.
+  - **WordPress CMS module**: "WordPress Connection" card renders at the top with "Not connected" amber badge, "No live WordPress site connected" warning, prefilled `https://playbeatdotdigital.wordpress.com/wp-json/wp/v2` URL field, Username + Application Password fields, "Save Connection" + "Save & Test" buttons (disabled until filled), and the application-password instructions box. No console errors.
+
+Stage Summary:
+- **AI Gateway**: The Vercel AI Gateway is now a first-class AI provider in PlayBeat. Admins set their API key once (stored in the DB, never exposed), then get a full streaming chat playground in the AI Tools module — model picker (auto-populates from `GET /v1/models`), editable system prompt, token-by-token streaming, stop/clear. All requests run server-side (`/api/v1/ai/chat` pipes the gateway's SSE straight through), so the key never reaches the browser. Equivalent in spirit to the `wp_ai_client_prompt(...)->using_provider('ai_gateway')` PHP API the user referenced, but in the Next.js stack.
+- **WordPress.com connection**: The WordPress CMS module now has a runtime-configurable connection card. Admins paste their real WordPress.com (or self-hosted WP) REST API URL + username + application password, click "Save & Test", and the system validates against `/users/me`. Once connected, `getWordPressPosts()` and the account-create flow use the DB-backed connection (precedence: DB → env → none), so posts and users sync to the live site. The default URL is prefilled to `https://playbeatdotdigital.wordpress.com/wp-json/wp/v2` to match the user's site. The application password is stored in the DB and never returned to the client.
+- **Note**: The site `playbeatdotdigital.wordpress.com` returned 404 in testing — the admin will need to confirm the exact site slug (or use their real published WP.com site URL). The connection test surfaces this clearly ("REST API not found at that URL…") so it's easy to debug.

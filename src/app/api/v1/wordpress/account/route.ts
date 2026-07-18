@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { ok, error, applyRateLimit } from "@/lib/api";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/auth";
+import { getWordPressConnection, wpAuthHeader } from "@/lib/wordpress";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,10 @@ export async function GET(request: NextRequest) {
   const limited = applyRateLimit(request, 60);
   if (limited) return limited;
 
-  const available = Boolean(process.env.WORDPRESS_API_URL);
-  const apiUrl = process.env.WORDPRESS_API_URL || "http://localhost:8881/wp-json/wp/v2";
+  // Prefer the DB-backed connection; fall back to env.
+  const conn = await getWordPressConnection();
+  const available = Boolean(conn) || Boolean(process.env.WORDPRESS_API_URL);
+  const apiUrl = conn?.apiUrl || process.env.WORDPRESS_API_URL || "http://localhost:8881/wp-json/wp/v2";
 
   const setting = await db.settings.findUnique({ where: { key: "wordpress_accounts" } });
   let accounts: WpAccount[] = [];
@@ -50,9 +53,9 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/v1/wordpress/account
- * Creates a WordPress user account. If WORDPRESS_API_URL + WORDPRESS_USERNAME +
- * WORDPRESS_APP_PASSWORD are configured, attempts to create a real WP user via
- * the WP REST API; always stores locally under "wordpress_accounts".
+ * Creates a WordPress user account. If a WordPress connection is configured
+ * (DB-backed or env), attempts to create a real WP user via the WP REST API;
+ * always stores locally under "wordpress_accounts".
  *
  * Body: { name, email, password }
  */
@@ -91,11 +94,17 @@ export async function POST(request: NextRequest) {
   let wpUserId: number | undefined;
   let wpError: string | undefined;
 
-  // If WP is configured, try to also create the user remotely
-  const apiUrl = process.env.WORDPRESS_API_URL;
-  const wpUser = process.env.WORDPRESS_USERNAME;
-  const wpPass = process.env.WORDPRESS_APP_PASSWORD;
-  if (apiUrl && wpUser && wpPass) {
+  // If WP is configured, try to also create the user remotely.
+  // Prefer the DB-backed connection; fall back to env vars.
+  const conn = await getWordPressConnection();
+  const apiUrl = conn?.apiUrl || process.env.WORDPRESS_API_URL;
+  const authHeader = conn
+    ? wpAuthHeader(conn)
+    : (process.env.WORDPRESS_USERNAME && process.env.WORDPRESS_APP_PASSWORD
+        ? `Basic ${Buffer.from(`${process.env.WORDPRESS_USERNAME}:${process.env.WORDPRESS_APP_PASSWORD}`).toString("base64")}`
+        : null);
+
+  if (apiUrl && authHeader) {
     try {
       const base = apiUrl.replace(/\/$/, "");
       const url = new URL(`${base}/users`);
@@ -104,7 +113,7 @@ export async function POST(request: NextRequest) {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
-          Authorization: `Basic ${Buffer.from(`${wpUser}:${wpPass}`).toString("base64")}`,
+          Authorization: authHeader,
         },
         body: JSON.stringify({
           username: email.split("@")[0] + "-" + Math.random().toString(36).slice(2, 6),

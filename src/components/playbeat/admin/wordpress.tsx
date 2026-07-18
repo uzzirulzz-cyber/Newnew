@@ -35,6 +35,11 @@ import {
   Video,
   Music,
   ExternalLink,
+  KeyRound,
+  Link2,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -99,6 +104,9 @@ export function AdminWordPress() {
         </a>
       </div>
 
+      {/* WordPress.com / self-hosted connection (runtime-configurable) */}
+      <WordPressConnectionCard />
+
       {/* WordPress Studio + WooCommerce Integration */}
       <WordPressStudioCard />
 
@@ -134,6 +142,236 @@ export function AdminWordPress() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// ============== WordPress Connection Card (runtime-configurable) ==============
+
+function WordPressConnectionCard() {
+  const qc = useQueryClient();
+  const [form, setForm] = React.useState({
+    apiUrl: "https://playbeatdotdigital.wordpress.com/wp-json/wp/v2",
+    username: "",
+    appPassword: "",
+    label: "PlayBeat WP.com",
+  });
+  const [saving, setSaving] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+
+  const { data: conn, isLoading } = useQuery({
+    queryKey: ["wordpress-connection"],
+    queryFn: () => api.wordpressConnection(),
+    staleTime: 30_000,
+  });
+
+  const configured = conn?.configured === true;
+
+  // Prefill the form when an existing connection loads.
+  React.useEffect(() => {
+    if (conn?.configured) {
+      setForm((f) => ({
+        apiUrl: conn.apiUrl || f.apiUrl,
+        username: conn.username || "",
+        appPassword: "", // never echo the password back; admin re-types to change
+        label: conn.label || "PlayBeat WP.com",
+      }));
+    }
+  }, [conn]);
+
+  const handleSave = async (test: boolean) => {
+    if (!form.apiUrl || !form.username || !form.appPassword) {
+      toast.error("API URL, username and application password are all required");
+      return;
+    }
+    if (test) setTesting(true);
+    else setSaving(true);
+    try {
+      const res = await api.wordpressConnectionSave({
+        apiUrl: form.apiUrl,
+        username: form.username,
+        appPassword: form.appPassword,
+        label: form.label || undefined,
+        test,
+      });
+      if (res.test) {
+        if (res.test.ok) {
+          toast.success(res.test.message || "Connection test succeeded");
+        } else {
+          toast.error(res.test.message || "Connection test failed");
+        }
+      } else {
+        toast.success(res.message || "WordPress connection saved");
+      }
+      qc.invalidateQueries({ queryKey: ["wordpress-connection"] });
+      qc.invalidateQueries({ queryKey: ["wordpress-posts"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to save WordPress connection");
+    } finally {
+      setSaving(false);
+      setTesting(false);
+    }
+  };
+
+  const handleClear = async () => {
+    if (!confirm("Remove the stored WordPress connection?")) return;
+    try {
+      const res = await api.wordpressConnectionClear();
+      toast.success(res.message || "Connection cleared");
+      qc.invalidateQueries({ queryKey: ["wordpress-connection"] });
+      qc.invalidateQueries({ queryKey: ["wordpress-posts"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to clear connection");
+    }
+  };
+
+  return (
+    <Card className="border-blue-500/30">
+      <CardHeader className="border-b bg-blue-50/50 dark:bg-blue-950/20">
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Link2 size={16} className="text-blue-600" />
+            WordPress Connection
+            {isLoading ? (
+              <Loader2 size={12} className="animate-spin text-muted-foreground" />
+            ) : configured ? (
+              <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+                <CheckCircle2 size={10} className="mr-1" /> Connected
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-100 text-amber-700 text-[10px]">
+                <AlertCircle size={10} className="mr-1" /> Not connected
+              </Badge>
+            )}
+          </CardTitle>
+          {configured && conn?.isWpCom && (
+            <Badge variant="outline" className="text-[10px]">
+              <Globe size={10} className="mr-1" /> WordPress.com
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 space-y-3.5">
+        {/* Status summary */}
+        {configured ? (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-1.5">
+            <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+              <ShieldCheck size={14} /> {conn?.label || "WordPress site connected"}
+            </div>
+            <div className="text-xs text-muted-foreground space-y-0.5">
+              <p><span className="font-mono">{conn?.apiUrl}</span></p>
+              <p>Signed in as <span className="font-medium text-foreground">{conn?.username}</span>{conn?.updatedAt ? ` · updated ${new Date(conn.updatedAt).toLocaleString()}` : ""}</p>
+            </div>
+            <div className="flex gap-2 pt-1">
+              {conn?.apiUrl && (
+                <a
+                  href={conn.apiUrl.replace(/\/wp-json\/wp\/v2\/?$/, "")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  <ExternalLink size={11} /> Open site
+                </a>
+              )}
+              <button
+                onClick={handleClear}
+                className="inline-flex items-center gap-1 text-[11px] text-destructive hover:underline"
+              >
+                <Trash2 size={11} /> Disconnect
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+            <p className="font-medium flex items-center gap-1.5 mb-1">
+              <AlertCircle size={12} /> No live WordPress site connected
+            </p>
+            <p className="text-amber-700/80 dark:text-amber-400/80">
+              Connect your real WordPress.com site (e.g. <span className="font-mono">playbeatdotdigital.wordpress.com</span>) so posts,
+              pages and users sync to the live site instead of the local Studio instance.
+            </p>
+          </div>
+        )}
+
+        {/* Setup form (always visible so the admin can edit/clear) */}
+        <div className="space-y-2.5">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
+            {configured ? "Update connection" : "Connect a WordPress site"}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs">WordPress REST API URL *</Label>
+              <Input
+                value={form.apiUrl}
+                onChange={(e) => setForm({ ...form, apiUrl: e.target.value })}
+                placeholder="https://playbeatdotdigital.wordpress.com/wp-json/wp/v2"
+                className="text-xs font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                For WordPress.com sites use <span className="font-mono">https://&lt;site&gt;.wordpress.com/wp-json/wp/v2</span>
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Username *</Label>
+              <Input
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="Your WP.com username"
+                className="text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Application Password *</Label>
+              <Input
+                type="password"
+                value={form.appPassword}
+                onChange={(e) => setForm({ ...form, appPassword: e.target.value })}
+                placeholder="xxxx xxxx xxxx xxxx"
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs">Label (optional)</Label>
+              <Input
+                value={form.label}
+                onChange={(e) => setForm({ ...form, label: e.target.value })}
+                placeholder="e.g. PlayBeat WP.com"
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button
+              size="sm"
+              onClick={() => handleSave(false)}
+              disabled={saving || testing || !form.apiUrl || !form.username || !form.appPassword}
+              className="gap-1.5"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+              {configured ? "Update" : "Save"} Connection
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleSave(true)}
+              disabled={saving || testing || !form.apiUrl || !form.username || !form.appPassword}
+              className="gap-1.5"
+            >
+              {testing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+              {testing ? "Testing…" : "Save & Test"}
+            </Button>
+          </div>
+
+          <div className="rounded-md border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/10 p-2.5 text-[11px] text-muted-foreground">
+            <strong className="text-foreground">How to get an application password:</strong>{" "}
+            On WordPress.com go to{" "}
+            <span className="font-mono">your site → WP Admin → Users → Profile → Application Passwords</span>
+            , enter a name (e.g. &ldquo;PlayBeat&rdquo;) and click <span className="font-mono">Add New Application Password</span>.
+            Copy the generated password (spaces included) into the field above.
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

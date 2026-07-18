@@ -1034,6 +1034,41 @@ export const api = {
       `/admin/cms/blog/${encodeURIComponent(id)}`,
       { method: "DELETE" },
     ),
+
+  // ===== AI Gateway (Vercel AI Gateway — OpenAI-compatible) =====
+  /** Whether an AI Gateway API key is configured (never returns the key). */
+  aiKeyStatus: () => apiFetch<{ configured: boolean }>(`/ai/key`),
+  /** Save the AI Gateway API key to the DB. */
+  aiKeySet: (apiKey: string) =>
+    apiFetch<{ configured: boolean; message: string }>(`/ai/key`, {
+      method: "POST",
+      body: JSON.stringify({ apiKey }),
+    }),
+  /** Clear the stored AI Gateway API key. */
+  aiKeyClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/ai/key`, {
+      method: "POST",
+      body: JSON.stringify({ clear: true }),
+    }),
+  /** List models available through the AI Gateway. */
+  aiModels: () =>
+    apiFetch<{ configured: boolean; baseUrl: string; models: any[]; error?: string }>(`/ai/models`),
+
+  // ===== WordPress connection (DB-backed, runtime-configurable) =====
+  /** Get the current WordPress connection status (never returns the password). */
+  wordpressConnection: () =>
+    apiFetch<{ configured: boolean; apiUrl?: string; username?: string; label?: string; isWpCom?: boolean; updatedAt?: string }>(
+      `/wordpress/connection`,
+    ),
+  /** Save + test a WordPress connection. */
+  wordpressConnectionSave: (payload: { apiUrl: string; username: string; appPassword: string; label?: string; test?: boolean }) =>
+    apiFetch<{ configured: boolean; apiUrl: string; username: string; label?: string; isWpCom: boolean; updatedAt: string; test?: { ok: boolean; message: string; user?: any }; message: string }>(
+      `/wordpress/connection`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+  /** Clear the stored WordPress connection. */
+  wordpressConnectionClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/wordpress/connection`, { method: "DELETE" }),
 };
 
 // ===== Utilities =====
