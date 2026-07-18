@@ -111,7 +111,7 @@ export function ProductDetailSheet() {
         content_type: "product",
         content_ids: [product.id],
         value: product.effectivePrice,
-        currency: product.currency || "USD",
+        currency: product.currency || "PKR",
       });
     }
   }, [slug, product]);

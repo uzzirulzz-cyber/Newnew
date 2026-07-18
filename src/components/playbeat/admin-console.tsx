@@ -403,7 +403,7 @@ function SettingsTab() {
     CRYPTO: false,
   });
   const [commission, setCommission] = React.useState(15);
-  const [currency, setCurrency] = React.useState("USD");
+  const [currency, setCurrency] = React.useState("PKR");
   const [maintenance, setMaintenance] = React.useState(false);
   const [siteName, setSiteName] = React.useState("PlayBeat Storefront");
   const [saving, setSaving] = React.useState(false);

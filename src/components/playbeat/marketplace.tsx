@@ -486,7 +486,7 @@ function FilterBar({
         </div>
         <div className="flex gap-2">
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Min $</Label>
+            <Label className="text-xs text-muted-foreground">Min Rs</Label>
             <Input
               type="number"
               min={0}
@@ -503,7 +503,7 @@ function FilterBar({
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Max $</Label>
+            <Label className="text-xs text-muted-foreground">Max Rs</Label>
             <Input
               type="number"
               min={0}
