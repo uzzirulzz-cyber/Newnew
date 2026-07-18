@@ -549,6 +549,9 @@ export const api = {
     apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/toggle`, { method: "POST", body: JSON.stringify(payload) }),
   adminGatewayTestMode: (payload: { id: string; testMode: boolean }) =>
     apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/test-mode`, { method: "POST", body: JSON.stringify(payload) }),
+  /** Update a gateway's editable fields: name, config, supportedCurrencies. */
+  adminGatewayUpdate: (payload: { id: string; name?: string; config?: Record<string, unknown>; supportedCurrencies?: string[] }) =>
+    apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/update`, { method: "POST", body: JSON.stringify(payload) }),
 
   // ===== Developer =====
   adminApiKeys: () =>
@@ -871,10 +874,10 @@ export const api = {
     apiFetch<{ items: any[]; total: number }>(
       `/admin/payments/submissions${status ? `?status=${status}` : ""}`,
     ),
-  adminPaymentSubmissionAction: (id: string, status: "confirmed" | "rejected") =>
-    apiFetch<{ submission: any }>(`/admin/payments/submissions/${id}`, {
+  adminPaymentSubmissionAction: (id: string, status: "confirmed" | "rejected", adminNote?: string) =>
+    apiFetch<{ submission: any; message?: string }>(`/admin/payments/submissions/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, adminNote }),
     }),
 
   // ===== Social Media Posts =====

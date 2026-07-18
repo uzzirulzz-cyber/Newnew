@@ -479,11 +479,11 @@ export function AdminConsole() {
       case "jazzcash":
         return <AdminJazzCash />;
       case "payments":
+        return <AdminPayments />;
       case "payment-submissions":
+        return <PaymentSubmissions />;
       case "social-media":
         return <SocialMediaModule />;
-        return <PaymentSubmissions />;
-        return <AdminPayments />;
       case "reports":
         return <AdminReports />;
       case "marketing":

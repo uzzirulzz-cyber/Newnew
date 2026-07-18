@@ -1896,3 +1896,89 @@ Stage Summary:
 - **AI Gateway**: The Vercel AI Gateway is now a first-class AI provider in PlayBeat. Admins set their API key once (stored in the DB, never exposed), then get a full streaming chat playground in the AI Tools module — model picker (auto-populates from `GET /v1/models`), editable system prompt, token-by-token streaming, stop/clear. All requests run server-side (`/api/v1/ai/chat` pipes the gateway's SSE straight through), so the key never reaches the browser. Equivalent in spirit to the `wp_ai_client_prompt(...)->using_provider('ai_gateway')` PHP API the user referenced, but in the Next.js stack.
 - **WordPress.com connection**: The WordPress CMS module now has a runtime-configurable connection card. Admins paste their real WordPress.com (or self-hosted WP) REST API URL + username + application password, click "Save & Test", and the system validates against `/users/me`. Once connected, `getWordPressPosts()` and the account-create flow use the DB-backed connection (precedence: DB → env → none), so posts and users sync to the live site. The default URL is prefilled to `https://playbeatdotdigital.wordpress.com/wp-json/wp/v2` to match the user's site. The application password is stored in the DB and never returned to the client.
 - **Note**: The site `playbeatdotdigital.wordpress.com` returned 404 in testing — the admin will need to confirm the exact site slug (or use their real published WP.com site URL). The connection test surfaces this clearly ("REST API not found at that URL…") so it's easy to debug.
+
+---
+Task ID: fix-payment-gateways-proof
+Agent: Main (Z.ai Code)
+Task: Fix and apply settings for the Payment Gateways + Payment Proof admin modules
+
+Work Log:
+
+### Root cause found: broken switch-case routing in admin index
+
+1. **`src/components/playbeat/admin/index.tsx`** — CRITICAL BUG FIXED. The module router had a broken fall-through:
+   ```ts
+   case "payments":
+   case "payment-submissions":
+   case "social-media":
+     return <SocialMediaModule />;
+     return <PaymentSubmissions />;  // unreachable
+     return <AdminPayments />;       // unreachable
+   ```
+   This meant clicking "Payment Gateways" or "Payment Proof" in the admin nav rendered the **Social Media** module instead. Fixed by giving each case its own return:
+   ```ts
+   case "payments":              return <AdminPayments />;
+   case "payment-submissions":   return <PaymentSubmissions />;
+   case "social-media":          return <SocialMediaModule />;
+   ```
+
+### Payment Gateways module (`src/components/playbeat/admin/payments.tsx`) — rewrote
+
+2. **Settings dialog was a dummy toast** — the gear icon just showed `toast.info("Opening gateway settings...")` and did nothing. Replaced with a full `GatewaySettingsDialog`:
+   - **Gateway Name** — editable text field.
+   - **Configuration editor** — renders existing config as key/value rows. Each row has a field-name input + a value input. Sensitive keys (password, secret, apiKey, consumerSecret, privateKey, appPassword, hashKey, salt — matched case-insensitively) render as `type=password` and show `••••••••` as the placeholder; if the admin doesn't change the masked value, the original is preserved (not overwritten with dots). "Add field" button adds an empty row; X button removes a row.
+   - **Supported Currencies** — add/remove badges. Type a currency code (PKR, USD, etc.) → Enter or "Add" → badge with X to remove. Uppercased automatically.
+   - Save → `api.adminGatewayUpdate({ id, name, config, supportedCurrencies })` → toast + dialog closes + list refreshes.
+
+3. **Volume was in `$`** — changed to use `formatInCurrency(volume, currency)` where currency is the gateway's first supported currency. For non-PKR/USD currencies (BTC, ETH, etc.) it falls back to `{volume} {currency}` since the Currency type only supports PKR/USD.
+
+4. **Live/Test toggle was confusing** — the old button showed the *opposite* state (when testMode=true, button said "Live" meaning "click to go live"). Now:
+   - A clear badge under the status: "Live" (emerald) or "Test Mode" (amber), only shown when enabled.
+   - The toggle button says "Go Live" (when in test mode) or "Use Test" (when live) — disabled when the gateway is disabled.
+   - The toggle toast now says `"{name} switched to {Live/Test} mode"`.
+
+5. **Added stats badges** in the header: "{enabled}/{total} enabled" + "{live} live" (live = enabled && !testMode).
+
+6. **Added supported-currencies badges** on each gateway card.
+
+7. **Per-row loading state** — `togglingId` tracks which gateway is being toggled/test-mode-switched, showing a spinner on its buttons.
+
+8. New API route **`src/app/api/v1/admin/finance/gateways/update/route.ts`** — POST with `{ id, name?, config?, supportedCurrencies? }`. Validates config is an object and supportedCurrencies is an array. Returns the full updated gateway (config + currencies parsed back from JSON). 404 if gateway not found.
+
+9. **`src/lib/api-client.ts`** — Added `adminGatewayUpdate({ id, name?, config?, supportedCurrencies? })` method.
+
+### Payment Proof module (`src/components/playbeat/admin/payment-submissions.tsx`) — rewrote
+
+10. **Title mismatch** — heading was "Payment Submissions" but the admin nav said "Payment Proof". Changed heading to "Payment Proof" + description "Review and verify customer payment submissions".
+
+11. **No stats summary** — added a 4-card stats row: Pending (amber), Confirmed (green), Rejected (red), Confirmed Volume (blue, uses `formatInCurrency`). The stats always reflect ALL submissions regardless of the active filter (separate `["payment-submissions","all"]` query).
+
+12. **Filter tabs now show counts** — "Pending (3)", "Confirmed (5)", "Rejected (1)", "All".
+
+13. **No date column** — added a "Date" column showing `createdAt` formatted as "Mon DD, HH:MM".
+
+14. **Reject had no admin note** — the API supported `adminNote` but the UI didn't collect it. Added a reject dialog that shows the submission summary (customer, order number, amount, transaction ID) + a textarea for the rejection reason. The note is stored on the submission and displayed as a truncated quote under the status badge for rejected submissions.
+
+15. **Amount formatting** — was "Rs {amount}" hardcoded. Now uses `formatInCurrency(amount, currency)` with the submission's currency.
+
+16. **Method badges** — added colored method badges (Bank Alfalah=red, Easypaisa=green, JazzCash=orange, PayPal=blue, Crypto=amber) with proper labels.
+
+17. **Screenshot viewer enhanced** — the old viewer just showed the image. Now shows a transaction-details panel (customer, amount, method, transaction ID) above the screenshot, plus inline Confirm/Reject buttons so the admin can act directly from the viewer.
+
+18. **`src/lib/api-client.ts`** — Updated `adminPaymentSubmissionAction` to accept an optional `adminNote` parameter and pass it through in the PATCH body.
+
+### Verification
+- `bun run lint` → exits 0, zero warnings, zero errors.
+- Dev server running, no runtime errors in `dev.log`.
+- API test: `POST /api/v1/admin/finance/gateways/update` with JazzCash config `{merchantId, mode, returnUrl}` + currencies `["PKR"]` → saved + verified the config persisted via GET.
+- Agent Browser verification (admin at /wp-admin, password playbeat123):
+  - **Before the routing fix**: clicking "Payment Gateways" or "Payment Proof" in the nav rendered the Social Media module (confirmed via `heading "Social Media"`).
+  - **After the routing fix**: clicking "Payment Gateways" → heading "Payment Gateways", all 5 gateways render (JazzCash, Bank Alfalah, Easypaisa, PayPal, Crypto) with Active/Live badges, volume in PKR, supported-currency badges, Enable/Disable + Go Live/Use Test + Configure buttons. Header shows "5/5 enabled" + "5 live".
+  - Opening the Configure dialog for JazzCash → "Configure JazzCash" dialog with Gateway Name field, Configuration section showing existing config rows (merchantId, mode, returnUrl), Supported Currencies section with PKR badge, Save Settings + Cancel buttons.
+  - Clicking "Payment Proof" → heading "Payment Proof", 4 stats cards (Pending 0, Confirmed 0, Rejected 0, Confirmed Volume), filter tabs with counts, empty state "No pending payment submissions".
+  - No console errors, no dev.log runtime errors.
+
+Stage Summary:
+- The root cause of both modules being broken was a single switch-case fall-through bug in `src/components/playbeat/admin/index.tsx` — `case "payments"` and `case "payment-submissions"` fell through to `case "social-media"`, so both payment modules were unreachable dead code. Fixed.
+- Payment Gateways now has a fully functional settings dialog (edit name, config key/value pairs with sensitive-field masking, supported currencies), currency-aware volume display, clear Live/Test mode badges, and per-row loading states. New `/api/v1/admin/finance/gateways/update` route backs it.
+- Payment Proof now has a proper title, 4-card stats summary, date column, method badges with colors, a reject dialog that collects an admin note, an enhanced screenshot viewer with transaction details + inline actions, and consistent currency formatting.
