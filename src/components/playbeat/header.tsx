@@ -435,7 +435,7 @@ function CurrencyToggle() {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <p className="px-2 py-1.5 text-[10px] leading-tight text-muted-foreground">
-          Auto-detected from your region. PKR for Pakistan, USD elsewhere.
+          All prices are in PKR. Switch to USD for converted prices (≈280 PKR = $1).
         </p>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -2034,3 +2034,83 @@ The Stripe gateway is now wired up and enabled, but it will return an error at c
 
 Stage Summary:
 - JazzCash, Easypaisa, and Card (Stripe) are now the three primary direct payment options at checkout, listed first in the dropdown with JazzCash as the default. JazzCash and Easypaisa are fully functional with live credentials. Stripe is wired up and will work once the admin adds the secret key (sk_live_...) to .env. Bank Alfalah (manual), PayPal, and Crypto remain as secondary options. A new "stripe" gateway record was added to the DB so it appears in the Payment Gateways admin module.
+
+---
+Task ID: fix-prices-confirm-gateways
+Agent: Main (Z.ai Code)
+Task: Fix wrong product prices + configure and confirm payment gateways
+
+Work Log:
+
+### Part A — Product price fix (the main bug)
+
+**Root cause**: All product prices are stored in PKR in the DB (e.g. Jasper AI = 3348 PKR). But `detectCurrency()` returned "USD" for any timezone outside Asia/Karachi, and the Zustand store initialized with `detectCurrency()`. So on non-Pakistan servers/browsers, `currency` was "USD", and `formatPrice(3348, "USD")` showed "$3,348.00" — formatting the PKR amount with a dollar symbol WITHOUT converting. A product costing Rs 3,348 (≈$12) was displayed as $3,348.
+
+**Fixes applied (3 files)**:
+
+1. **`src/lib/api-client.ts`** — `formatPrice(amount, currency)`:
+   - PKR branch: unchanged — `Rs 3,348`.
+   - USD branch: now **converts** from PKR → USD at ~280 PKR/USD before formatting. So `formatPrice(3348, "USD")` → "$12.00" instead of "$3,348.00".
+
+2. **`src/lib/api-client.ts`** — `detectCurrency()`:
+   - Was: returned "PKR" only for Asia/Karachi timezone, "USD" everywhere else.
+   - Now: always returns "PKR" (PlayBeat is a Pakistani store, all prices are PKR). Users who want USD can still toggle via the header.
+
+3. **`src/lib/api-client.ts`** — `displayProductPrice(product, currency)`:
+   - Default changed from "USD" to "PKR".
+
+4. **`src/lib/store.ts`** — Zustand persist:
+   - Added `version: 2` + `migrate` function that force-sets `currency` to "PKR" for any v1 persisted state that had "USD". This ensures existing users with "USD" saved in localStorage get migrated to PKR on next load.
+   - Updated the comment on the `currency` field.
+
+5. **`src/components/playbeat/header.tsx`** — currency toggle description:
+   - Was: "Auto-detected from your region. PKR for Pakistan, USD elsewhere."
+   - Now: "All prices are in PKR. Switch to USD for converted prices (≈280 PKR = $1)."
+
+### Part B — Gateway configuration + confirmation
+
+**6 gateways confirmed LIVE** (all enabled=true, testMode=false):
+
+1. **JazzCash** ✓ FULLY FUNCTIONAL
+   - LIVE credentials embedded in `src/lib/jazzcash.ts` (merchantId: MC828331).
+   - Tested `POST /api/v1/payments/jazzcash/create` with amount=499 → returned valid gateway URL (`https://seeds.jazzcash.com.pk/CustomerPortal/...`), txnRef, and signed params. Amount correctly converted to 49900 (paisa).
+   - The cart-sheet POSTs these params to the JazzCash gateway URL, redirecting the customer to the JazzCash payment page.
+   - **Default payment method** at checkout.
+
+2. **Easypaisa** ⚠️ MANUAL FALLBACK (hosted checkout needs Hash Key)
+   - `EASYPAISA_STORE_ID=1282795` is set, but `EASYPAISA_HASH_KEY` is empty.
+   - Tested `POST /api/v1/payments/easypaisa/create` → returns error "Easypaisa is not configured. Set EASYPAISA_STORE_ID and EASYPAISA_HASH_KEY in .env".
+   - The cart-sheet handles this gracefully — shows a toast error then falls back to manual payment instructions (account number 03390005715, IBAN PK25TMFB03390005715).
+   - **Synced the DB gateway config** with .env values so the admin panel shows the correct account details (was showing a different IBAN before).
+   - To enable hosted checkout: admin needs to get the Hash Key from the Easypaisa merchant portal and set `EASYPAISA_HASH_KEY` in .env.
+
+3. **Stripe (Card)** ⚠️ NEEDS SECRET KEY
+   - `STRIPE_SECRET_KEY` in .env is a publishable key (`pk_live_...`), not a secret key (`sk_live_...`).
+   - The `/api/v1/payments/stripe/create` route detects this and returns a clear error: "The provided Stripe key is a publishable key (pk_). For server-side checkout, you need the secret key (sk_live_...). Get it from https://dashboard.stripe.com/apikeys".
+   - To enable card payments: admin needs to add `STRIPE_SECRET_KEY=sk_live_...` to .env.
+
+4. **Bank Alfalah** ✓ MANUAL (working)
+   - Account: 00681011050474, PLAYBEAT DIGITAL (PRIVATE LIMITED). Customer does IBFT/cash deposit, submits TRN + screenshot.
+
+5. **PayPal** ✓ LIVE
+   - Credentials embedded in `src/lib/paypal.ts` (App: PLAYBEAT STORE).
+
+6. **Crypto** ✓ BINANCE PAY
+   - Supports BTC/ETH/USDT/USDC.
+
+### Verification
+- `bun run lint` → exits 0, zero warnings, zero errors.
+- Dev server running, no runtime errors in `dev.log`.
+- Agent Browser verification (storefront at /):
+  - Product prices now show correctly in PKR: "Rs 977" (Netflix), "Rs 698" (Amazon Prime), "Rs 837" (Disney+), "Rs 558" (Canva Pro), "Rs 3,348" (Jasper AI). Was "$3,348.00" before.
+  - Cart sheet: JazzCash is the default payment method, button shows "Pay with JazzCash · Rs 3,348" (was "$3,348.00").
+  - Admin → Payment Gateways: all 6 gateways show "Active" + "Live" badges. JazzCash configure dialog shows merchantId=MC828331, mode=LIVE.
+  - No console errors, no dev.log runtime errors.
+- API tests:
+  - JazzCash create: ✓ SUCCESS (returns valid gateway URL + signed params)
+  - Easypaisa create: returns clear error (needs Hash Key) — cart-sheet falls back to manual
+  - All 6 gateways: enabled=true, testMode=false in DB
+
+Stage Summary:
+- **Product prices fixed**: All prices now display in PKR by default ("Rs 3,348" instead of "$3,348.00"). The root cause was `detectCurrency()` returning USD for non-Pakistan timezones + `formatPrice` not converting PKR→USD. Fixed both: `detectCurrency()` now always returns PKR (Pakistani store), and `formatPrice` USD branch converts at 280 PKR/USD. Added a persist migration (v2) so existing users with USD saved in localStorage are auto-migrated to PKR. The header currency toggle still lets users switch to USD for converted prices.
+- **Gateways confirmed**: JazzCash is fully functional with LIVE credentials (tested — returns valid signed redirect). Easypaisa works in manual mode (hosted checkout needs EASYPAISA_HASH_KEY). Stripe is wired up but needs sk_live_ secret key. All 6 gateways are enabled=true, testMode=false, and visible in the Payment Gateways admin module. JazzCash is the default at checkout.

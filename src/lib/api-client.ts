@@ -1102,12 +1102,14 @@ export const CURRENCY_META: Record<
 };
 
 /**
- * Format a price for display.
+ * Format a PKR price for display.
  *
- * IMPORTANT: Prices in the database are ALREADY in PKR.
- * Do NOT multiply by any exchange rate — just format the number.
+ * All product prices in the DB are stored in PKR. When the display currency is
+ * PKR, the amount is shown as-is ("Rs 3,348"). When the user switches to USD,
+ * the PKR amount is converted at ~280 PKR/USD so 3348 PKR → "$12.00".
  *
- * Example: formatPrice(1674, "PKR") → "Rs 1,674"
+ * Example: formatPrice(3348, "PKR") → "Rs 3,348"
+ * Example: formatPrice(3348, "USD") → "$12.00"
  */
 export function formatPrice(
   amount: number,
@@ -1116,10 +1118,13 @@ export function formatPrice(
   if (currency === "PKR") {
     return `Rs ${Math.round(amount).toLocaleString("en-PK")}`;
   }
+  // USD — convert from PKR (all prices are stored in PKR)
+  const usdAmount = amount / 280;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-  }).format(amount);
+    maximumFractionDigits: 2,
+  }).format(usdAmount);
 }
 
 /**
@@ -1134,17 +1139,14 @@ export function formatInCurrency(
 }
 
 /**
- * Auto-detect the preferred currency from the browser timezone.
- * Pakistan (Asia/Karachi) → PKR, everything else → USD.
+ * Auto-detect the preferred display currency.
+ *
+ * PlayBeat is a Pakistani store — all prices are stored in PKR — so we
+ * default to PKR everywhere. Users can still switch to USD via the header
+ * toggle if they want converted prices.
  */
 export function detectCurrency(): Currency {
-  if (typeof Intl === "undefined") return "USD";
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    return tz === "Asia/Karachi" ? "PKR" : "USD";
-  } catch {
-    return "USD";
-  }
+  return "PKR";
 }
 
 /**
@@ -1160,7 +1162,7 @@ export function detectCurrency(): Currency {
  */
 export function displayProductPrice(
   product: { priceFormatted?: string | null; effectivePrice: number },
-  currency: Currency = "USD",
+  currency: Currency = "PKR",
 ): string {
   if (product.priceFormatted) return product.priceFormatted;
   return formatPrice(product.effectivePrice, currency);
