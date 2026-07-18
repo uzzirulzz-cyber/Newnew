@@ -54,6 +54,7 @@ import {
   AlertTriangle,
   UserX,
   Power,
+  Link2,
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -233,6 +234,14 @@ export function IptvModule() {
   const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
   const [showCreate, setShowCreate] = React.useState(false);
   const [showM3u, setShowM3u] = React.useState(false);
+  const [showXtream, setShowXtream] = React.useState(false);
+  const [xtreamForm, setXtreamForm] = React.useState({
+    profileName: "",
+    hostUrl: "",
+    username: "",
+    password: "",
+  });
+  const [xtreamImporting, setXtreamImporting] = React.useState(false);
   const [selectedSub, setSelectedSub] = React.useState<any | null>(null);
 
   // Per-row loading flags for quick actions / toggles.
@@ -514,17 +523,30 @@ export function IptvModule() {
         </div>
         <div className="flex items-center gap-2">
           {tab === "channels" && (
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                setShowM3u(true);
-                setM3uParsed([]);
-              }}
-            >
-              <Upload size={16} />
-              Import M3U
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  setShowXtream(true);
+                  setXtreamForm({ profileName: "", hostUrl: "", username: "", password: "" });
+                }}
+              >
+                <Link2 size={16} />
+                Add Xtream
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  setShowM3u(true);
+                  setM3uParsed([]);
+                }}
+              >
+                <Upload size={16} />
+                Import M3U
+              </Button>
+            </>
           )}
           <Button onClick={() => setShowCreate(true)} className="gap-2">
             <Plus size={16} />
@@ -1200,6 +1222,108 @@ export function IptvModule() {
                   : `Import ${m3uParsed.length} Channel${m3uParsed.length === 1 ? "" : "s"}`}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Xtream Codes dialog */}
+      <Dialog open={showXtream} onOpenChange={setShowXtream}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Xtream Codes Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Profile Name *</Label>
+              <Input
+                value={xtreamForm.profileName}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, profileName: e.target.value })}
+                placeholder="e.g. Main Server"
+              />
+            </div>
+            <div>
+              <Label>Host URL *</Label>
+              <Input
+                value={xtreamForm.hostUrl}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, hostUrl: e.target.value })}
+                placeholder="http://your-server.com:8080"
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">The Xtream Codes server URL (with port)</p>
+            </div>
+            <div>
+              <Label>Username *</Label>
+              <Input
+                value={xtreamForm.username}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, username: e.target.value })}
+                placeholder="Your Xtream username"
+              />
+            </div>
+            <div>
+              <Label>Password *</Label>
+              <Input
+                type="password"
+                value={xtreamForm.password}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, password: e.target.value })}
+                placeholder="Your Xtream password"
+              />
+            </div>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              <strong className="text-foreground">How it works:</strong> Enter your Xtream Codes
+              credentials. The system will fetch all live channels, VOD, and series from your
+              Xtream provider and import them into the channel list.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowXtream(false)}>Cancel</Button>
+            <Button
+              disabled={xtreamImporting || !xtreamForm.profileName || !xtreamForm.hostUrl || !xtreamForm.username || !xtreamForm.password}
+              onClick={async () => {
+                setXtreamImporting(true);
+                try {
+                  // Fetch channels from Xtream Codes API
+                  const { hostUrl, username, password, profileName } = xtreamForm;
+                  const apiUrl = `${hostUrl}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`;
+
+                  const res = await fetch(apiUrl);
+                  const streams = await res.json();
+
+                  if (!Array.isArray(streams)) {
+                    toast.error("Failed to fetch channels from Xtream server");
+                    setXtreamImporting(false);
+                    return;
+                  }
+
+                  // Import each stream as a channel
+                  let imported = 0;
+                  for (const stream of streams.slice(0, 500)) {
+                    try {
+                      await api.adminIptvChannelCreate({
+                        name: stream.name || `Channel ${stream.stream_id}`,
+                        streamUrl: `${hostUrl}/live/${username}/${password}/${stream.stream_id}.m3u8`,
+                        logoUrl: stream.stream_icon || "",
+                        category: stream.category_name || "Xtream",
+                        country: "",
+                        isHD: (stream.name || "").includes("HD") || (stream.name || "").includes("4K"),
+                      });
+                      imported++;
+                    } catch {}
+                  }
+
+                  toast.success(`Imported ${imported} channels from Xtream "${profileName}"`);
+                  setShowXtream(false);
+                  qc.invalidateQueries({ queryKey: ["admin-iptv-channels"] });
+                  qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+                } catch (e) {
+                  toast.error("Failed to connect to Xtream server — check host URL and credentials");
+                } finally {
+                  setXtreamImporting(false);
+                }
+              }}
+              className="gap-2"
+            >
+              {xtreamImporting ? <Loader2 className="size-4 animate-spin" /> : <Link2 size={16} />}
+              {xtreamImporting ? "Importing..." : "Import Channels"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
