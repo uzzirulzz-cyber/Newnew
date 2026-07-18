@@ -169,3 +169,199 @@ export async function testConnection(
     };
   }
 }
+
+// === Settings API ===
+// https://developer.woocommerce.com/docs/extensions/settings-and-config/settings-api/
+
+export async function getSettings(group: string = "general"): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get(`/settings/${group}`);
+    return res.data;
+  } catch (e) {
+    console.error("[woocommerce] getSettings error:", e);
+    return [];
+  }
+}
+
+export async function updateSetting(group: string, id: string, value: any): Promise<any | null> {
+  const wc = getClient();
+  if (!wc) return null;
+
+  try {
+    const res = await wc.post(`/settings/${group}/${id}`, { value });
+    return res.data;
+  } catch (e) {
+    console.error("[woocommerce] updateSetting error:", e);
+    return null;
+  }
+}
+
+export async function getSettingGroups(): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get("/settings");
+    return res.data;
+  } catch {
+    return [];
+  }
+}
+
+// === Payment Token API ===
+// https://developer.woocommerce.com/docs/features/payments/payment-token-api/
+
+export async function getPaymentTokens(customerId: number): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get(`/customers/${customerId}/payment-tokens`);
+    return res.data;
+  } catch (e) {
+    console.error("[woocommerce] getPaymentTokens error:", e);
+    return [];
+  }
+}
+
+export async function deletePaymentToken(customerId: number, tokenId: string): Promise<boolean> {
+  const wc = getClient();
+  if (!wc) return false;
+
+  try {
+    await wc.delete(`/customers/${customerId}/payment-tokens/${tokenId}`, { force: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// === Payment Gateways ===
+
+export async function getPaymentGateways(): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get("/payment_gateways");
+    return res.data;
+  } catch {
+    return [];
+  }
+}
+
+export async function updatePaymentGateway(id: string, data: { enabled?: boolean; title?: string; description?: string }): Promise<any | null> {
+  const wc = getClient();
+  if (!wc) return null;
+
+  try {
+    const res = await wc.post(`/payment_gateways/${id}`, data);
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// === Shipping Zones ===
+
+export async function getShippingZones(): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get("/shipping/zones");
+    return res.data;
+  } catch {
+    return [];
+  }
+}
+
+// === Tax Rates ===
+
+export async function getTaxRates(): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get("/taxes");
+    return res.data;
+  } catch {
+    return [];
+  }
+}
+
+// === Webhooks ===
+
+export async function getWebhooks(): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get("/webhooks");
+    return res.data;
+  } catch {
+    return [];
+  }
+}
+
+export async function createWebhook(data: {
+  name: string;
+  topic: string;
+  delivery_url: string;
+}): Promise<any | null> {
+  const wc = getClient();
+  if (!wc) return null;
+
+  try {
+    const res = await wc.post("/webhooks", data);
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// === Reports / Analytics ===
+
+export async function getSalesReport(period: string = "month"): Promise<any | null> {
+  const wc = getClient();
+  if (!wc) return null;
+
+  try {
+    const res = await wc.get("/reports/sales", { period });
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+export async function getOrdersReport(
+  perPage: number = 100,
+  status: string = "completed",
+): Promise<any[]> {
+  const wc = getClient();
+  if (!wc) return [];
+
+  try {
+    const res = await wc.get("/reports/orders/totals", { per_page: perPage, status });
+    return res.data;
+  } catch {
+    return [];
+  }
+}
+
+// === System Status ===
+
+export async function getSystemStatus(): Promise<any | null> {
+  const wc = getClient();
+  if (!wc) return null;
+
+  try {
+    const res = await wc.get("/system_status");
+    return res.data;
+  } catch {
+    return null;
+  }
+}
