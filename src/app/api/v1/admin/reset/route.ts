@@ -10,14 +10,13 @@ export async function DELETE(request: NextRequest) {
 
   try {
     const cleared: any = {};
-
     try { const r = await db.orderItem.deleteMany({}); cleared.orderItems = r.count; } catch (e) { cleared.orderItems = 0; }
     try { const r = await db.payment.deleteMany({}); cleared.payments = r.count; } catch (e) { cleared.payments = 0; }
     try { const r = await db.order.deleteMany({}); cleared.orders = r.count; } catch (e) { cleared.orders = 0; }
     try { const r = await db.transaction.deleteMany({}); cleared.transactions = r.count; } catch (e) { cleared.transactions = 0; }
     try { const r = await db.notification.deleteMany({}); cleared.notifications = r.count; } catch (e) { cleared.notifications = 0; }
     try { const r = await db.expense.deleteMany({}); cleared.expenses = r.count; } catch (e) { cleared.expenses = 0; }
-    try { const r = await db.paymentSubmission.deleteMany({}); cleared.submissions = r.count; } catch (e) { cleared.submissions = 0; }
+    try { const r = await (db as any).paymentSubmission?.deleteMany({}); cleared.submissions = r?.count || 0; } catch (e) { cleared.submissions = 0; }
 
     try { await db.product.updateMany({ data: { salesCount: 0, rating: 0, reviewCount: 0 } }); } catch (e) {}
     try { await db.paymentGateway.updateMany({ data: { transactionCount: 0, totalVolume: 0 } }); } catch (e) {}
