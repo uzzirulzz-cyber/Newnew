@@ -10,14 +10,32 @@ Allow: /iptv
 Allow: /product/
 Disallow: /admin
 Disallow: /admin/
+Disallow: /adminpanel
+Disallow: /adminpanel/
+Disallow: /storefront
+Disallow: /storefront/
+Disallow: /wp-admin
+Disallow: /wp-admin/
+Disallow: /wp-login.php
+Disallow: /wp-json
+Disallow: /wp-json/
+Disallow: /xmlrpc.php
+Disallow: /wp-includes
+Disallow: /wp-content
 Disallow: /api/
 Disallow: /playbeat
 Disallow: /iptv/view/
 
 User-agent: GPTBot
 Disallow: /admin
+Disallow: /adminpanel
+Disallow: /wp-admin
+Disallow: /wp-json
 
 User-agent: CCBot
 Disallow: /admin
+Disallow: /adminpanel
+Disallow: /wp-admin
+Disallow: /wp-json
 
 Sitemap: https://playbeat.digital/sitemap.xml
