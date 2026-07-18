@@ -13,7 +13,11 @@ export async function GET(
   await ensureSeeded();
 
   const { slug } = await params;
-  const product = await db.product.findUnique({
+
+  // Try exact slug match first, then fall back to a prefix match so short
+  // URLs like /product/geo-iptv resolve to geo-iptv-589b91. This makes the
+  // storefront URLs clean while keeping the uniqueness suffix in the DB.
+  let product = await db.product.findUnique({
     where: { slug },
     include: {
       vendor: true,
@@ -26,6 +30,43 @@ export async function GET(
       },
     },
   });
+
+  // Fallback: find by slug that starts with the requested slug + a hyphen
+  // (e.g. "geo-iptv" → "geo-iptv-589b91"). Takes the first match.
+  if (!product) {
+    const byPrefix = await db.product.findFirst({
+      where: { slug: { startsWith: `${slug}-` } },
+      include: {
+        vendor: true,
+        category: true,
+        reviews: {
+          where: { status: "APPROVED" },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { user: true },
+        },
+      },
+    });
+    if (byPrefix) product = byPrefix;
+  }
+
+  // Last resort: case-insensitive exact match (MongoDB regex)
+  if (!product) {
+    const caseInsensitive = await db.product.findFirst({
+      where: { slug: { equals: slug, mode: "insensitive" } },
+      include: {
+        vendor: true,
+        category: true,
+        reviews: {
+          where: { status: "APPROVED" },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+          include: { user: true },
+        },
+      },
+    });
+    if (caseInsensitive) product = caseInsensitive;
+  }
 
   if (!product) return error("Product not found", 404);
 

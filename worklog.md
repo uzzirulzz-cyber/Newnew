@@ -2143,3 +2143,59 @@ The user provided `pk_live_51TMvCGGTlnWXlnXpz1hKKU6FbX2kiwgQl4k3IlmgPjM3WaIt64Or
 Stage Summary:
 - All product prices are now correctly displayed in PKR everywhere: storefront grid, product detail sheet, cart, admin products table, payment gateway volumes. No remaining "$" or "USD" defaults in any price display context. The filter labels now say "Min Rs" / "Max Rs". Meta Pixel tracking reports "PKR" for ad attribution. Admin console currency defaults to PKR.
 - Stripe: the pk_live key is saved but Stripe Checkout needs the sk_live secret key. JazzCash and Easypaisa are the working direct gateways.
+
+---
+Task ID: fix-price-product-page
+Agent: Main (Z.ai Code)
+Task: Fix product price display — the real issue was a crashed product detail page
+
+Work Log:
+
+### Root cause discovered
+The user kept saying "fix the price" — the storefront grid and admin were actually showing PKR correctly after the previous fixes. The REAL problem was the **product detail page** (`/product/[slug]`) was crashing with a **Runtime TypeError**, so when a customer clicked a product or visited a product URL, they saw an error screen instead of the product with its price.
+
+### Bug 1: Product page called non-existent store functions
+**`src/app/product/[slug]/page.tsx`** — The page called `setActiveProductSlug(slug)` and `setProductDetailOpen(true)` from the Zustand store, but **neither function exists** in the store. The store actually has:
+- `openProduct(slug)` — sets `selectedProductSlug`
+- `closeProduct()` — clears it
+- `selectedProductSlug` — the state field
+
+Calling undefined functions threw a TypeError ("setActiveProductSlug is not a function") crashing the entire page.
+
+**Fix**: Changed the page to use `openProduct(slug)` (the real store function):
+```tsx
+const openProduct = usePlaybeatStore((s: any) => s.openProduct);
+React.useEffect(() => {
+  if (slug) openProduct(slug);
+}, [slug, openProduct]);
+```
+
+### Bug 2: Short product URLs didn't resolve
+Even after fixing the crash, the product sheet showed "Couldn't load this product" because:
+- Storefront URLs use short slugs: `/product/geo-iptv`
+- DB slugs have a uniqueness suffix: `geo-iptv-589b91`
+- The API used `findUnique({ where: { slug } })` — exact match only → 404
+
+**Fix** in **`src/app/api/v1/products/[slug]/route.ts`**: Added a 3-tier fallback:
+1. Exact match (`findUnique`) — for when the full slug is used
+2. Prefix match (`findFirst where slug startsWith "${slug}-"`) — resolves `geo-iptv` → `geo-iptv-589b91`
+3. Case-insensitive match (`findFirst where slug equals slug mode insensitive`) — handles capitalization differences
+
+Now `/api/v1/products/geo-iptv` returns the GEO IPTV product (Rs 499) instead of 404.
+
+### Verification
+- `bun run lint` → exits 0, zero warnings, zero errors.
+- API test: `GET /api/v1/products/geo-iptv` → success, title=GEO IPTV, price=Rs 499, currency=PKR.
+- API test: `GET /api/v1/products/jasper-ai` → success, title=Jasper AI, price=Rs 3348.
+- Agent Browser: `/product/geo-iptv` → product detail sheet opens with "GEO IPTV" heading + "Rs 499" price. No runtime error. No "Couldn't load" message.
+- No browser console errors, no dev.log runtime errors.
+
+### Additional cleanup (from earlier in this session)
+Also fixed remaining "$" symbols and "USD" defaults found in a comprehensive grep:
+- `marketplace.tsx`: filter labels "Min $"/"Max $" → "Min Rs"/"Max Rs"
+- `product-detail-sheet.tsx`: Meta Pixel currency default "USD" → "PKR"
+- `product-card.tsx`: Meta Pixel currency default "USD" → "PKR" (2 places, replace_all)
+- `admin-console.tsx`: admin settings currency state default "USD" → "PKR"
+
+Stage Summary:
+- The "wrong price" the user was seeing was actually a **crashed product detail page** — clicking a product showed a Runtime TypeError instead of the product with its PKR price. Fixed the store function calls (Bug 1) and added short-slug resolution to the product API (Bug 2). Now `/product/geo-iptv` loads the GEO IPTV product showing "Rs 499" correctly. All prices across the entire site (storefront grid, category pages, product detail, cart, admin products, dashboard, finance, analytics) are in PKR with "Rs" prefix. Zero "$" symbols remain in any price display context.
