@@ -42,8 +42,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
-  { value: "BANK_ALFALAH", label: "Bank Alfalah — IBFT / Cash Deposit" },
+  { value: "JAZZCASH", label: "JazzCash — Debit/Credit Card, Wallet, IBFT" },
   { value: "EASYPAISA", label: "Easypaisa — Hosted Checkout" },
+  { value: "STRIPE", label: "Card — Visa / Mastercard (Stripe)" },
+  { value: "BANK_ALFALAH", label: "Bank Alfalah — IBFT / Cash Deposit" },
   { value: "PAYPAL", label: "PayPal — International / Cards" },
   { value: "CRYPTO", label: "Crypto — BTC/ETH/USDT/USDC" },
 ];
@@ -272,8 +274,12 @@ function OrderSuccess({ order }: { order: Order }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">Payment</span>
           <span className="font-medium">
-            {order.provider === "BANK_ALFALAH" ? "Bank Alfalah (Manual)" : 
-             order.provider === "EASYPAISA" ? "Easypaisa (Manual)" :
+            {order.provider === "JAZZCASH" ? "JazzCash" :
+             order.provider === "EASYPAISA" ? "Easypaisa" :
+             order.provider === "STRIPE" ? "Card (Stripe)" :
+             order.provider === "BANK_ALFALAH" ? "Bank Alfalah (Manual)" :
+             order.provider === "PAYPAL" ? "PayPal" :
+             order.provider === "CRYPTO" ? "Crypto" :
              order.provider || "—"}
           </span>
         </div>
@@ -357,7 +363,7 @@ export function CartSheet() {
   const [couponLoading, setCouponLoading] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [provider, setProvider] = React.useState("BANK_ALFALAH");
+  const [provider, setProvider] = React.useState("JAZZCASH");
   const [placing, setPlacing] = React.useState(false);
   const [placedOrder, setPlacedOrder] = React.useState<Order | null>(null);
 
@@ -531,6 +537,41 @@ export function CartSheet() {
           toast.error("Easypaisa payment initiation failed — showing manual instructions instead");
           // Fallback to manual payment instructions
           setPlacedOrder(orderResult.order);
+        }
+        setPlacedOrder(orderResult.order);
+        clearCart();
+      } else if (provider === "STRIPE") {
+        // Stripe — Card payment (Visa/Mastercard) via Stripe Checkout.
+        // Creates a Checkout Session server-side, then redirects the customer
+        // to Stripe's hosted payment page. Requires STRIPE_SECRET_KEY (sk_).
+        const orderResult = await api.placeOrder({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+          provider: "STRIPE",
+        });
+        const stripeRes = await fetch("/api/v1/payments/stripe/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: total,
+            currency: "pkr",
+            description: cart
+              .map((c) => `${c.product.title} ×${c.quantity}`)
+              .join(", ")
+              .slice(0, 200),
+            orderReference: orderResult.order.orderNumber,
+            customerEmail: email.trim(),
+          }),
+        });
+        const stripeData = await stripeRes.json();
+        if (stripeData.success && stripeData.data.url) {
+          window.location.href = stripeData.data.url;
+          toast.success("Redirecting to Stripe to complete card payment…");
+        } else {
+          const errMsg = stripeData?.error?.message || "Stripe payment initiation failed";
+          toast.error(errMsg);
         }
         setPlacedOrder(orderResult.order);
         clearCart();
@@ -752,15 +793,19 @@ export function CartSheet() {
                 ) : (
                   <CheckCircle2 className="size-4" />
                 )}
-                {provider === "BANK_ALFALAH"
-                  ? `Bank Alfalah · ${formatInCurrency(total, currency)}`
+                {provider === "JAZZCASH"
+                  ? `Pay with JazzCash · ${formatInCurrency(total, currency)}`
                   : provider === "EASYPAISA"
-                    ? `Easypaisa · ${formatInCurrency(total, currency)}`
-                    : provider === "PAYPAL"
-                      ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
-                      : provider === "CRYPTO"
-                        ? `Pay with Crypto · ${formatInCurrency(total, currency)}`
-                        : `Place order · ${formatInCurrency(total, currency)}`}
+                    ? `Pay with Easypaisa · ${formatInCurrency(total, currency)}`
+                    : provider === "STRIPE"
+                      ? `Pay with Card · ${formatInCurrency(total, currency)}`
+                      : provider === "BANK_ALFALAH"
+                        ? `Bank Alfalah · ${formatInCurrency(total, currency)}`
+                        : provider === "PAYPAL"
+                          ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
+                          : provider === "CRYPTO"
+                            ? `Pay with Crypto · ${formatInCurrency(total, currency)}`
+                            : `Place order · ${formatInCurrency(total, currency)}`}
               </Button>
               <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
                 <Lock className="size-3" />
