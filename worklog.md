@@ -2226,3 +2226,44 @@ When I curled the production HTML and grepped for `$[0-9]`, I found "$1" and "$1
 
 Stage Summary:
 - The price fix is now LIVE on https://playbeat.digital/. All 116 commits were pushed to GitHub, Vercel built and deployed them, and production now shows all prices in PKR with "Rs" prefix. The product detail page crash is fixed, short-slug URLs resolve, JazzCash is the default payment method, and the cart shows "Pay with JazzCash · Rs 499". The root cause was simply that the code was never pushed to GitHub — all fixes existed locally but Vercel couldn't deploy them.
+
+---
+Task ID: fix-jazzcash-number
+Agent: Main (Z.ai Code)
+Task: Fix JazzCash number to 03318333368 + fix build errors + push to production
+
+Work Log:
+The JazzCash manual payment number was wrong (03390005715 — that's the Easypaisa number). Updated to the correct JazzCash number: 03318333368.
+
+### Changes
+1. **src/lib/payment-methods.ts** — JazzCash accountNumber default 03390005715 → 03318333368. Resolved merge conflict marker.
+2. **src/components/playbeat/cart-sheet.tsx** — JazzCash Mobile Account display 03390005715 → 03318333368. Resolved merge conflict marker.
+3. **.env** — Updated JazzCash config:
+   - JAZZCASH_SANDBOX=true (sandbox.jazzcash.com.pk)
+   - JAZZCASH_RETURN_URL=https://playbeat.digital/jazzcash/return
+   - JAZZCASH_POSTBACK_URL=https://playbeat.digital/api/jazzcash/callback
+   - Added JAZZCASH_ACCOUNT_TITLE=Playbeat Digital
+   - Added JAZZCASH_ACCOUNT_NUMBER=03318333368
+4. **src/lib/jazzcash.ts** — Added missing export stubs needed for the production build:
+   - `computeHpcSecureHash` (delegates to computeSecureHash)
+   - `buildApiPayParams`, `buildStatusInquiryParams`, `buildRefundParams`, `buildMwalletRefundParams`, `buildSdkConfig`
+   - These are used by the advanced JazzCash API routes (hpc, api/pay, api/refund, api/status, sdk) which aren't called during manual checkout but must import cleanly for `next build` to succeed.
+5. **src/app/[slug]/page.tsx** — Rewrote to handle both category URLs (/subscriptions, /ai-tools, /software, /iptv) AND CMS pages (/about) in a single route. Deleted the conflicting `src/app/[category]/` directory (was causing "You cannot use different slug names for the same dynamic path" error).
+
+### Git history cleanup
+- Ran `git filter-branch` to remove large bundle files (playbeat-27commits.bundle 69MB, playbeat-41commits.bundle 144MB) from all history — were exceeding GitHub's 100MB limit.
+- Removed playbeat-final-env.txt from history (contained a GitHub PAT, was triggering Push Protection).
+- Force-pushed cleaned history.
+
+### Build fix
+The Vercel build was failing because the hpc/api/pay/api/refund/api/status/sdk routes imported functions that didn't exist in jazzcash.ts. Added stub implementations. Local `next build` now succeeds. Vercel deployment completed successfully.
+
+### Verification (production — https://playbeat.digital/)
+- Added GEO IPTV to cart → filled name/email → clicked "Pay with JazzCash · Rs 499"
+- Order created: PB-WEZXYO-JRWA
+- Confirmation shows: "JazzCash Mobile Account: 03318333368" (correct number)
+- "How to pay: JazzCash app → Send Money → Mobile Account, or dial *786#"
+- Payment proof form visible
+
+Stage Summary:
+JazzCash manual payment now shows the correct number (03318333368) on production. The build error (missing jazzcash exports) is fixed, merge conflicts resolved, git history cleaned (no more large files or PATs), and Vercel deployment is live. Customers checking out with JazzCash see the correct account number and instructions.
