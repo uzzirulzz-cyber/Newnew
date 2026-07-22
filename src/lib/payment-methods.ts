@@ -52,7 +52,11 @@ export function getManualMethods(): ManualMethod[] {
       label: 'JazzCash',
       bankName: 'JazzCash (Jazz Mobile Account)',
       accountTitle: process.env.JAZZCASH_ACCOUNT_TITLE || 'Playbeat Digital',
+<<<<<<< HEAD
       accountNumber: process.env.JAZZCASH_ACCOUNT_NUMBER || '03318333368',
+=======
+      accountNumber: process.env.JAZZCASH_ACCOUNT_NUMBER || '03390005715',
+>>>>>>> d568334ab9d6671dc9502568d10c52bd9a582628
       iban: '',
       currency: 'PKR',
       instructions: [

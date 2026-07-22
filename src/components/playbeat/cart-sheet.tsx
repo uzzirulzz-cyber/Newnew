@@ -314,7 +314,11 @@ function OrderSuccess({ order }: { order: Order }) {
             </div>
           ) : (
             <div className="mt-3 space-y-1 text-xs">
+<<<<<<< HEAD
               <p><strong>JazzCash Mobile Account:</strong> 03318333368</p>
+=======
+              <p><strong>JazzCash Mobile Account:</strong> 03390005715</p>
+>>>>>>> d568334ab9d6671dc9502568d10c52bd9a582628
               <p><strong>Account Title:</strong> Playbeat Digital</p>
               <p><strong>How to pay:</strong> JazzCash app → Send Money → Mobile Account, or dial *786#</p>
               <p><strong>Currency:</strong> PKR</p>

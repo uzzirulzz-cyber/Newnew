@@ -56,3 +56,5 @@ server.log
 *.json
 !package.json
 !tsconfig.json
+tool-results/
+*.bundle
