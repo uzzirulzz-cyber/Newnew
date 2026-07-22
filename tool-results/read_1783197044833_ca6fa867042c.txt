@@ -1,0 +1,612 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion } from "framer-motion";
+     5→import {
+     6→  Settings as SettingsIcon,
+     7→  Save,
+     8→  Globe,
+     9→  Palette,
+    10→  Mail,
+    11→  MessageSquare,
+    12→  HardDrive,
+    13→  Cloud,
+    14→  Languages,
+    15→  DollarSign,
+    16→  Receipt,
+    17→  Store,
+    18→  Server,
+    19→} from "lucide-react";
+    20→import {
+    21→  Card,
+    22→  CardContent,
+    23→  CardHeader,
+    24→  CardTitle,
+    25→} from "@/components/ui/card";
+    26→import { Button } from "@/components/ui/button";
+    27→import { Badge } from "@/components/ui/badge";
+    28→import { Input } from "@/components/ui/input";
+    29→import { Label } from "@/components/ui/label";
+    30→import { Textarea } from "@/components/ui/textarea";
+    31→import { Switch } from "@/components/ui/switch";
+    32→import {
+    33→  Select,
+    34→  SelectContent,
+    35→  SelectItem,
+    36→  SelectTrigger,
+    37→  SelectValue,
+    38→} from "@/components/ui/select";
+    39→import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+    40→import { toast } from "sonner";
+    41→import { cn } from "@/lib/utils";
+    42→
+    43→const TABS = [
+    44→  { value: "general", label: "General", icon: Store },
+    45→  { value: "branding", label: "Branding", icon: Palette },
+    46→  { value: "smtp", label: "SMTP", icon: Mail },
+    47→  { value: "sms", label: "SMS", icon: MessageSquare },
+    48→  { value: "storage", label: "Storage", icon: HardDrive },
+    49→  { value: "cdn", label: "CDN", icon: Cloud },
+    50→  { value: "languages", label: "Languages", icon: Languages },
+    51→  { value: "currency", label: "Currency", icon: DollarSign },
+    52→  { value: "taxes", label: "Taxes", icon: Receipt },
+    53→];
+    54→
+    55→export function AdminSettings() {
+    56→  const [saving, setSaving] = React.useState(false);
+    57→
+    58→  // General settings
+    59→  const [general, setGeneral] = React.useState({
+    60→    siteName: "PlayBeat Digital",
+    61→    tagline: "Premium Digital Marketplace",
+    62→    email: "info@playbeat.digital",
+    63→    phone: "+92 332 102 9333",
+    64→    description:
+    65→      "Buy premium digital products — streaming, AI tools, games, gift cards, and more. Instant delivery, secure payments, 24/7 support.",
+    66→    timezone: "Asia/Karachi",
+    67→    dateFormat: "MMM D, YYYY",
+    68→    maintenance: false,
+    69→    registration: true,
+    70→    vendorApps: false,
+    71→    beta: false,
+    72→  });
+    73→
+    74→  // Branding
+    75→  const [branding, setBranding] = React.useState({
+    76→    primaryColor: "#2563eb",
+    77→    accentColor: "#06b6d4",
+    78→    logoUrl: "/logo.png",
+    79→    faviconUrl: "/favicon.png",
+    80→    customCss: "",
+    81→  });
+    82→
+    83→  // SMTP
+    84→  const [smtp, setSmtp] = React.useState({
+    85→    host: "",
+    86→    port: "587",
+    87→    username: "",
+    88→    password: "",
+    89→    fromEmail: "noreply@playbeat.digital",
+    90→    fromName: "PlayBeat Digital",
+    91→    encryption: "tls",
+    92→  });
+    93→
+    94→  // SMS
+    95→  const [sms, setSms] = React.useState({
+    96→    provider: "twilio",
+    97→    apiKey: "",
+    98→    apiSecret: "",
+    99→    fromNumber: "",
+   100→    senderId: "PLAYBEAT",
+   101→  });
+   102→
+   103→  // Storage
+   104→  const [storage, setStorage] = React.useState({
+   105→    provider: "local",
+   106→    s3Bucket: "",
+   107→    s3Region: "us-east-1",
+   108→    s3AccessKey: "",
+   109→    s3SecretKey: "",
+   110→    maxFileSize: "100",
+   111→  });
+   112→
+   113→  // CDN
+   114→  const [cdn, setCdn] = React.useState({
+   115→    provider: "cloudflare",
+   116→    apiKey: "",
+   117→    zoneId: "",
+   118→    cacheTtl: "3600",
+   119→    purgeOnDeploy: true,
+   120→  });
+   121→
+   122→  // Languages
+   123→  const [languages, setLanguages] = React.useState({
+   124→    default: "en",
+   125→    enabled: ["en", "ur"],
+   126→    available: [
+   127→      { code: "en", name: "English" },
+   128→      { code: "ur", name: "Urdu" },
+   129→      { code: "ar", name: "Arabic" },
+   130→      { code: "hi", name: "Hindi" },
+   131→      { code: "fr", name: "French" },
+   132→      { code: "es", name: "Spanish" },
+   133→      { code: "de", name: "German" },
+   134→      { code: "tr", name: "Turkish" },
+   135→    ],
+   136→  });
+   137→
+   138→  // Currency
+   139→  const [currency, setCurrency] = React.useState({
+   140→    default: "PKR",
+   141→    position: "before",
+   142→    symbol: "Rs",
+   143→    rate: "280",
+   144→    enabled: ["PKR", "USD"],
+   145→    available: [
+   146→      { code: "PKR", name: "Pakistani Rupee", symbol: "Rs" },
+   147→      { code: "USD", name: "US Dollar", symbol: "$" },
+   148→      { code: "EUR", name: "Euro", symbol: "€" },
+   149→      { code: "GBP", name: "British Pound", symbol: "£" },
+   150→      { code: "AED", name: "UAE Dirham", symbol: "AED" },
+   151→      { code: "SAR", name: "Saudi Riyal", symbol: "SAR" },
+   152→    ],
+   153→  });
+   154→
+   155→  // Taxes
+   156→  const [taxes, setTaxes] = React.useState({
+   157→    enabled: false,
+   158→    defaultRate: "0",
+   159→    inclusive: true,
+   160→    regions: [
+   161→      { country: "Pakistan", rate: "0", type: "GST" },
+   162→      { country: "European Union", rate: "19", type: "VAT" },
+   163→      { country: "United Kingdom", rate: "20", type: "VAT" },
+   164→      { country: "United States", rate: "0", type: "Sales Tax" },
+   165→    ],
+   166→  });
+   167→
+   168→  const handleSave = () => {
+   169→    setSaving(true);
+   170→    setTimeout(() => {
+   171→      setSaving(false);
+   172→      toast.success("All settings saved successfully");
+   173→    }, 800);
+   174→  };
+   175→
+   176→  const toggleLanguage = (code: string) => {
+   177→    setLanguages((prev) => ({
+   178→      ...prev,
+   179→      enabled: prev.enabled.includes(code)
+   180→        ? prev.enabled.filter((c) => c !== code)
+   181→        : [...prev.enabled, code],
+   182→    }));
+   183→  };
+   184→
+   185→  const toggleCurrency = (code: string) => {
+   186→    setCurrency((prev) => ({
+   187→      ...prev,
+   188→      enabled: prev.enabled.includes(code)
+   189→        ? prev.enabled.filter((c) => c !== code)
+   190→        : [...prev.enabled, code],
+   191→    }));
+   192→  };
+   193→
+   194→  return (
+   195→    <motion.div
+   196→      initial={{ opacity: 0, y: 12 }}
+   197→      animate={{ opacity: 1, y: 0 }}
+   198→      className="space-y-6"
+   199→    >
+   200→      {/* Header */}
+   201→      <div className="flex items-center gap-4">
+   202→        <div className="grid size-12 place-items-center rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 shadow-lg">
+   203→          <SettingsIcon className="size-6 text-white" />
+   204→        </div>
+   205→        <div className="flex-1">
+   206→          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+   207→          <p className="text-sm text-slate-300">
+   208→            Configure your marketplace — branding, payments, taxes, and more
+   209→          </p>
+   210→        </div>
+   211→        <Button onClick={handleSave} disabled={saving} className="gap-2 pb-neon">
+   212→          {saving ? "Saving..." : "Save All"}
+   213→          <Save className="size-4" />
+   214→        </Button>
+   215→      </div>
+   216→
+   217→      {/* Tabs */}
+   218→      <Tabs defaultValue="general" className="w-full">
+   219→        <TabsList className="flex h-auto flex-wrap gap-1 border-b border-white/10 bg-transparent p-0">
+   220→          {TABS.map((t) => (
+   221→            <TabsTrigger
+   222→              key={t.value}
+   223→              value={t.value}
+   224→              className="flex items-center gap-1.5 rounded-none border-b-2 border-transparent px-4 py-2.5 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary"
+   225→            >
+   226→              <t.icon className="size-4" />
+   227→              {t.label}
+   228→            </TabsTrigger>
+   229→          ))}
+   230→        </TabsList>
+   231→
+   232→        {/* GENERAL */}
+   233→        <TabsContent value="general" className="mt-6 space-y-6">
+   234→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   235→            <CardHeader>
+   236→              <CardTitle className="flex items-center gap-2 text-base">
+   237→                <Store className="size-4" /> Site Information
+   238→              </CardTitle>
+   239→            </CardHeader>
+   240→            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   241→              <Field label="Site Name" value={general.siteName} onChange={(v) => setGeneral({ ...general, siteName: v })} />
+   242→              <Field label="Tagline" value={general.tagline} onChange={(v) => setGeneral({ ...general, tagline: v })} />
+   243→              <Field label="Email" value={general.email} onChange={(v) => setGeneral({ ...general, email: v })} />
+   244→              <Field label="Phone" value={general.phone} onChange={(v) => setGeneral({ ...general, phone: v })} />
+   245→              <div className="col-span-2 space-y-1.5">
+   246→                <Label className="text-xs">Description</Label>
+   247→                <Textarea
+   248→                  value={general.description}
+   249→                  onChange={(e) => setGeneral({ ...general, description: e.target.value })}
+   250→                  className="min-h-[80px] border-white/10 bg-white/5"
+   251→                />
+   252→              </div>
+   253→              <SelectField label="Timezone" value={general.timezone} onChange={(v) => setGeneral({ ...general, timezone: v })}
+   254→                options={["Asia/Karachi", "UTC", "America/New_York", "Europe/London", "Asia/Dubai", "Asia/Tokyo"]} />
+   255→              <SelectField label="Date Format" value={general.dateFormat} onChange={(v) => setGeneral({ ...general, dateFormat: v })}
+   256→                options={["MMM D, YYYY", "DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD"]} />
+   257→            </CardContent>
+   258→          </Card>
+   259→
+   260→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   261→            <CardHeader>
+   262→              <CardTitle className="flex items-center gap-2 text-base">
+   263→                <Server className="size-4" /> Platform Modes
+   264→              </CardTitle>
+   265→            </CardHeader>
+   266→            <CardContent className="space-y-1">
+   267→              <ToggleRow title="Maintenance mode" desc="Temporarily disable checkout" checked={general.maintenance}
+   268→                onChange={(v) => { setGeneral({ ...general, maintenance: v }); toast.success(`Maintenance mode ${v ? "enabled" : "disabled"}`); }} />
+   269→              <ToggleRow title="Storefront registration" desc="Allow new customer signups" checked={general.registration}
+   270→                onChange={(v) => { setGeneral({ ...general, registration: v }); toast.success(`Registration ${v ? "enabled" : "disabled"}`); }} />
+   271→              <ToggleRow title="Vendor applications" desc="Accept new vendor applications" checked={general.vendorApps}
+   272→                onChange={(v) => { setGeneral({ ...general, vendorApps: v }); toast.success(`Vendor applications ${v ? "enabled" : "disabled"}`); }} />
+   273→              <ToggleRow title="Beta features" desc="Enable experimental features" checked={general.beta}
+   274→                onChange={(v) => { setGeneral({ ...general, beta: v }); toast.success(`Beta features ${v ? "enabled" : "disabled"}`); }} />
+   275→            </CardContent>
+   276→          </Card>
+   277→        </TabsContent>
+   278→
+   279→        {/* BRANDING */}
+   280→        <TabsContent value="branding" className="mt-6 space-y-6">
+   281→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   282→            <CardHeader>
+   283→              <CardTitle className="flex items-center gap-2 text-base">
+   284→                <Palette className="size-4" /> Brand Colors
+   285→              </CardTitle>
+   286→            </CardHeader>
+   287→            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   288→              <div className="space-y-1.5">
+   289→                <Label className="text-xs">Primary Color</Label>
+   290→                <div className="flex items-center gap-2">
+   291→                  <input type="color" value={branding.primaryColor} onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })}
+   292→                    className="size-10 cursor-pointer rounded-lg border border-white/10 bg-transparent" />
+   293→                  <Input value={branding.primaryColor} onChange={(e) => setBranding({ ...branding, primaryColor: e.target.value })}
+   294→                    className="border-white/10 bg-white/5 font-mono text-xs" />
+   295→                </div>
+   296→              </div>
+   297→              <div className="space-y-1.5">
+   298→                <Label className="text-xs">Accent Color</Label>
+   299→                <div className="flex items-center gap-2">
+   300→                  <input type="color" value={branding.accentColor} onChange={(e) => setBranding({ ...branding, accentColor: e.target.value })}
+   301→                    className="size-10 cursor-pointer rounded-lg border border-white/10 bg-transparent" />
+   302→                  <Input value={branding.accentColor} onChange={(e) => setBranding({ ...branding, accentColor: e.target.value })}
+   303→                    className="border-white/10 bg-white/5 font-mono text-xs" />
+   304→                </div>
+   305→              </div>
+   306→              <Field label="Logo URL" value={branding.logoUrl} onChange={(v) => setBranding({ ...branding, logoUrl: v })} />
+   307→              <Field label="Favicon URL" value={branding.faviconUrl} onChange={(v) => setBranding({ ...branding, faviconUrl: v })} />
+   308→              <div className="col-span-2 space-y-1.5">
+   309→                <Label className="text-xs">Custom CSS</Label>
+   310→                <Textarea value={branding.customCss} onChange={(e) => setBranding({ ...branding, customCss: e.target.value })}
+   311→                  placeholder="/* Add custom styles */" className="min-h-[120px] border-white/10 bg-white/5 font-mono text-xs" />
+   312→              </div>
+   313→            </CardContent>
+   314→          </Card>
+   315→        </TabsContent>
+   316→
+   317→        {/* SMTP */}
+   318→        <TabsContent value="smtp" className="mt-6 space-y-6">
+   319→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   320→            <CardHeader>
+   321→              <CardTitle className="flex items-center gap-2 text-base">
+   322→                <Mail className="size-4" /> Email Configuration
+   323→              </CardTitle>
+   324→            </CardHeader>
+   325→            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   326→              <Field label="SMTP Host" value={smtp.host} onChange={(v) => setSmtp({ ...smtp, host: v })} placeholder="smtp.gmail.com" />
+   327→              <Field label="Port" value={smtp.port} onChange={(v) => setSmtp({ ...smtp, port: v })} placeholder="587" />
+   328→              <Field label="Username" value={smtp.username} onChange={(v) => setSmtp({ ...smtp, username: v })} placeholder="user@gmail.com" />
+   329→              <Field label="Password" value={smtp.password} onChange={(v) => setSmtp({ ...smtp, password: v })} type="password" placeholder="••••••••" />
+   330→              <Field label="From Email" value={smtp.fromEmail} onChange={(v) => setSmtp({ ...smtp, fromEmail: v })} />
+   331→              <Field label="From Name" value={smtp.fromName} onChange={(v) => setSmtp({ ...smtp, fromName: v })} />
+   332→              <SelectField label="Encryption" value={smtp.encryption} onChange={(v) => setSmtp({ ...smtp, encryption: v })}
+   333→                options={["tls", "ssl", "none"]} />
+   334→            </CardContent>
+   335→          </Card>
+   336→        </TabsContent>
+   337→
+   338→        {/* SMS */}
+   339→        <TabsContent value="sms" className="mt-6 space-y-6">
+   340→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   341→            <CardHeader>
+   342→              <CardTitle className="flex items-center gap-2 text-base">
+   343→                <MessageSquare className="size-4" /> SMS Gateway
+   344→              </CardTitle>
+   345→            </CardHeader>
+   346→            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   347→              <SelectField label="Provider" value={sms.provider} onChange={(v) => setSms({ ...sms, provider: v })}
+   348→                options={["twilio", "nexmo", "vonage", "jazzcash", "easypaisa"]} />
+   349→              <Field label="Sender ID" value={sms.senderId} onChange={(v) => setSms({ ...sms, senderId: v })} />
+   350→              <Field label="API Key" value={sms.apiKey} onChange={(v) => setSms({ ...sms, apiKey: v })} type="password" />
+   351→              <Field label="API Secret" value={sms.apiSecret} onChange={(v) => setSms({ ...sms, apiSecret: v })} type="password" />
+   352→              <Field label="From Number" value={sms.fromNumber} onChange={(v) => setSms({ ...sms, fromNumber: v })} placeholder="+1234567890" />
+   353→            </CardContent>
+   354→          </Card>
+   355→        </TabsContent>
+   356→
+   357→        {/* STORAGE */}
+   358→        <TabsContent value="storage" className="mt-6 space-y-6">
+   359→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   360→            <CardHeader>
+   361→              <CardTitle className="flex items-center gap-2 text-base">
+   362→                <HardDrive className="size-4" /> File Storage
+   363→              </CardTitle>
+   364→            </CardHeader>
+   365→            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   366→              <SelectField label="Provider" value={storage.provider} onChange={(v) => setStorage({ ...storage, provider: v })}
+   367→                options={["local", "aws-s3", "digitalocean", "cloudinary", "firebase"]} />
+   368→              {storage.provider !== "local" && (
+   369→                <>
+   370→                  <Field label="Bucket" value={storage.s3Bucket} onChange={(v) => setStorage({ ...storage, s3Bucket: v })} />
+   371→                  <Field label="Region" value={storage.s3Region} onChange={(v) => setStorage({ ...storage, s3Region: v })} />
+   372→                  <Field label="Access Key" value={storage.s3AccessKey} onChange={(v) => setStorage({ ...storage, s3AccessKey: v })} type="password" />
+   373→                  <Field label="Secret Key" value={storage.s3SecretKey} onChange={(v) => setStorage({ ...storage, s3SecretKey: v })} type="password" />
+   374→                </>
+   375→              )}
+   376→              <Field label="Max File Size (MB)" value={storage.maxFileSize} onChange={(v) => setStorage({ ...storage, maxFileSize: v })} />
+   377→            </CardContent>
+   378→          </Card>
+   379→        </TabsContent>
+   380→
+   381→        {/* CDN */}
+   382→        <TabsContent value="cdn" className="mt-6 space-y-6">
+   383→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   384→            <CardHeader>
+   385→              <CardTitle className="flex items-center gap-2 text-base">
+   386→                <Cloud className="size-4" /> CDN Configuration
+   387→              </CardTitle>
+   388→            </CardHeader>
+   389→            <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+   390→              <SelectField label="Provider" value={cdn.provider} onChange={(v) => setCdn({ ...cdn, provider: v })}
+   391→                options={["cloudflare", "aws-cloudfront", "bunny", "fastly", "none"]} />
+   392→              <Field label="API Key" value={cdn.apiKey} onChange={(v) => setCdn({ ...cdn, apiKey: v })} type="password" />
+   393→              <Field label="Zone ID" value={cdn.zoneId} onChange={(v) => setCdn({ ...cdn, zoneId: v })} />
+   394→              <Field label="Cache TTL (seconds)" value={cdn.cacheTtl} onChange={(v) => setCdn({ ...cdn, cacheTtl: v })} />
+   395→              <div className="col-span-2">
+   396→                <ToggleRow title="Purge on deploy" desc="Automatically purge CDN cache when deploying" checked={cdn.purgeOnDeploy}
+   397→                  onChange={(v) => setCdn({ ...cdn, purgeOnDeploy: v })} />
+   398→              </div>
+   399→            </CardContent>
+   400→          </Card>
+   401→        </TabsContent>
+   402→
+   403→        {/* LANGUAGES */}
+   404→        <TabsContent value="languages" className="mt-6 space-y-6">
+   405→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   406→            <CardHeader>
+   407→              <CardTitle className="flex items-center gap-2 text-base">
+   408→                <Languages className="size-4" /> Language Settings
+   409→              </CardTitle>
+   410→            </CardHeader>
+   411→            <CardContent className="space-y-4">
+   412→              <SelectField label="Default Language" value={languages.default} onChange={(v) => setLanguages({ ...languages, default: v })}
+   413→                options={languages.available.map((l) => l.code)} />
+   414→              <div>
+   415→                <Label className="mb-2 text-xs">Enabled Languages</Label>
+   416→                <div className="flex flex-wrap gap-2">
+   417→                  {languages.available.map((lang) => (
+   418→                    <button
+   419→                      key={lang.code}
+   420→                      onClick={() => toggleLanguage(lang.code)}
+   421→                      className={cn(
+   422→                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+   423→                        languages.enabled.includes(lang.code)
+   424→                          ? "border-primary bg-primary/10 text-primary"
+   425→                          : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10",
+   426→                      )}
+   427→                    >
+   428→                      <span className="font-mono text-xs">{lang.code.toUpperCase()}</span>
+   429→                      {lang.name}
+   430→                    </button>
+   431→                  ))}
+   432→                </div>
+   433→              </div>
+   434→            </CardContent>
+   435→          </Card>
+   436→        </TabsContent>
+   437→
+   438→        {/* CURRENCY */}
+   439→        <TabsContent value="currency" className="mt-6 space-y-6">
+   440→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   441→            <CardHeader>
+   442→              <CardTitle className="flex items-center gap-2 text-base">
+   443→                <DollarSign className="size-4" /> Currency Settings
+   444→              </CardTitle>
+   445→            </CardHeader>
+   446→            <CardContent className="space-y-4">
+   447→              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+   448→                <SelectField label="Default Currency" value={currency.default} onChange={(v) => setCurrency({ ...currency, default: v })}
+   449→                  options={currency.available.map((c) => c.code)} />
+   450→                <SelectField label="Symbol Position" value={currency.position} onChange={(v) => setCurrency({ ...currency, position: v })}
+   451→                  options={["before", "after"]} />
+   452→                <Field label="USD → PKR Rate" value={currency.rate} onChange={(v) => setCurrency({ ...currency, rate: v })} />
+   453→              </div>
+   454→              <div>
+   455→                <Label className="mb-2 text-xs">Enabled Currencies</Label>
+   456→                <div className="flex flex-wrap gap-2">
+   457→                  {currency.available.map((cur) => (
+   458→                    <button
+   459→                      key={cur.code}
+   460→                      onClick={() => toggleCurrency(cur.code)}
+   461→                      className={cn(
+   462→                        "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
+   463→                        currency.enabled.includes(cur.code)
+   464→                          ? "border-primary bg-primary/10 text-primary"
+   465→                          : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10",
+   466→                      )}
+   467→                    >
+   468→                      <span className="font-bold">{cur.symbol}</span>
+   469→                      {cur.code} — {cur.name}
+   470→                    </button>
+   471→                  ))}
+   472→                </div>
+   473→              </div>
+   474→            </CardContent>
+   475→          </Card>
+   476→        </TabsContent>
+   477→
+   478→        {/* TAXES */}
+   479→        <TabsContent value="taxes" className="mt-6 space-y-6">
+   480→          <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   481→            <CardHeader>
+   482→              <CardTitle className="flex items-center gap-2 text-base">
+   483→                <Receipt className="size-4" /> Tax Configuration
+   484→              </CardTitle>
+   485→            </CardHeader>
+   486→            <CardContent className="space-y-4">
+   487→              <ToggleRow title="Enable tax collection" desc="Collect tax on checkout based on customer region"
+   488→                checked={taxes.enabled} onChange={(v) => setTaxes({ ...taxes, enabled: v })} />
+   489→              <ToggleRow title="Tax inclusive pricing" desc="Product prices already include tax"
+   490→                checked={taxes.inclusive} onChange={(v) => setTaxes({ ...taxes, inclusive: v })} />
+   491→              <Field label="Default Tax Rate (%)" value={taxes.defaultRate} onChange={(v) => setTaxes({ ...taxes, defaultRate: v })} />
+   492→              <div>
+   493→                <Label className="mb-2 text-xs">Regional Tax Rates</Label>
+   494→                <div className="overflow-x-auto">
+   495→                  <table className="w-full text-sm">
+   496→                    <thead>
+   497→                      <tr className="border-b border-white/10 text-left text-xs text-slate-300">
+   498→                        <th className="pb-2">Region</th>
+   499→                        <th className="pb-2">Type</th>
+   500→                        <th className="pb-2">Rate (%)</th>
+   501→                      </tr>
+   502→                    </thead>
+   503→                    <tbody>
+   504→                      {taxes.regions.map((r, i) => (
+   505→                        <tr key={i} className="border-b border-white/5">
+   506→                          <td className="py-2.5">{r.country}</td>
+   507→                          <td className="py-2.5">
+   508→                            <Badge variant="outline" className="text-[10px]">{r.type}</Badge>
+   509→                          </td>
+   510→                          <td className="py-2.5">
+   511→                            <Input
+   512→                              value={r.rate}
+   513→                              onChange={(e) => {
+   514→                                const regions = [...taxes.regions];
+   515→                                regions[i] = { ...regions[i], rate: e.target.value };
+   516→                                setTaxes({ ...taxes, regions });
+   517→                              }}
+   518→                              className="h-8 w-20 border-white/10 bg-white/5 text-xs"
+   519→                            />
+   520→                          </td>
+   521→                        </tr>
+   522→                      ))}
+   523→                    </tbody>
+   524→                  </table>
+   525→                </div>
+   526→              </div>
+   527→            </CardContent>
+   528→          </Card>
+   529→        </TabsContent>
+   530→      </Tabs>
+   531→    </motion.div>
+   532→  );
+   533→}
+   534→
+   535→/* ─── Reusable field components ─── */
+   536→function Field({
+   537→  label,
+   538→  value,
+   539→  onChange,
+   540→  placeholder,
+   541→  type = "text",
+   542→}: {
+   543→  label: string;
+   544→  value: string;
+   545→  onChange: (v: string) => void;
+   546→  placeholder?: string;
+   547→  type?: string;
+   548→}) {
+   549→  return (
+   550→    <div className="space-y-1.5">
+   551→      <Label className="text-xs">{label}</Label>
+   552→      <Input
+   553→        type={type}
+   554→        value={value}
+   555→        onChange={(e) => onChange(e.target.value)}
+   556→        placeholder={placeholder}
+   557→        className="border-white/10 bg-white/5"
+   558→      />
+   559→    </div>
+   560→  );
+   561→}
+   562→
+   563→function SelectField({
+   564→  label,
+   565→  value,
+   566→  onChange,
+   567→  options,
+   568→}: {
+   569→  label: string;
+   570→  value: string;
+   571→  onChange: (v: string) => void;
+   572→  options: string[];
+   573→}) {
+   574→  return (
+   575→    <div className="space-y-1.5">
+   576→      <Label className="text-xs">{label}</Label>
+   577→      <Select value={value} onValueChange={onChange}>
+   578→        <SelectTrigger className="border-white/10 bg-white/5">
+   579→          <SelectValue />
+   580→        </SelectTrigger>
+   581→        <SelectContent>
+   582→          {options.map((o) => (
+   583→            <SelectItem key={o} value={o}>{o}</SelectItem>
+   584→          ))}
+   585→        </SelectContent>
+   586→      </Select>
+   587→    </div>
+   588→  );
+   589→}
+   590→
+   591→function ToggleRow({
+   592→  title,
+   593→  desc,
+   594→  checked,
+   595→  onChange,
+   596→}: {
+   597→  title: string;
+   598→  desc: string;
+   599→  checked: boolean;
+   600→  onChange: (v: boolean) => void;
+   601→}) {
+   602→  return (
+   603→    <div className="flex items-center justify-between rounded-lg px-3 py-3 transition-colors hover:bg-white/5">
+   604→      <div>
+   605→        <p className="text-sm font-medium">{title}</p>
+   606→        <p className="text-xs text-slate-300">{desc}</p>
+   607→      </div>
+   608→      <Switch checked={checked} onCheckedChange={onChange} />
+   609→    </div>
+   610→  );
+   611→}
+   612→

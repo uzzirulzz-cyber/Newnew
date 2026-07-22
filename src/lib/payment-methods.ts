@@ -1,8 +1,8 @@
 // Manual payment method configuration for Playbeat Digital.
 // Source: github.com/uzzirulzz-cyber/gateways
 
-export type ManualMethodId = 'bank-alfalah' | 'easypaisa';
-export type MethodId = ManualMethodId | 'jazzcash' | 'paypal' | 'crypto';
+export type ManualMethodId = 'bank-alfalah' | 'easypaisa' | 'jazzcash';
+export type MethodId = ManualMethodId | 'paypal' | 'crypto';
 
 export interface ManualMethod {
   id: ManualMethodId;
@@ -43,6 +43,21 @@ export function getManualMethods(): ManualMethod[] {
       instructions: [
         'Open the Easypaisa app or visit any Easypaisa shop.',
         'Send money to the Easypaisa account / IBAN below.',
+        'Copy the transaction ID from the confirmation SMS or app.',
+        'Paste it in the form below and submit.',
+      ],
+    },
+    {
+      id: 'jazzcash',
+      label: 'JazzCash',
+      bankName: 'JazzCash (Jazz Mobile Account)',
+      accountTitle: process.env.JAZZCASH_ACCOUNT_TITLE || 'Playbeat Digital',
+      accountNumber: process.env.JAZZCASH_ACCOUNT_NUMBER || '03318333368',
+      iban: '',
+      currency: 'PKR',
+      instructions: [
+        'Open the JazzCash app or dial *786# from your Jazz number.',
+        'Send money to the JazzCash mobile account number below.',
         'Copy the transaction ID from the confirmation SMS or app.',
         'Paste it in the form below and submit.',
       ],

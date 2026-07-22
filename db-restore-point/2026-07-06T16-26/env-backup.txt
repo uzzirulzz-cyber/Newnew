@@ -1,0 +1,16 @@
+DATABASE_URL=file:/home/z/my-project/db/custom.db
+
+# === JazzCash LIVE Gateway Configuration ===
+# These are the LIVE merchant credentials issued by PMCL/JazzCash.
+# Mode: PRODUCTION (sandbox=false). Do NOT change unless switching to sandbox.
+JAZZCASH_MERCHANT_ID=MC828331
+JAZZCASH_PASSWORD=fwy7u597b4
+JAZZCASH_INTEGRITY_SALT=4s8931g402
+JAZZCASH_SANDBOX=false
+JAZZCASH_RETURN_URL=https://playbeat.digital/api/payment-return
+JAZZCASH_POSTBACK_URL=https://playbeat.digital/api/jazzcash-iwh
+JAZZCASH_ZAPIER_WEBHOOK=https://hooks.zapier.com/hooks/catch/01ab5084-6eee-a96d-cb2c-b2e48ecd6db4
+
+# === Lemon Squeezy (legacy catalog sync — storefront now uses MongoDB products) ===
+LEMONSQUEEZY_API_KEY=
+LEMONSQUEEZY_STORE_ID=420060

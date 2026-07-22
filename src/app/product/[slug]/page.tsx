@@ -23,16 +23,14 @@ import { Loader2 } from "lucide-react";
 function ProductPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const setActiveProductSlug = usePlaybeatStore((s: any) => s.setActiveProductSlug);
-  const setProductDetailOpen = usePlaybeatStore((s: any) => s.setProductDetailOpen);
+  const openProduct = usePlaybeatStore((s: any) => s.openProduct);
 
   React.useEffect(() => {
     if (slug) {
       // Open the product detail sheet with this slug
-      setActiveProductSlug(slug);
-      setProductDetailOpen(true);
+      openProduct(slug);
     }
-  }, [slug, setActiveProductSlug, setProductDetailOpen]);
+  }, [slug, openProduct]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

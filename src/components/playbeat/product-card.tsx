@@ -111,7 +111,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         content_ids: [product.id],
         content_type: "product",
         value: product.effectivePrice,
-        currency: product.currency || "USD",
+        currency: product.currency || "PKR",
       });
     }
   };
@@ -128,7 +128,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         content_ids: [product.id],
         content_type: "product",
         value: product.effectivePrice,
-        currency: product.currency || "USD",
+        currency: product.currency || "PKR",
       });
     }
     // Lemon Squeezy products redirect to the LS hosted checkout

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
+import { WooCommerceAccount } from "./woocommerce-account";
 
 export function AdminWooCommerce() {
   const qc = useQueryClient();
@@ -69,6 +70,9 @@ export function AdminWooCommerce() {
           Sync Now
         </Button>
       </div>
+
+      {/* Customer accounts — login / create account / list */}
+      <WooCommerceAccount />
 
       {/* Connection + Store Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

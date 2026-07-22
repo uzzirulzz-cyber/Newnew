@@ -297,7 +297,7 @@ export function Footer() {
               Refund Policy
             </a>
             <a
-              href="/admin"
+              href="/wp-admin"
               className="cursor-pointer text-[10px] uppercase transition-colors hover:text-primary"
             >
               Admin

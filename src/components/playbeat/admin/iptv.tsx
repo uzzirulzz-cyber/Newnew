@@ -54,6 +54,12 @@ import {
   AlertTriangle,
   UserX,
   Power,
+  Link2,
+  KeyRound,
+  Pencil,
+  Save,
+  ShieldCheck,
+  ExternalLink,
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { toast } from "sonner";
@@ -233,6 +239,14 @@ export function IptvModule() {
   const [categoryFilter, setCategoryFilter] = React.useState<string>("all");
   const [showCreate, setShowCreate] = React.useState(false);
   const [showM3u, setShowM3u] = React.useState(false);
+  const [showXtream, setShowXtream] = React.useState(false);
+  const [xtreamForm, setXtreamForm] = React.useState({
+    profileName: "",
+    hostUrl: "",
+    username: "",
+    password: "",
+  });
+  const [xtreamImporting, setXtreamImporting] = React.useState(false);
   const [selectedSub, setSelectedSub] = React.useState<any | null>(null);
 
   // Per-row loading flags for quick actions / toggles.
@@ -417,6 +431,11 @@ export function IptvModule() {
         if (selectedSub?._id === id || selectedSub?.id === id) setSelectedSub(null);
       } else {
         toast.success(res.message || `Subscriber ${action}d`);
+        // Keep the open drawer in sync with the new status (and any other
+        // fields the action route returns, including Xtream credentials).
+        if (res.subscriber && (selectedSub?._id === id || selectedSub?.id === id)) {
+          setSelectedSub({ ...selectedSub, ...res.subscriber });
+        }
       }
       qc.invalidateQueries({ queryKey: ["admin-iptv-subscribers"] });
       qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
@@ -425,6 +444,15 @@ export function IptvModule() {
     } finally {
       setSubActionId(null);
     }
+  };
+
+  /** Refresh the open drawer (and the list) after Xtream credentials change. */
+  const handleCredentialsUpdated = (updatedSub: any) => {
+    if (updatedSub) {
+      // Preserve the `_id` shape the rest of the component expects.
+      setSelectedSub({ ...selectedSub, ...updatedSub, _id: updatedSub.id });
+    }
+    qc.invalidateQueries({ queryKey: ["admin-iptv-subscribers"] });
   };
 
   const handleParseM3u = () => {
@@ -514,17 +542,30 @@ export function IptvModule() {
         </div>
         <div className="flex items-center gap-2">
           {tab === "channels" && (
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                setShowM3u(true);
-                setM3uParsed([]);
-              }}
-            >
-              <Upload size={16} />
-              Import M3U
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  setShowXtream(true);
+                  setXtreamForm({ profileName: "", hostUrl: "", username: "", password: "" });
+                }}
+              >
+                <Link2 size={16} />
+                Add Xtream
+              </Button>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  setShowM3u(true);
+                  setM3uParsed([]);
+                }}
+              >
+                <Upload size={16} />
+                Import M3U
+              </Button>
+            </>
           )}
           <Button onClick={() => setShowCreate(true)} className="gap-2">
             <Plus size={16} />
@@ -1204,11 +1245,98 @@ export function IptvModule() {
         </DialogContent>
       </Dialog>
 
+      {/* Xtream Codes dialog */}
+      <Dialog open={showXtream} onOpenChange={setShowXtream}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Xtream Codes Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Profile Name *</Label>
+              <Input
+                value={xtreamForm.profileName}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, profileName: e.target.value })}
+                placeholder="e.g. Main Server"
+              />
+            </div>
+            <div>
+              <Label>Host URL *</Label>
+              <Input
+                value={xtreamForm.hostUrl}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, hostUrl: e.target.value })}
+                placeholder="http://your-server.com:8080"
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">The Xtream Codes server URL (with port)</p>
+            </div>
+            <div>
+              <Label>Username *</Label>
+              <Input
+                value={xtreamForm.username}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, username: e.target.value })}
+                placeholder="Your Xtream username"
+              />
+            </div>
+            <div>
+              <Label>Password *</Label>
+              <Input
+                type="password"
+                value={xtreamForm.password}
+                onChange={(e) => setXtreamForm({ ...xtreamForm, password: e.target.value })}
+                placeholder="Your Xtream password"
+              />
+            </div>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              <strong className="text-foreground">How it works:</strong> Enter your Xtream Codes
+              credentials. The system will fetch all live channels, VOD, and series from your
+              Xtream provider and import them into the channel list.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowXtream(false)}>Cancel</Button>
+            <Button
+              disabled={xtreamImporting || !xtreamForm.profileName || !xtreamForm.hostUrl || !xtreamForm.username || !xtreamForm.password}
+              onClick={async () => {
+                setXtreamImporting(true);
+                try {
+                  // Import via the server-side proxy (avoids browser CORS
+                  // restrictions — browsers block cross-origin fetches to
+                  // arbitrary Xtream host URLs).
+                  const result = await api.adminIptvXtreamImport({
+                    hostUrl: xtreamForm.hostUrl,
+                    username: xtreamForm.username,
+                    password: xtreamForm.password,
+                    profileName: xtreamForm.profileName,
+                    limit: 500,
+                    types: ["live"],
+                  });
+
+                  toast.success(result.message || `Imported ${result.imported} channels from Xtream "${xtreamForm.profileName}"`);
+                  setShowXtream(false);
+                  qc.invalidateQueries({ queryKey: ["admin-iptv-channels"] });
+                  qc.invalidateQueries({ queryKey: ["admin-iptv-stats"] });
+                } catch (e: any) {
+                  const msg = e?.message || "Failed to connect to Xtream server — check host URL and credentials";
+                  toast.error(msg);
+                } finally {
+                  setXtreamImporting(false);
+                }
+              }}
+              className="gap-2"
+            >
+              {xtreamImporting ? <Loader2 className="size-4 animate-spin" /> : <Link2 size={16} />}
+              {xtreamImporting ? "Importing..." : "Import Channels"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Subscriber credentials slide-in Drawer */}
       <SubscriberCredentialsDrawer
         sub={selectedSub}
         onClose={() => setSelectedSub(null)}
         onAction={handleSubscriberAction}
+        onCredentialsUpdated={handleCredentialsUpdated}
         busyId={subActionId}
       />
     </div>
@@ -1223,6 +1351,7 @@ function SubscriberCredentialsDrawer({
   sub,
   onClose,
   onAction,
+  onCredentialsUpdated,
   busyId,
 }: {
   sub: any | null;
@@ -1231,23 +1360,52 @@ function SubscriberCredentialsDrawer({
     sub: any,
     action: "activate" | "suspend" | "delete",
   ) => void;
+  /** Called after credentials are saved/cleared so the parent can refresh `sub`. */
+  onCredentialsUpdated?: (updatedSub: any) => void;
   busyId: string | null;
 }) {
   const [showPassword, setShowPassword] = React.useState(false);
+  const [showCredDialog, setShowCredDialog] = React.useState(false);
+  const [credSaving, setCredSaving] = React.useState(false);
+  const [clearing, setClearing] = React.useState(false);
+  const [credForm, setCredForm] = React.useState({
+    profileName: "",
+    hostUrl: "",
+    username: "",
+    password: "",
+    notes: "",
+  });
+
   React.useEffect(() => {
-    if (!sub) setShowPassword(false);
+    if (!sub) {
+      setShowPassword(false);
+      setShowCredDialog(false);
+    }
   }, [sub]);
 
   if (!sub) return null;
   const id = sub._id ?? sub.id;
   const expiry = getExpiryState(sub.expiresAt);
 
-  // Synthesise credentials from the subscriber record.
-  const username = sub.email?.split("@")[0] || sub.email || `user_${id?.slice(-6)}`;
-  const password = sub.mac || id?.slice(-12) || "••••••••";
-  const portalUrl = IPTV_PORTAL_BASE;
-  const m3uUrl = `${portalUrl}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus&output=ts`;
-  const notes = [
+  // Real Xtream Codes credentials are present when the admin has set a host
+  // URL + username. When absent, we fall back to synthesising credentials
+  // from the subscriber's email/mac so the drawer still shows *something*
+  // (backward compatibility for subscribers created before this feature).
+  const hasXtream = !!(sub.hostUrl && sub.xtreamUsername);
+  const profileName = hasXtream ? sub.profileName : null;
+  const username = hasXtream
+    ? sub.xtreamUsername
+    : sub.email?.split("@")[0] || sub.email || `user_${id?.slice(-6)}`;
+  const password = hasXtream
+    ? sub.xtreamPassword || ""
+    : sub.mac || id?.slice(-12) || "••••••••";
+  const portalUrl = hasXtream ? sub.portalUrl || sub.hostUrl : IPTV_PORTAL_BASE;
+  const m3uUrl = hasXtream
+    ? sub.m3uUrl ||
+      `${portalUrl}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus&output=ts`
+    : `${portalUrl}/get.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&type=m3u_plus&output=ts`;
+
+  const summaryNotes = [
     sub.plan ? `Plan: ${sub.plan}` : null,
     sub.deviceType ? `Device: ${sub.deviceType}` : null,
     sub.maxConnections ? `Max connections: ${sub.maxConnections}` : null,
@@ -1259,18 +1417,69 @@ function SubscriberCredentialsDrawer({
   const allCredentials = [
     `Name: ${sub.name}`,
     `Email: ${sub.email}`,
+    profileName ? `Profile: ${profileName}` : null,
     `Username: ${username}`,
     `Password: ${password}`,
+    `Host URL: ${hasXtream ? sub.hostUrl : "(none — using local portal)"}`,
     `Portal URL: ${portalUrl}`,
     `M3U URL: ${m3uUrl}`,
     sub.mac ? `MAC: ${sub.mac}` : null,
     `Plan: ${sub.plan}`,
     `Status: ${sub.status}`,
     `Expires: ${sub.expiresAt ? new Date(sub.expiresAt).toLocaleString() : "—"}`,
-    notes ? `Notes: ${notes}` : null,
+    sub.notes ? `Notes: ${sub.notes}` : null,
   ]
     .filter(Boolean)
     .join("\n");
+
+  const openCredDialog = () => {
+    setCredForm({
+      profileName: sub.profileName || "",
+      hostUrl: sub.hostUrl || "",
+      username: sub.xtreamUsername || "",
+      password: sub.xtreamPassword || "",
+      notes: sub.notes || "",
+    });
+    setShowCredDialog(true);
+  };
+
+  const handleSaveCredentials = async () => {
+    if (!credForm.profileName || !credForm.hostUrl || !credForm.username || !credForm.password) {
+      toast.error("Profile name, host URL, username and password are all required");
+      return;
+    }
+    setCredSaving(true);
+    try {
+      const res = await api.adminIptvSubscriberCredentials(id, {
+        profileName: credForm.profileName,
+        hostUrl: credForm.hostUrl,
+        username: credForm.username,
+        password: credForm.password,
+        notes: credForm.notes || undefined,
+      });
+      toast.success(res.message || "Xtream credentials saved");
+      onCredentialsUpdated?.(res.subscriber);
+      setShowCredDialog(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to save credentials");
+    } finally {
+      setCredSaving(false);
+    }
+  };
+
+  const handleClearCredentials = async () => {
+    if (!confirm(`Clear Xtream credentials for "${sub.name}"?`)) return;
+    setClearing(true);
+    try {
+      const res = await api.adminIptvSubscriberCredentialsClear(id);
+      toast.success(res.message || "Xtream credentials cleared");
+      onCredentialsUpdated?.(res.subscriber);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to clear credentials");
+    } finally {
+      setClearing(false);
+    }
+  };
 
   return (
     <Drawer open={!!sub} onOpenChange={(o) => !o && onClose()} direction="right">
@@ -1285,9 +1494,9 @@ function SubscriberCredentialsDrawer({
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-4">
           {/* Status row */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${subStatusColors[sub.status] ?? ""}`}
             >
@@ -1298,6 +1507,29 @@ function SubscriberCredentialsDrawer({
             >
               {expiry.label}
             </span>
+          </div>
+
+          {/* Xtream profile badge */}
+          <div
+            className={`flex items-center gap-2 rounded-lg border p-2.5 text-xs ${
+              hasXtream
+                ? "border-emerald-500/30 bg-emerald-50 text-emerald-700"
+                : "border-amber-500/30 bg-amber-50 text-amber-700"
+            }`}
+          >
+            {hasXtream ? (
+              <>
+                <ShieldCheck size={14} className="shrink-0" />
+                <span className="font-medium">
+                  Xtream Linked{profileName ? ` · ${profileName}` : ""}
+                </span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle size={14} className="shrink-0" />
+                <span className="font-medium">No Xtream profile — credentials are auto-generated</span>
+              </>
+            )}
           </div>
 
           {/* Basic info */}
@@ -1326,11 +1558,45 @@ function SubscriberCredentialsDrawer({
             />
           </div>
 
-          {/* Credentials */}
+          {/* Xtream Credentials */}
           <div className="space-y-1.5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Connection Credentials
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Xtream Codes Credentials
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[11px] gap-1"
+                  onClick={openCredDialog}
+                  title={hasXtream ? "Edit Xtream credentials" : "Set Xtream credentials"}
+                >
+                  {hasXtream ? <Pencil size={12} /> : <KeyRound size={12} />}
+                  {hasXtream ? "Edit" : "Set"}
+                </Button>
+                {hasXtream && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-[11px] text-destructive hover:bg-destructive/10 gap-1"
+                    onClick={handleClearCredentials}
+                    disabled={clearing}
+                    title="Clear Xtream credentials"
+                  >
+                    {clearing ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                    Clear
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {profileName && (
+              <CredRow label="Profile" value={profileName} onCopy={() => copyToClipboard(profileName, "Profile name copied")} />
+            )}
+            {hasXtream && sub.hostUrl && (
+              <CredRow label="Host URL" value={sub.hostUrl} mono onCopy={() => copyToClipboard(sub.hostUrl, "Host URL copied")} />
+            )}
             <CredRow label="Username" value={username} onCopy={() => copyToClipboard(username, "Username copied")} />
             <div className="flex items-center justify-between gap-2 py-1.5 border-b">
               <div className="min-w-0 flex-1">
@@ -1366,6 +1632,16 @@ function SubscriberCredentialsDrawer({
               mono
               onCopy={() => copyToClipboard(portalUrl, "Portal URL copied")}
             />
+            {hasXtream && portalUrl && /^https?:\/\//i.test(portalUrl) && (
+              <a
+                href={portalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
+              >
+                <ExternalLink size={11} /> Open portal
+              </a>
+            )}
             <CredRow
               label="M3U URL"
               value={m3uUrl}
@@ -1379,9 +1655,15 @@ function SubscriberCredentialsDrawer({
             <p className="text-xs uppercase tracking-wide text-muted-foreground">
               Notes
             </p>
-            <p className="text-xs text-muted-foreground bg-muted/40 border rounded-md p-2.5">
-              {notes || "No additional notes."}
-            </p>
+            {sub.notes ? (
+              <p className="text-xs text-foreground bg-muted/40 border rounded-md p-2.5 whitespace-pre-wrap">
+                {sub.notes}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground bg-muted/40 border rounded-md p-2.5">
+                {summaryNotes || "No additional notes."}
+              </p>
+            )}
           </div>
         </div>
 
@@ -1441,6 +1723,83 @@ function SubscriberCredentialsDrawer({
           </Button>
         </div>
       </DrawerContent>
+
+      {/* Set / Edit Xtream credentials dialog */}
+      <Dialog open={showCredDialog} onOpenChange={setShowCredDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound size={16} />
+              {hasXtream ? "Edit Xtream Credentials" : "Set Xtream Credentials"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3.5">
+            <div>
+              <Label>Profile Name *</Label>
+              <Input
+                value={credForm.profileName}
+                onChange={(e) => setCredForm({ ...credForm, profileName: e.target.value })}
+                placeholder="e.g. Main Server"
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">A friendly label for this Xtream provider</p>
+            </div>
+            <div>
+              <Label>Host URL *</Label>
+              <Input
+                value={credForm.hostUrl}
+                onChange={(e) => setCredForm({ ...credForm, hostUrl: e.target.value })}
+                placeholder="http://your-server.com:8080"
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">The Xtream Codes server URL (with port)</p>
+            </div>
+            <div>
+              <Label>Username *</Label>
+              <Input
+                value={credForm.username}
+                onChange={(e) => setCredForm({ ...credForm, username: e.target.value })}
+                placeholder="Xtream username"
+              />
+            </div>
+            <div>
+              <Label>Password *</Label>
+              <Input
+                type="password"
+                value={credForm.password}
+                onChange={(e) => setCredForm({ ...credForm, password: e.target.value })}
+                placeholder="Xtream password"
+              />
+            </div>
+            <div>
+              <Label>Notes (optional)</Label>
+              <Textarea
+                value={credForm.notes}
+                onChange={(e) => setCredForm({ ...credForm, notes: e.target.value })}
+                placeholder="Internal notes — e.g. expiry, reseller, line ID"
+                rows={2}
+              />
+            </div>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              <strong className="text-foreground">Auto-generated:</strong> The M3U URL is
+              built from these credentials as
+              <code className="mx-1 px-1 py-0.5 rounded bg-muted font-mono text-[10px]">
+                {credForm.hostUrl || "http://host:port"}/get.php?...&amp;type=m3u_plus
+              </code>
+              so the subscriber can plug it straight into any IPTV player.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCredDialog(false)}>Cancel</Button>
+            <Button
+              disabled={credSaving || !credForm.profileName || !credForm.hostUrl || !credForm.username || !credForm.password}
+              onClick={handleSaveCredentials}
+              className="gap-2"
+            >
+              {credSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {credSaving ? "Saving..." : "Save Credentials"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Drawer>
   );
 }

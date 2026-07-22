@@ -75,8 +75,8 @@ interface PlaybeatState {
   navSort: string;
   setNavFilter: (category: string, sort?: string) => void;
 
-  // Display currency — PKR for Pakistan, USD elsewhere. Auto-detected on
-  // first load, manually toggleable via the header currency switch.
+  // Display currency — defaults to PKR (all prices are stored in PKR).
+  // Users can switch to USD via the header toggle for converted prices.
   currency: Currency;
   setCurrency: (c: Currency) => void;
 
@@ -166,6 +166,15 @@ export const usePlaybeatStore = create<PlaybeatState>()(
     }),
     {
       name: "playbeat-storage",
+      version: 2,
+      // v1 defaulted currency to USD for non-Pakistan users, which showed PKR
+      // prices with a $ symbol. v2 defaults to PKR — force-migrate old sessions.
+      migrate: (persisted: any, version: number) => {
+        if (version < 2 && persisted?.currency === "USD") {
+          persisted.currency = "PKR";
+        }
+        return persisted;
+      },
       // Persist only cart, favorites, user, searchQuery, currency
       partialize: (state) => ({
         cart: state.cart,

@@ -13,7 +13,13 @@
  *   WORDPRESS_API_URL  — e.g. https://playbeat.live/wp-json/wp/v2
  *   WORDPRESS_USERNAME  (optional, for authenticated endpoints)
  *   WORDPRESS_APP_PASSWORD  (optional)
+ *
+ * NOTE: WordPress connection can also be configured at runtime from the
+ * WordPress admin module UI — see src/lib/wordpress.ts. That DB-backed
+ * connection takes precedence over these env vars.
  */
+
+import { getWordPressConnection, wpAuthHeader } from "@/lib/wordpress";
 
 export function isWooCommerceConfigured(): boolean {
   return Boolean(
@@ -23,6 +29,8 @@ export function isWooCommerceConfigured(): boolean {
   );
 }
 
+/** Synchronous check — true if the env var is set. For the DB-backed
+ *  connection use `isWordPressConfiguredAsync()` from @/lib/wordpress. */
 export function isWordPressConfigured(): boolean {
   return Boolean(process.env.WORDPRESS_API_URL);
 }
@@ -165,20 +173,28 @@ export async function getWordPressPosts(): Promise<{
   items: WPPost[];
   error?: string;
 }> {
-  if (!isWordPressConfigured()) {
-    return { configured: false, items: [] };
+  // Prefer the DB-backed connection (set from the WordPress admin module UI);
+  // fall back to env vars.
+  const conn = await getWordPressConnection();
+  if (!conn) {
+    if (!isWordPressConfigured()) {
+      return { configured: false, items: [] };
+    }
   }
   try {
-    const base = process.env.WORDPRESS_API_URL!.replace(/\/$/, "");
+    const base = (conn?.apiUrl || process.env.WORDPRESS_API_URL || "").replace(/\/$/, "");
     const url = new URL(`${base}/posts`);
     url.searchParams.set("per_page", "20");
     url.searchParams.set("_embed", "true");
     const headers: Record<string, string> = { Accept: "application/json" };
-    // Optional authenticated request
-    const user = process.env.WORDPRESS_USERNAME;
-    const pass = process.env.WORDPRESS_APP_PASSWORD;
-    if (user && pass) {
-      headers.Authorization = `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
+    if (conn) {
+      headers.Authorization = wpAuthHeader(conn);
+    } else {
+      const user = process.env.WORDPRESS_USERNAME;
+      const pass = process.env.WORDPRESS_APP_PASSWORD;
+      if (user && pass) {
+        headers.Authorization = `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`;
+      }
     }
     const res = await fetch(url.toString(), { headers, next: { revalidate: 60 } });
     if (!res.ok) {

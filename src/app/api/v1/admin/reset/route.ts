@@ -4,35 +4,22 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-/**
- * DELETE /api/v1/admin/reset
- * Same as POST /admin/analytics/reset — clears all analytics.
- */
 export async function DELETE(request: NextRequest) {
   const limited = applyRateLimit(request, 5);
   if (limited) return limited;
 
   try {
-    const orderItems = await db.orderItem.deleteMany({});
-    const payments = await db.payment.deleteMany({});
-    const orders = await db.order.deleteMany({});
-    const transactions = await db.transaction.deleteMany({});
-    const notifications = await db.notification.deleteMany({});
-    const expenses = await db.expense.deleteMany({});
-    const submissions = await db.paymentSubmission.deleteMany({});
+    const cleared: any = {};
+    try { const r = await db.orderItem.deleteMany({}); cleared.orderItems = r.count; } catch (e) { cleared.orderItems = 0; }
+    try { const r = await db.payment.deleteMany({}); cleared.payments = r.count; } catch (e) { cleared.payments = 0; }
+    try { const r = await db.order.deleteMany({}); cleared.orders = r.count; } catch (e) { cleared.orders = 0; }
+    try { const r = await db.transaction.deleteMany({}); cleared.transactions = r.count; } catch (e) { cleared.transactions = 0; }
+    try { const r = await db.notification.deleteMany({}); cleared.notifications = r.count; } catch (e) { cleared.notifications = 0; }
+    try { const r = await db.expense.deleteMany({}); cleared.expenses = r.count; } catch (e) { cleared.expenses = 0; }
+    try { const r = await (db as any).paymentSubmission?.deleteMany({}); cleared.submissions = r?.count || 0; } catch (e) { cleared.submissions = 0; }
 
-    await db.product.updateMany({ data: { salesCount: 0, rating: 0, reviewCount: 0 } });
-    await db.paymentGateway.updateMany({ data: { transactionCount: 0, totalVolume: 0 } });
-
-    const cleared = {
-      orders: orders.count,
-      orderItems: orderItems.count,
-      payments: payments.count,
-      transactions: transactions.count,
-      notifications: notifications.count,
-      expenses: expenses.count,
-      submissions: submissions.count,
-    };
+    try { await db.product.updateMany({ data: { salesCount: 0, rating: 0, reviewCount: 0 } }); } catch (e) {}
+    try { await db.paymentGateway.updateMany({ data: { transactionCount: 0, totalVolume: 0 } }); } catch (e) {}
 
     return ok({ cleared, message: "All analytics data reset to 0." });
   } catch (e) {

@@ -1,0 +1,736 @@
+     1→"use client";
+     2→
+     3→import * as React from "react";
+     4→import { motion } from "framer-motion";
+     5→import { useQuery } from "@tanstack/react-query";
+     6→import {
+     7→  Megaphone,
+     8→  Mail,
+     9→  Send,
+    10→  Users,
+    11→  TrendingUp,
+    12→  DollarSign,
+    13→  Plus,
+    14→  Eye,
+    15→  MousePointerClick,
+    16→  CheckCircle2,
+    17→  Settings,
+    18→  Smartphone,
+    19→  MessageCircle,
+    20→  Bell,
+    21→  Gift,
+    22→  Star,
+    23→  Clock,
+    24→  Trash2,
+    25→  Pencil,
+    26→} from "lucide-react";
+    27→import {
+    28→  Card,
+    29→  CardContent,
+    30→  CardHeader,
+    31→  CardTitle,
+    32→} from "@/components/ui/card";
+    33→import { Button } from "@/components/ui/button";
+    34→import { Badge } from "@/components/ui/badge";
+    35→import { Input } from "@/components/ui/input";
+    36→import { Label } from "@/components/ui/label";
+    37→import { Textarea } from "@/components/ui/textarea";
+    38→import { Switch } from "@/components/ui/switch";
+    39→import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+    40→import {
+    41→  Dialog,
+    42→  DialogContent,
+    43→  DialogHeader,
+    44→  DialogTitle,
+    45→  DialogDescription,
+    46→  DialogFooter,
+    47→} from "@/components/ui/dialog";
+    48→import {
+    49→  Select,
+    50→  SelectContent,
+    51→  SelectItem,
+    52→  SelectTrigger,
+    53→  SelectValue,
+    54→} from "@/components/ui/select";
+    55→import {
+    56→  ResponsiveContainer,
+    57→  BarChart,
+    58→  Bar,
+    59→  XAxis,
+    60→  YAxis,
+    61→  Tooltip,
+    62→  CartesianGrid,
+    63→  Cell,
+    64→} from "recharts";
+    65→import { api } from "@/lib/api-client";
+    66→import { Skeleton } from "@/components/ui/skeleton";
+    67→import { toast } from "sonner";
+    68→import { cn } from "@/lib/utils";
+    69→
+    70→interface Campaign {
+    71→  id: string;
+    72→  name: string;
+    73→  channel: "email" | "sms" | "whatsapp" | "push";
+    74→  status: "draft" | "scheduled" | "sent" | "active";
+    75→  sent: number;
+    76→  opened: number;
+    77→  clicked: number;
+    78→  revenue: number;
+    79→  date: string;
+    80→}
+    81→
+    82→const INITIAL_CAMPAIGNS: Campaign[] = [
+    83→  {
+    84→    id: "c1",
+    85→    name: "Summer Streaming Sale",
+    86→    channel: "email",
+    87→    status: "sent",
+    88→    sent: 8420,
+    89→    opened: 4180,
+    90→    clicked: 980,
+    91→    revenue: 3240,
+    92→    date: "2026-06-28",
+    93→  },
+    94→  {
+    95→    id: "c2",
+    96→    name: "Netflix + Prime Combo Push",
+    97→    channel: "push",
+    98→    status: "sent",
+    99→    sent: 5210,
+   100→    opened: 2640,
+   101→    clicked: 612,
+   102→    revenue: 2180,
+   103→    date: "2026-06-25",
+   104→  },
+   105→  {
+   106→    id: "c3",
+   107→    name: "WhatsApp — ChatGPT Plus Restock",
+   108→    channel: "whatsapp",
+   109→    status: "sent",
+   110→    sent: 3200,
+   111→    opened: 2890,
+   112→    clicked: 845,
+   113→    revenue: 1860,
+   114→    date: "2026-06-22",
+   115→  },
+   116→  {
+   117→    id: "c4",
+   118→    name: "July Newsletter",
+   119→    channel: "email",
+   120→    status: "scheduled",
+   121→    sent: 0,
+   122→    opened: 0,
+   123→    clicked: 0,
+   124→    revenue: 0,
+   125→    date: "2026-07-05",
+   126→  },
+   127→  {
+   128→    id: "c5",
+   129→    name: "SMS — Flash Sale 24h",
+   130→    channel: "sms",
+   131→    status: "draft",
+   132→    sent: 0,
+   133→    opened: 0,
+   134→    clicked: 0,
+   135→    revenue: 0,
+   136→    date: "—",
+   137→  },
+   138→];
+   139→
+   140→const CHANNEL_META: Record<
+   141→  string,
+   142→  { icon: typeof Mail; color: string; label: string }
+   143→> = {
+   144→  email: { icon: Mail, color: "bg-blue-500/15 text-blue-400", label: "Email" },
+   145→  sms: { icon: Smartphone, color: "bg-purple-500/15 text-purple-400", label: "SMS" },
+   146→  whatsapp: { icon: MessageCircle, color: "bg-green-500/15 text-green-400", label: "WhatsApp" },
+   147→  push: { icon: Bell, color: "bg-amber-500/15 text-amber-400", label: "Push" },
+   148→};
+   149→
+   150→const STATUS_COLORS: Record<string, string> = {
+   151→  sent: "bg-green-500/15 text-green-400",
+   152→  scheduled: "bg-blue-500/15 text-blue-400",
+   153→  draft: "bg-gray-500/15 text-gray-400",
+   154→  active: "bg-amber-500/15 text-amber-400",
+   155→};
+   156→
+   157→const CHART_COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#06b6d4"];
+   158→
+   159→function ChartTooltip({ active, payload, label }: any) {
+   160→  if (!active || !payload?.length) return null;
+   161→  return (
+   162→    <div className="rounded-lg border border-white/10 bg-black/80 px-3 py-2 text-xs backdrop-blur-xl">
+   163→      <p className="mb-1 font-medium text-white">{label}</p>
+   164→      {payload.map((p: any, i: number) => (
+   165→        <p key={i} style={{ color: p.color }}>
+   166→          {p.name}: {p.value.toLocaleString()}
+   167→        </p>
+   168→      ))}
+   169→    </div>
+   170→  );
+   171→}
+   172→
+   173→export function AdminMarketing() {
+   174→  const [campaigns, setCampaigns] = React.useState<Campaign[]>(INITIAL_CAMPAIGNS);
+   175→  const [createOpen, setCreateOpen] = React.useState(false);
+   176→  const [editOpen, setEditOpen] = React.useState(false);
+   177→  const [editingCampaign, setEditingCampaign] = React.useState<Campaign | null>(null);
+   178→  const [newCampaign, setNewCampaign] = React.useState({
+   179→    name: "",
+   180→    channel: "email" as Campaign["channel"],
+   181→    subject: "",
+   182→    body: "",
+   183→  });
+   184→  const [automations, setAutomations] = React.useState({
+   185→    welcome: true,
+   186→    abandonedCart: true,
+   187→    postPurchase: false,
+   188→    winback: true,
+   189→  });
+   190→
+   191→  const STORAGE_KEY = "admin-marketing";
+   192→
+   193→  // Load persisted data on mount
+   194→  React.useEffect(() => {
+   195→    try {
+   196→      const raw = localStorage.getItem(STORAGE_KEY);
+   197→      if (raw) {
+   198→        const s = JSON.parse(raw);
+   199→        if (s.campaigns) setCampaigns(s.campaigns);
+   200→        if (s.automations) setAutomations(s.automations);
+   201→      }
+   202→    } catch {}
+   203→  }, []);
+   204→
+   205→  const persist = (overrides: Record<string, unknown>) => {
+   206→    try {
+   207→      localStorage.setItem(STORAGE_KEY, JSON.stringify({ campaigns, automations, ...overrides }));
+   208→    } catch {}
+   209→  };
+   210→
+   211→  // Fetch real affiliate data
+   212→  const { data: affData } = useQuery({
+   213→    queryKey: ["marketing-affiliates"],
+   214→    queryFn: () => api.affiliateStats(),
+   215→    staleTime: 60_000,
+   216→  });
+   217→
+   218→  const affiliate = affData?.affiliate;
+   219→  const affStats = affData?.stats;
+   220→
+   221→  // Campaign stats
+   222→  const totalSent = campaigns
+   223→    .filter((c) => c.status === "sent")
+   224→    .reduce((s, c) => s + c.sent, 0);
+   225→  const totalOpened = campaigns
+   226→    .filter((c) => c.status === "sent")
+   227→    .reduce((s, c) => s + c.opened, 0);
+   228→  const totalClicked = campaigns
+   229→    .filter((c) => c.status === "sent")
+   230→    .reduce((s, c) => s + c.clicked, 0);
+   231→  const totalRevenue = campaigns
+   232→    .filter((c) => c.status === "sent")
+   233→    .reduce((s, c) => s + c.revenue, 0);
+   234→  const openRate = totalSent > 0 ? ((totalOpened / totalSent) * 100).toFixed(1) : "0";
+   235→  const clickRate = totalSent > 0 ? ((totalClicked / totalSent) * 100).toFixed(1) : "0";
+   236→
+   237→  const channelData = ["email", "sms", "whatsapp", "push"].map((ch, i) => {
+   238→    const chCampaigns = campaigns.filter((c) => c.channel === ch && c.status === "sent");
+   239→    return {
+   240→      channel: CHANNEL_META[ch].label,
+   241→      sent: chCampaigns.reduce((s, c) => s + c.sent, 0),
+   242→      opened: chCampaigns.reduce((s, c) => s + c.opened, 0),
+   243→      color: CHART_COLORS[i],
+   244→    };
+   245→  });
+   246→
+   247→  const handleCreateCampaign = () => {
+   248→    if (!newCampaign.name.trim()) {
+   249→      toast.error("Campaign name is required");
+   250→      return;
+   251→    }
+   252→    const campaign: Campaign = {
+   253→      id: `c${Date.now()}`,
+   254→      name: newCampaign.name,
+   255→      channel: newCampaign.channel,
+   256→      status: "draft",
+   257→      sent: 0,
+   258→      opened: 0,
+   259→      clicked: 0,
+   260→      revenue: 0,
+   261→      date: "—",
+   262→    };
+   263→    const updated = [campaign, ...campaigns];
+   264→    setCampaigns(updated);
+   265→    persist({ campaigns: updated });
+   266→    setNewCampaign({ name: "", channel: "email", subject: "", body: "" });
+   267→    setCreateOpen(false);
+   268→    toast.success(`Campaign "${campaign.name}" created as draft`);
+   269→  };
+   270→
+   271→  const handleEditCampaign = (c: Campaign) => {
+   272→    setEditingCampaign(c);
+   273→    setNewCampaign({ name: c.name, channel: c.channel, subject: c.name, body: "" });
+   274→    setEditOpen(true);
+   275→  };
+   276→
+   277→  const handleSaveEdit = () => {
+   278→    if (!editingCampaign || !newCampaign.name.trim()) {
+   279→      toast.error("Campaign name is required");
+   280→      return;
+   281→    }
+   282→    const updated = campaigns.map((c) =>
+   283→      c.id === editingCampaign.id ? { ...c, name: newCampaign.name, channel: newCampaign.channel } : c,
+   284→    );
+   285→    setCampaigns(updated);
+   286→    persist({ campaigns: updated });
+   287→    setEditOpen(false);
+   288→    setEditingCampaign(null);
+   289→    toast.success("Campaign updated");
+   290→  };
+   291→
+   292→  const handleSendCampaign = (id: string) => {
+   293→    const updated = campaigns.map((c) =>
+   294→      c.id === id
+   295→        ? {
+   296→            ...c,
+   297→            status: "sent" as const,
+   298→            sent: Math.floor(Math.random() * 5000) + 2000,
+   299→            opened: 0,
+   300→            clicked: 0,
+   301→            revenue: 0,
+   302→            date: new Date().toISOString().slice(0, 10),
+   303→          }
+   304→        : c,
+   305→    );
+   306→    setCampaigns(updated);
+   307→    persist({ campaigns: updated });
+   308→    const camp = campaigns.find((c) => c.id === id);
+   309→    toast.success(`Campaign "${camp?.name}" sent to subscribers`);
+   310→  };
+   311→
+   312→  const handleDeleteCampaign = (id: string) => {
+   313→    const updated = campaigns.filter((c) => c.id !== id);
+   314→    setCampaigns(updated);
+   315→    persist({ campaigns: updated });
+   316→    toast.success("Campaign deleted");
+   317→  };
+   318→
+   319→  const topProducts = affData?.topProducts || [];
+   320→
+   321→  return (
+   322→    <motion.div
+   323→      initial={{ opacity: 0, y: 12 }}
+   324→      animate={{ opacity: 1, y: 0 }}
+   325→      className="space-y-6"
+   326→    >
+   327→      {/* Header */}
+   328→      <div className="flex items-center gap-4">
+   329→        <div className="grid size-12 place-items-center rounded-xl bg-gradient-to-br from-pink-600 to-purple-600 shadow-lg">
+   330→          <Megaphone className="size-6 text-white" />
+   331→        </div>
+   332→        <div className="flex-1">
+   333→          <h1 className="text-2xl font-bold tracking-tight">Marketing</h1>
+   334→          <p className="text-sm text-slate-300">
+   335→            Campaigns, newsletters, and affiliate program
+   336→          </p>
+   337→        </div>
+   338→        <Button onClick={() => setCreateOpen(true)}>
+   339→          <Plus className="size-4" /> New Campaign
+   340→        </Button>
+   341→      </div>
+   342→
+   343→      {/* Stats */}
+   344→      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+   345→        {[
+   346→          { label: "Subscribers", value: "12,480", icon: Users, color: "text-blue-400" },
+   347→          { label: "Open Rate", value: `${openRate}%`, icon: Eye, color: "text-green-400" },
+   348→          { label: "Click Rate", value: `${clickRate}%`, icon: MousePointerClick, color: "text-purple-400" },
+   349→          { label: "Revenue", value: `Rs ${totalRevenue.toLocaleString()}`, icon: DollarSign, color: "text-amber-400" },
+   350→        ].map((s) => (
+   351→          <Card key={s.label} className="border-white/10 bg-white/5 backdrop-blur-xl">
+   352→            <CardContent className="p-4">
+   353→              <div className="flex items-center gap-2 text-xs text-slate-300">
+   354→                <s.icon className="size-3.5" /> {s.label}
+   355→              </div>
+   356→              <p className={cn("mt-1 text-2xl font-bold", s.color)}>{s.value}</p>
+   357→            </CardContent>
+   358→          </Card>
+   359→        ))}
+   360→      </div>
+   361→
+   362→      {/* Campaign Performance Chart */}
+   363→      <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   364→        <CardHeader>
+   365→          <CardTitle className="flex items-center gap-2 text-base">
+   366→            <TrendingUp className="size-4" /> Campaign Performance
+   367→          </CardTitle>
+   368→          <p className="text-sm text-slate-300">Sent vs opened by channel</p>
+   369→        </CardHeader>
+   370→        <CardContent>
+   371→          <ResponsiveContainer width="100%" height={240}>
+   372→            <BarChart data={channelData}>
+   373→              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
+   374→              <XAxis dataKey="channel" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+   375→              <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
+   376→              <Tooltip content={<ChartTooltip />} cursor={{ fill: "#ffffff08" }} />
+   377→              <Bar dataKey="sent" radius={[4, 4, 0, 0]} name="Sent">
+   378→                {channelData.map((_, i) => (
+   379→                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+   380→                ))}
+   381→              </Bar>
+   382→              <Bar dataKey="opened" radius={[4, 4, 0, 0]} name="Opened" fill="#10b981" />
+   383→            </BarChart>
+   384→          </ResponsiveContainer>
+   385→        </CardContent>
+   386→      </Card>
+   387→
+   388→      {/* Affiliate Program */}
+   389→      <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   390→        <CardHeader>
+   391→          <CardTitle className="flex items-center gap-2 text-base">
+   392→            <Gift className="size-4" /> Affiliate Program
+   393→          </CardTitle>
+   394→          <p className="text-sm text-slate-300">Partner referrals</p>
+   395→        </CardHeader>
+   396→        <CardContent className="space-y-4">
+   397→          {/* Affiliate stats */}
+   398→          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+   399→            {affStats
+   400→              ? [
+   401→                  { label: "Conversions", value: affStats.totalConversions.toLocaleString(), icon: CheckCircle2, color: "text-green-400" },
+   402→                  { label: "Total Earnings", value: `Rs ${affStats.totalEarnings.toLocaleString()}`, icon: DollarSign, color: "text-amber-400" },
+   403→                  { label: "Pending", value: `Rs ${affStats.pendingPayout.toLocaleString()}`, icon: Clock, color: "text-blue-400" },
+   404→                  { label: "Conversion Rate", value: `${affStats.conversionRate}%`, icon: TrendingUp, color: "text-purple-400" },
+   405→                ]
+   406→              : [
+   407→                  { label: "Active Affiliates", value: "148", icon: Users, color: "text-blue-400" },
+   408→                  { label: "Conversions", value: "2,140", icon: CheckCircle2, color: "text-green-400" },
+   409→                  { label: "Paid Out", value: "Rs 18,420", icon: DollarSign, color: "text-amber-400" },
+   410→                  { label: "Pending", value: "Rs 4,820", icon: Clock, color: "text-blue-400" },
+   411→                ].map((s) => (
+   412→            <div key={s.label} className="rounded-lg bg-white/5 p-3">
+   413→              <div className="flex items-center gap-1.5 text-xs text-slate-300">
+   414→                <s.icon className="size-3" /> {s.label}
+   415→              </div>
+   416→              <p className={cn("mt-1 text-lg font-bold", s.color)}>{s.value}</p>
+   417→            </div>
+   418→          ))}
+   419→          </div>
+   420→
+   421→          {/* Referral link */}
+   422→          {affiliate && (
+   423→            <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+   424→              <p className="text-xs font-medium text-slate-300">Your Referral Link</p>
+   425→              <div className="mt-1 flex items-center gap-2">
+   426→                <code className="flex-1 truncate rounded bg-black/40 px-2 py-1 text-xs text-blue-400">
+   427→                  {affiliate.referralLink}
+   428→                </code>
+   429→                <Button
+   430→                  size="sm"
+   431→                  variant="outline"
+   432→                  className="border-white/10"
+   433→                  onClick={() => {
+   434→                    navigator.clipboard?.writeText(affiliate.referralLink);
+   435→                    toast.success("Referral link copied");
+   436→                  }}
+   437→                >
+   438→                  Copy
+   439→                </Button>
+   440→              </div>
+   441→              <p className="mt-1 text-[10px] text-slate-300">
+   442→                Commission rate: {affiliate.commissionRate}% · Code: {affiliate.code}
+   443→              </p>
+   444→            </div>
+   445→          )}
+   446→
+   447→          {/* Top affiliate products */}
+   448→          {topProducts.length > 0 && (
+   449→            <div>
+   450→              <p className="mb-2 text-xs font-medium text-slate-300">
+   451→                Top converting products
+   452→              </p>
+   453→              <div className="space-y-2">
+   454→                {topProducts.slice(0, 3).map((p, i) => (
+   455→                  <div
+   456→                    key={i}
+   457→                    className="flex items-center gap-3 rounded-lg bg-white/5 p-2"
+   458→                  >
+   459→                    <div className="grid size-8 place-items-center rounded-lg bg-amber-500/15">
+   460→                      <Star className="size-4 text-amber-400" />
+   461→                    </div>
+   462→                    <div className="min-w-0 flex-1">
+   463→                      <p className="line-clamp-1 text-sm font-medium">{p.title}</p>
+   464→                      <p className="text-xs text-slate-300">
+   465→                        {p.conversions} conversions
+   466→                      </p>
+   467→                    </div>
+   468→                    <span className="text-sm font-bold text-green-400">
+   469→                      ${p.earnings.toFixed(2)}
+   470→                    </span>
+   471→                  </div>
+   472→                ))}
+   473→              </div>
+   474→            </div>
+   475→          )}
+   476→
+   477→          <Button
+   478→            variant="outline"
+   479→            className="w-full border-white/10 bg-white/5"
+   480→            onClick={() => toast.success("Opening affiliate management…")}
+   481→          >
+   482→            Manage affiliates
+   483→          </Button>
+   484→        </CardContent>
+   485→      </Card>
+   486→
+   487→      {/* Recent Campaigns */}
+   488→      <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   489→        <CardHeader>
+   490→          <CardTitle className="text-base">Recent Campaigns</CardTitle>
+   491→        </CardHeader>
+   492→        <CardContent className="p-0">
+   493→          <div className="overflow-x-auto">
+   494→            <table className="w-full text-sm">
+   495→              <thead>
+   496→                <tr className="border-b border-white/10 text-left text-xs uppercase tracking-wider text-slate-300">
+   497→                  <th className="p-4">Campaign</th>
+   498→                  <th className="p-4">Channel</th>
+   499→                  <th className="p-4">Status</th>
+   500→                  <th className="p-4">Sent</th>
+   501→                  <th className="p-4">Opened</th>
+   502→                  <th className="p-4">Clicked</th>
+   503→                  <th className="p-4">Revenue</th>
+   504→                  <th className="p-4 text-right">Actions</th>
+   505→                </tr>
+   506→              </thead>
+   507→              <tbody>
+   508→                {campaigns.length === 0 ? (
+   509→                  <tr>
+   510→                    <td colSpan={8} className="p-8 text-center text-slate-300">
+   511→                      No campaigns yet — click "New Campaign" to create one
+   512→                    </td>
+   513→                  </tr>
+   514→                ) : (
+   515→                  campaigns.map((c) => {
+   516→                    const ch = CHANNEL_META[c.channel];
+   517→                    const ChIcon = ch.icon;
+   518→                    return (
+   519→                      <tr
+   520→                        key={c.id}
+   521→                        className="border-b border-white/5 transition-colors hover:bg-white/5"
+   522→                      >
+   523→                        <td className="p-4">
+   524→                          <p className="font-medium">{c.name}</p>
+   525→                          <p className="text-xs text-slate-300">{c.date}</p>
+   526→                        </td>
+   527→                        <td className="p-4">
+   528→                          <Badge className={ch.color}>
+   529→                            <ChIcon className="mr-1 size-3" />
+   530→                            {ch.label}
+   531→                          </Badge>
+   532→                        </td>
+   533→                        <td className="p-4">
+   534→                          <Badge className={STATUS_COLORS[c.status]}>{c.status}</Badge>
+   535→                        </td>
+   536→                        <td className="p-4 text-slate-300">
+   537→                          {c.sent.toLocaleString()}
+   538→                        </td>
+   539→                        <td className="p-4 text-slate-300">
+   540→                          {c.opened.toLocaleString()}
+   541→                        </td>
+   542→                        <td className="p-4 text-slate-300">
+   543→                          {c.clicked.toLocaleString()}
+   544→                        </td>
+   545→                        <td className="p-4 font-bold text-green-400">
+   546→                          {c.revenue > 0 ? `Rs ${c.revenue.toLocaleString()}` : "—"}
+   547→                        </td>
+   548→                        <td className="p-4">
+   549→                          <div className="flex justify-end gap-1">
+   550→                            {c.status === "draft" && (
+   551→                              <Button
+   552→                                size="sm"
+   553→                                variant="ghost"
+   554→                                className="h-7 px-2 text-xs text-green-400"
+   555→                                onClick={() => handleSendCampaign(c.id)}
+   556→                              >
+   557→                                <Send className="size-3" /> Send
+   558→                              </Button>
+   559→                            )}
+   560→                            <Button
+   561→                              size="icon"
+   562→                              variant="ghost"
+   563→                              className="size-7"
+   564→                              onClick={() => handleEditCampaign(c)}
+   565→                            >
+   566→                              <Pencil className="size-3.5" />
+   567→                            </Button>
+   568→                            <Button
+   569→                              size="icon"
+   570→                              variant="ghost"
+   571→                              className="size-7 text-red-400"
+   572→                              onClick={() => handleDeleteCampaign(c.id)}
+   573→                            >
+   574→                              <Trash2 className="size-3.5" />
+   575→                            </Button>
+   576→                          </div>
+   577→                        </td>
+   578→                      </tr>
+   579→                    );
+   580→                  })
+   581→                )}
+   582→              </tbody>
+   583→            </table>
+   584→          </div>
+   585→        </CardContent>
+   586→      </Card>
+   587→
+   588→      {/* Marketing Settings */}
+   589→      <Card className="border-white/10 bg-white/5 backdrop-blur-xl">
+   590→        <CardHeader>
+   591→          <CardTitle className="flex items-center gap-2 text-base">
+   592→            <Settings className="size-4" /> Marketing Settings
+   593→          </CardTitle>
+   594→          <p className="text-sm text-slate-300">Automation & opt-in</p>
+   595→        </CardHeader>
+   596→        <CardContent className="space-y-1">
+   597→          {[
+   598→            { key: "welcome" as const, title: "Welcome email", desc: "Send on new signup" },
+   599→            { key: "abandonedCart" as const, title: "Abandoned cart", desc: "Recover lost sales (1h delay)" },
+   600→            { key: "postPurchase" as const, title: "Post-purchase upsell", desc: "Suggest related products" },
+   601→            { key: "winback" as const, title: "Win-back campaign", desc: "Email inactive users after 30d" },
+   602→          ].map((s) => (
+   603→            <div
+   604→              key={s.key}
+   605→              className="flex items-center justify-between rounded-lg px-3 py-3 transition-colors hover:bg-white/5"
+   606→            >
+   607→              <div>
+   608→                <p className="text-sm font-medium">{s.title}</p>
+   609→                <p className="text-xs text-slate-300">{s.desc}</p>
+   610→              </div>
+   611→              <Switch
+   612→                checked={automations[s.key]}
+   613→                onCheckedChange={(v) => {
+   614→                  setAutomations((prev) => { const next = { ...prev, [s.key]: v }; persist({ automations: next }); return next; });
+   615→                  toast.success(`${s.title} ${v ? "enabled" : "disabled"}`);
+   616→                }}
+   617→              />
+   618→            </div>
+   619→          ))}
+   620→        </CardContent>
+   621→      </Card>
+   622→
+   623→      {/* Create Campaign Dialog */}
+   624→      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+   625→        <DialogContent className="border-white/10 bg-card sm:max-w-lg">
+   626→          <DialogHeader>
+   627→            <DialogTitle className="flex items-center gap-2">
+   628→              <Plus className="size-4" /> New Campaign
+   629→            </DialogTitle>
+   630→            <DialogDescription>
+   631→              Create a new marketing campaign across email, SMS, WhatsApp, or push.
+   632→            </DialogDescription>
+   633→          </DialogHeader>
+   634→          <div className="space-y-4">
+   635→            <div className="space-y-1.5">
+   636→              <Label className="text-xs">Campaign Name</Label>
+   637→              <Input
+   638→                value={newCampaign.name}
+   639→                onChange={(e) => setNewCampaign({ ...newCampaign, name: e.target.value })}
+   640→                placeholder="e.g. Summer Streaming Sale"
+   641→                className="border-white/10 bg-white/5"
+   642→              />
+   643→            </div>
+   644→            <div className="space-y-1.5">
+   645→              <Label className="text-xs">Channel</Label>
+   646→              <Select
+   647→                value={newCampaign.channel}
+   648→                onValueChange={(v) => setNewCampaign({ ...newCampaign, channel: v as Campaign["channel"] })}
+   649→              >
+   650→                <SelectTrigger className="border-white/10 bg-white/5">
+   651→                  <SelectValue />
+   652→                </SelectTrigger>
+   653→                <SelectContent>
+   654→                  <SelectItem value="email">📧 Email</SelectItem>
+   655→                  <SelectItem value="sms">📱 SMS</SelectItem>
+   656→                  <SelectItem value="whatsapp">💬 WhatsApp</SelectItem>
+   657→                  <SelectItem value="push">🔔 Push Notification</SelectItem>
+   658→                </SelectContent>
+   659→              </Select>
+   660→            </div>
+   661→            <div className="space-y-1.5">
+   662→              <Label className="text-xs">Subject / Title</Label>
+   663→              <Input
+   664→                value={newCampaign.subject}
+   665→                onChange={(e) => setNewCampaign({ ...newCampaign, subject: e.target.value })}
+   666→                placeholder="e.g. 40% off all streaming subscriptions!"
+   667→                className="border-white/10 bg-white/5"
+   668→              />
+   669→            </div>
+   670→            <div className="space-y-1.5">
+   671→              <Label className="text-xs">Message Body</Label>
+   672→              <Textarea
+   673→                value={newCampaign.body}
+   674→                onChange={(e) => setNewCampaign({ ...newCampaign, body: e.target.value })}
+   675→                placeholder="Write your campaign message..."
+   676→                className="min-h-[100px] border-white/10 bg-white/5"
+   677→              />
+   678→            </div>
+   679→          </div>
+   680→          <DialogFooter>
+   681→            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+   682→              Cancel
+   683→            </Button>
+   684→            <Button onClick={handleCreateCampaign}>
+   685→              Create Campaign
+   686→            </Button>
+   687→          </DialogFooter>
+   688→        </DialogContent>
+   689→      </Dialog>
+   690→
+   691→      {/* Edit Campaign Dialog */}
+   692→      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+   693→        <DialogContent className="border-white/10 bg-card sm:max-w-md">
+   694→          <DialogHeader>
+   695→            <DialogTitle className="flex items-center gap-2">
+   696→              <Pencil className="size-4" /> Edit Campaign
+   697→            </DialogTitle>
+   698→            <DialogDescription>Update campaign details</DialogDescription>
+   699→          </DialogHeader>
+   700→          <div className="space-y-4">
+   701→            <div className="space-y-1.5">
+   702→              <Label className="text-xs">Campaign Name</Label>
+   703→              <Input
+   704→                value={newCampaign.name}
+   705→                onChange={(e) => setNewCampaign((p) => ({ ...p, name: e.target.value }))}
+   706→                className="border-white/10 bg-white/5"
+   707→              />
+   708→            </div>
+   709→            <div className="space-y-1.5">
+   710→              <Label className="text-xs">Channel</Label>
+   711→              <Select
+   712→                value={newCampaign.channel}
+   713→                onValueChange={(v) => setNewCampaign((p) => ({ ...p, channel: v as Campaign["channel"] }))}
+   714→              >
+   715→                <SelectTrigger className="border-white/10 bg-white/5">
+   716→                  <SelectValue />
+   717→                </SelectTrigger>
+   718→                <SelectContent>
+   719→                  <SelectItem value="email">Email</SelectItem>
+   720→                  <SelectItem value="sms">SMS</SelectItem>
+   721→                  <SelectItem value="whatsapp">WhatsApp</SelectItem>
+   722→                  <SelectItem value="push">Push</SelectItem>
+   723→                </SelectContent>
+   724→              </Select>
+   725→            </div>
+   726→          </div>
+   727→          <DialogFooter>
+   728→            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+   729→            <Button onClick={handleSaveEdit}>Save Changes</Button>
+   730→          </DialogFooter>
+   731→        </DialogContent>
+   732→      </Dialog>
+   733→    </motion.div>
+   734→  );
+   735→}
+   736→

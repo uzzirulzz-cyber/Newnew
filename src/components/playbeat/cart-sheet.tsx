@@ -42,8 +42,10 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
-  { value: "BANK_ALFALAH", label: "Bank Alfalah — IBFT / Cash Deposit" },
+  { value: "JAZZCASH", label: "JazzCash — Mobile Account / Wallet" },
   { value: "EASYPAISA", label: "Easypaisa — Hosted Checkout" },
+  { value: "STRIPE", label: "Card — Visa / Mastercard (Stripe)" },
+  { value: "BANK_ALFALAH", label: "Bank Alfalah — IBFT / Cash Deposit" },
   { value: "PAYPAL", label: "PayPal — International / Cards" },
   { value: "CRYPTO", label: "Crypto — BTC/ETH/USDT/USDC" },
 ];
@@ -128,7 +130,11 @@ function PaymentProofForm({ order }: { order: Order }) {
     try {
       const formData = new FormData();
       formData.append("orderNumber", order.orderNumber);
-      formData.append("method", order.provider === "BANK_ALFALAH" ? "bank-alfalah" : "easypaisa");
+      formData.append("method",
+        order.provider === "BANK_ALFALAH" ? "bank-alfalah" :
+        order.provider === "EASYPAISA" ? "easypaisa" :
+        order.provider === "JAZZCASH" ? "jazzcash" : "bank-alfalah"
+      );
       formData.append("amount", String(order.total));
       formData.append("customerName", order.customerName || "");
       formData.append("customerEmail", order.customerEmail || "");
@@ -272,15 +278,19 @@ function OrderSuccess({ order }: { order: Order }) {
         <div className="flex justify-between">
           <span className="text-muted-foreground">Payment</span>
           <span className="font-medium">
-            {order.provider === "BANK_ALFALAH" ? "Bank Alfalah (Manual)" : 
-             order.provider === "EASYPAISA" ? "Easypaisa (Manual)" :
+            {order.provider === "JAZZCASH" ? "JazzCash" :
+             order.provider === "EASYPAISA" ? "Easypaisa" :
+             order.provider === "STRIPE" ? "Card (Stripe)" :
+             order.provider === "BANK_ALFALAH" ? "Bank Alfalah (Manual)" :
+             order.provider === "PAYPAL" ? "PayPal" :
+             order.provider === "CRYPTO" ? "Crypto" :
              order.provider || "—"}
           </span>
         </div>
       </div>
 
-      {/* Manual payment instructions for Bank Alfalah / Easypaisa */}
-      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA") && (
+      {/* Manual payment instructions for Bank Alfalah / Easypaisa / JazzCash */}
+      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA" || order.provider === "JAZZCASH") && (
         <div className="w-full rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-left text-sm">
           <p className="font-semibold text-foreground">Payment Instructions</p>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -294,12 +304,19 @@ function OrderSuccess({ order }: { order: Order }) {
               <p><strong>Account Number:</strong> 00681011050474</p>
               <p><strong>Currency:</strong> PKR</p>
             </div>
-          ) : (
+          ) : order.provider === "EASYPAISA" ? (
             <div className="mt-3 space-y-1 text-xs">
               <p><strong>Bank:</strong> Easypaisa (Telenor Microfinance Bank)</p>
               <p><strong>Account Title:</strong> Playbeat Digital</p>
               <p><strong>Account Number:</strong> 03390005715</p>
               <p><strong>IBAN:</strong> PK25TMFB03390005715</p>
+              <p><strong>Currency:</strong> PKR</p>
+            </div>
+          ) : (
+            <div className="mt-3 space-y-1 text-xs">
+              <p><strong>JazzCash Mobile Account:</strong> 03318333368</p>
+              <p><strong>Account Title:</strong> Playbeat Digital</p>
+              <p><strong>How to pay:</strong> JazzCash app → Send Money → Mobile Account, or dial *786#</p>
               <p><strong>Currency:</strong> PKR</p>
             </div>
           )}
@@ -310,7 +327,7 @@ function OrderSuccess({ order }: { order: Order }) {
       )}
 
       {/* Payment proof upload form for manual payments */}
-      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA") && (
+      {(order.provider === "BANK_ALFALAH" || order.provider === "EASYPAISA" || order.provider === "JAZZCASH") && (
         <PaymentProofForm order={order} />
       )}
 
@@ -357,7 +374,7 @@ export function CartSheet() {
   const [couponLoading, setCouponLoading] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
-  const [provider, setProvider] = React.useState("BANK_ALFALAH");
+  const [provider, setProvider] = React.useState("JAZZCASH");
   const [placing, setPlacing] = React.useState(false);
   const [placedOrder, setPlacedOrder] = React.useState<Order | null>(null);
 
@@ -415,11 +432,10 @@ export function CartSheet() {
     setPlacing(true);
     try {
       if (provider === "JAZZCASH") {
-        // JazzCash — live Pakistani payment gateway.
-        // 1. Create the order record locally (PENDING).
-        // 2. Create a JazzCash transaction with the order total.
-        // 3. Build + submit a POST form to the JazzCash gateway URL so the
-        //    browser redirects the customer to the JazzCash payment page.
+        // JazzCash — MANUAL payment: create order as PENDING, show the
+        // JazzCash mobile account number in the order confirmation, customer
+        // sends money via JazzCash app / *786# and submits the transaction ID
+        // + screenshot. No live gateway redirect (was erroring out).
         const orderResult = await api.placeOrder({
           items: cart.map((c) => ({ productId: c.product.id })),
           customerName: name.trim(),
@@ -427,30 +443,8 @@ export function CartSheet() {
           couponCode: appliedCoupon?.code,
           provider: "JAZZCASH",
         });
-        const txn = await api.jazzcashCreate({
-          amount: total,
-          description: cart
-            .map((c) => `${c.product.title} ×${c.quantity}`)
-            .join(", ")
-            .slice(0, 255),
-          billReference: orderResult.order.orderNumber.slice(0, 24),
-          customerEmail: email.trim(),
-        });
-        // Submit the signed params to the JazzCash gateway via a hidden form.
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = txn.gatewayUrl;
-        for (const [key, val] of Object.entries(txn.params)) {
-          const input = document.createElement("input");
-          input.type = "hidden";
-          input.name = key;
-          input.value = val;
-          form.appendChild(input);
-        }
-        document.body.appendChild(form);
-        form.submit();
-        toast.success("Redirecting to JazzCash to complete payment…");
         setPlacedOrder(orderResult.order);
+        toast.success(`Order ${orderResult.order.orderNumber} created — see JazzCash payment instructions below`);
         clearCart();
       } else if (provider === "CRYPTO") {
         // Crypto (Binance) — create order, then redirect to crypto payment page
@@ -531,6 +525,41 @@ export function CartSheet() {
           toast.error("Easypaisa payment initiation failed — showing manual instructions instead");
           // Fallback to manual payment instructions
           setPlacedOrder(orderResult.order);
+        }
+        setPlacedOrder(orderResult.order);
+        clearCart();
+      } else if (provider === "STRIPE") {
+        // Stripe — Card payment (Visa/Mastercard) via Stripe Checkout.
+        // Creates a Checkout Session server-side, then redirects the customer
+        // to Stripe's hosted payment page. Requires STRIPE_SECRET_KEY (sk_).
+        const orderResult = await api.placeOrder({
+          items: cart.map((c) => ({ productId: c.product.id })),
+          customerName: name.trim(),
+          customerEmail: email.trim(),
+          couponCode: appliedCoupon?.code,
+          provider: "STRIPE",
+        });
+        const stripeRes = await fetch("/api/v1/payments/stripe/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: total,
+            currency: "pkr",
+            description: cart
+              .map((c) => `${c.product.title} ×${c.quantity}`)
+              .join(", ")
+              .slice(0, 200),
+            orderReference: orderResult.order.orderNumber,
+            customerEmail: email.trim(),
+          }),
+        });
+        const stripeData = await stripeRes.json();
+        if (stripeData.success && stripeData.data.url) {
+          window.location.href = stripeData.data.url;
+          toast.success("Redirecting to Stripe to complete card payment…");
+        } else {
+          const errMsg = stripeData?.error?.message || "Stripe payment initiation failed";
+          toast.error(errMsg);
         }
         setPlacedOrder(orderResult.order);
         clearCart();
@@ -752,15 +781,19 @@ export function CartSheet() {
                 ) : (
                   <CheckCircle2 className="size-4" />
                 )}
-                {provider === "BANK_ALFALAH"
-                  ? `Bank Alfalah · ${formatInCurrency(total, currency)}`
+                {provider === "JAZZCASH"
+                  ? `Pay with JazzCash · ${formatInCurrency(total, currency)}`
                   : provider === "EASYPAISA"
-                    ? `Easypaisa · ${formatInCurrency(total, currency)}`
-                    : provider === "PAYPAL"
-                      ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
-                      : provider === "CRYPTO"
-                        ? `Pay with Crypto · ${formatInCurrency(total, currency)}`
-                        : `Place order · ${formatInCurrency(total, currency)}`}
+                    ? `Pay with Easypaisa · ${formatInCurrency(total, currency)}`
+                    : provider === "STRIPE"
+                      ? `Pay with Card · ${formatInCurrency(total, currency)}`
+                      : provider === "BANK_ALFALAH"
+                        ? `Bank Alfalah · ${formatInCurrency(total, currency)}`
+                        : provider === "PAYPAL"
+                          ? `Pay with PayPal · $${(total / 280).toFixed(2)}`
+                          : provider === "CRYPTO"
+                            ? `Pay with Crypto · ${formatInCurrency(total, currency)}`
+                            : `Place order · ${formatInCurrency(total, currency)}`}
               </Button>
               <p className="flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
                 <Lock className="size-3" />

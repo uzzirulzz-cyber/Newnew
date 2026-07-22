@@ -1,0 +1,1237 @@
+     1→"use client";
+     2→
+     3→// ===== Types =====
+     4→
+     5→export interface ProductCover {
+     6→  type: "gradient" | "image";
+     7→  colors?: [string, string];
+     8→  icon?: string;
+     9→  seed?: string;
+    10→  image?: string;
+    11→}
+    12→
+    13→export interface VendorRef {
+    14→  id: string;
+    15→  storeName: string;
+    16→  slug: string;
+    17→  verified: boolean;
+    18→  rating: number;
+    19→}
+    20→
+    21→export interface CategoryRef {
+    22→  id: string;
+    23→  name: string;
+    24→  slug: string;
+    25→  icon: string | null;
+    26→  color: string | null;
+    27→}
+    28→
+    29→export interface Product {
+    30→  id: string;
+    31→  title: string;
+    32→  slug: string;
+    33→  shortDescription: string | null;
+    34→  description: string;
+    35→  type: string;
+    36→  status: string;
+    37→  price: number;
+    38→  discountPrice: number | null;
+    39→  currency: string;
+    40→  sku: string;
+    41→  stock: number | null;
+    42→  cover: ProductCover;
+    43→  tags: string[];
+    44→  licenseType: string | null;
+    45→  downloadFile: string | null;
+    46→  fileSize: string | null;
+    47→  version: string | null;
+    48→  changelog: Array<{ version: string; date: string; notes: string }>;
+    49→  featured: boolean;
+    50→  rating: number;
+    51→  reviewCount: number;
+    52→  salesCount: number;
+    53→  vendor: VendorRef | null;
+    54→  category: CategoryRef | null;
+    55→  effectivePrice: number;
+    56→  discountPercent: number;
+    57→  createdAt: string;
+    58→  updatedAt: string;
+    59→  buyNowUrl?: string | null;
+    60→  priceFormatted?: string | null;
+    61→}
+    62→
+    63→export interface Category {
+    64→  id: string;
+    65→  name: string;
+    66→  slug: string;
+    67→  description: string | null;
+    68→  icon: string | null;
+    69→  color: string | null;
+    70→  productCount: number;
+    71→}
+    72→
+    73→export interface Vendor {
+    74→  id: string;
+    75→  storeName: string;
+    76→  slug: string;
+    77→  description: string | null;
+    78→  logo: string | null;
+    79→  verified: boolean;
+    80→  totalSales: number;
+    81→  totalRevenue: number;
+    82→  rating: number;
+    83→  createdAt?: string;
+    84→}
+    85→
+    86→export interface VendorDetail extends Vendor {
+    87→  products: Product[];
+    88→  coupons: Array<{
+    89→    code: string;
+    90→    type: string;
+    91→    value: number;
+    92→    minPurchase: number;
+    93→    active: boolean;
+    94→  }>;
+    95→}
+    96→
+    97→export interface Review {
+    98→  id: string;
+    99→  rating: number;
+   100→  title: string | null;
+   101→  comment: string;
+   102→  verified: boolean;
+   103→  vendorReply: string | null;
+   104→  createdAt: string;
+   105→  authorName: string;
+   106→}
+   107→
+   108→export interface RatingBreakdown {
+   109→  star: number;
+   110→  count: number;
+   111→}
+   112→
+   113→export interface Notification {
+   114→  id: string;
+   115→  type: string;
+   116→  title: string;
+   117→  message: string;
+   118→  read: boolean;
+   119→  createdAt: string;
+   120→}
+   121→
+   122→export interface Paginated<T> {
+   123→  items: T[];
+   124→  page: number;
+   125→  limit: number;
+   126→  total: number;
+   127→  totalPages: number;
+   128→  configured?: boolean;
+   129→  message?: string;
+   130→}
+   131→
+   132→export interface AffiliateStats {
+   133→  affiliate: {
+   134→    id: string;
+   135→    code: string;
+   136→    referralLink: string;
+   137→    commissionRate: number;
+   138→    status: string;
+   139→  };
+   140→  stats: {
+   141→    totalClicks: number;
+   142→    totalConversions: number;
+   143→    conversionRate: number;
+   144→    totalEarnings: number;
+   145→    balance: number;
+   146→    pendingPayout: number;
+   147→  };
+   148→  timeseries: Array<{ date: string; clicks: number; conversions: number }>;
+   149→  payouts: Array<{
+   150→    id: string;
+   151→    amount: number;
+   152→    status: string;
+   153→    method: string;
+   154→    createdAt: string;
+   155→  }>;
+   156→  topProducts: Array<{ title: string; conversions: number; earnings: number }>;
+   157→}
+   158→
+   159→export interface AnalyticsDashboard {
+   160→  summary: {
+   161→    revenue: number;
+   162→    orders: number;
+   163→    customers: number;
+   164→    products: number;
+   165→    vendors: number;
+   166→    reviews: number;
+   167→    aov: number;
+   168→    conversionRate: number;
+   169→    avgRating: number;
+   170→  };
+   171→  revenueTimeseries: Array<{ date: string; revenue: number; orders: number }>;
+   172→  revenueByCategory: Array<{ name: string; revenue: number; orders: number }>;
+   173→  paymentProviders: Array<{ name: string; value: number }>;
+   174→  topProducts: Array<{ title: string; sales: number; revenue: number; vendor: string }>;
+   175→  topVendors: Array<{
+   176→    id: string;
+   177→    storeName: string;
+   178→    slug: string;
+   179→    verified: boolean;
+   180→    totalSales: number;
+   181→    totalRevenue: number;
+   182→    rating: number;
+   183→  }>;
+   184→  trafficSources: Array<{ source: string; value: number }>;
+   185→}
+   186→
+   187→export interface AdminUser {
+   188→  id: string;
+   189→  name: string;
+   190→  email: string;
+   191→  role: string;
+   192→  verified: boolean;
+   193→  createdAt: string;
+   194→  vendor: { storeName: string; totalRevenue: number } | null;
+   195→  affiliate: { code: string; earnings: number } | null;
+   196→  orderCount: number;
+   197→  reviewCount: number;
+   198→}
+   199→
+   200→export interface OrderItem {
+   201→  id: string;
+   202→  productId: string;
+   203→  title: string;
+   204→  price: number;
+   205→  licenseKey: string;
+   206→}
+   207→
+   208→export interface Order {
+   209→  id: string;
+   210→  orderNumber: string;
+   211→  status: string;
+   212→  subtotal: number;
+   213→  discount: number;
+   214→  total: number;
+   215→  couponCode: string | null;
+   216→  createdAt: string;
+   217→  provider: string | null;
+   218→  paymentStatus?: string;
+   219→  items: OrderItem[];
+   220→}
+   221→
+   222→export interface LemonSqueezyCheckout {
+   223→  checkoutUrl: string;
+   224→  order: Order;
+   225→  live: boolean;
+   226→  message: string;
+   227→}
+   228→
+   229→export interface CouponValidation {
+   230→  coupon: {
+   231→    code: string;
+   232→    type: string;
+   233→    value: number;
+   234→    minPurchase: number;
+   235→    active: boolean;
+   236→  };
+   237→  discount: number;
+   238→  subtotal: number;
+   239→  total: number;
+   240→}
+   241→
+   242→// ===== API client =====
+   243→
+   244→const BASE = "/api/v1";
+   245→
+   246→export interface ApiResult<T> {
+   247→  success: boolean;
+   248→  data?: T;
+   249→  error?: { message: string; details?: unknown };
+   250→}
+   251→
+   252→async function apiFetch<T>(
+   253→  path: string,
+   254→  options?: RequestInit
+   255→): Promise<T> {
+   256→  let res: Response;
+   257→  try {
+   258→    res = await fetch(`${BASE}${path}`, {
+   259→      headers: {
+   260→        "Content-Type": "application/json",
+   261→        ...(options?.headers || {}),
+   262→      },
+   263→      ...options,
+   264→    });
+   265→  } catch (e) {
+   266→    throw new Error("Network error. Please try again.");
+   267→  }
+   268→
+   269→  let json: ApiResult<T> | null = null;
+   270→  try {
+   271→    json = (await res.json()) as ApiResult<T>;
+   272→  } catch {
+   273→    throw new Error(`Server returned status ${res.status}`);
+   274→  }
+   275→
+   276→  if (!res.ok || !json?.success) {
+   277→    const msg = json?.error?.message || `Request failed (${res.status})`;
+   278→    throw new Error(msg);
+   279→  }
+   280→  if (!json.data) {
+   281→    throw new Error("Empty response from server");
+   282→  }
+   283→  return json.data;
+   284→}
+   285→
+   286→// ===== Endpoint helpers =====
+   287→
+   288→export interface ProductQuery {
+   289→  search?: string;
+   290→  category?: string;
+   291→  type?: string;
+   292→  sort?: string;
+   293→  minPrice?: string;
+   294→  maxPrice?: string;
+   295→  featured?: string;
+   296→  page?: number;
+   297→  limit?: number;
+   298→}
+   299→
+   300→export function buildProductQuery(q: ProductQuery): string {
+   301→  const params = new URLSearchParams();
+   302→  if (q.search) params.set("search", q.search);
+   303→  if (q.category) params.set("category", q.category);
+   304→  if (q.type) params.set("type", q.type);
+   305→  if (q.sort) params.set("sort", q.sort);
+   306→  if (q.minPrice) params.set("minPrice", q.minPrice);
+   307→  if (q.maxPrice) params.set("maxPrice", q.maxPrice);
+   308→  if (q.featured) params.set("featured", q.featured);
+   309→  if (q.page) params.set("page", String(q.page));
+   310→  if (q.limit) params.set("limit", String(q.limit));
+   311→  const s = params.toString();
+   312→  return s ? `?${s}` : "";
+   313→}
+   314→
+   315→export const api = {
+   316→  products: (q: ProductQuery = {}) =>
+   317→    apiFetch<Paginated<Product>>(`/products${buildProductQuery(q)}`),
+   318→  featuredProducts: () =>
+   319→    apiFetch<{ items: Product[] }>(`/products/featured`),
+   320→  product: (slug: string) =>
+   321→    apiFetch<{
+   322→      product: Product;
+   323→      reviews: Review[];
+   324→      ratingBreakdown: RatingBreakdown[];
+   325→    }>(`/products/${encodeURIComponent(slug)}`),
+   326→  categories: () => apiFetch<{ items: Category[] }>(`/categories`),
+   327→  vendors: () => apiFetch<{ items: Vendor[] }>(`/vendors`),
+   328→  vendor: (slug: string) =>
+   329→    apiFetch<{ vendor: VendorDetail; products: Product[]; coupons: VendorDetail["coupons"] }>(
+   330→      `/vendors/${encodeURIComponent(slug)}`
+   331→    ),
+   332→  affiliates: () => apiFetch<AffiliateStats>(`/affiliates/stats`),
+   333→  analytics: () => apiFetch<AnalyticsDashboard>(`/analytics/dashboard`),
+   334→  notifications: () => apiFetch<{ items: Notification[] }>(`/notifications`),
+   335→  adminUsers: () => apiFetch<{ items: AdminUser[] }>(`/admin/users`),
+   336→  resetAnalytics: () =>
+   337→    apiFetch<{ cleared: { orders: number; payments: number; notifications: number; transactions: number } }>(
+   338→      `/admin/reset`,
+   339→      { method: "DELETE" },
+   340→    ),
+   341→  adminOrders: (params?: {
+   342→    page?: number;
+   343→    limit?: number;
+   344→    status?: string;
+   345→    search?: string;
+   346→    sort?: string;
+   347→  }) => {
+   348→    const qs = new URLSearchParams();
+   349→    if (params?.page) qs.set("page", String(params.page));
+   350→    if (params?.limit) qs.set("limit", String(params.limit));
+   351→    if (params?.status) qs.set("status", params.status);
+   352→    if (params?.search) qs.set("search", params.search);
+   353→    if (params?.sort) qs.set("sort", params.sort);
+   354→    const q = qs.toString();
+   355→    return apiFetch<{ items: Order[]; page: number; limit: number; total: number; totalPages: number }>(
+   356→      `/admin/orders${q ? `?${q}` : ""}`,
+   357→    );
+   358→  },
+   359→  adminSettingsGet: () =>
+   360→    apiFetch<{ settings: Record<string, any> }>(`/admin/settings`),
+   361→  adminSettingsPut: (payload: Record<string, any>) =>
+   362→    apiFetch<{ saved: string[]; message: string }>(`/admin/settings`, {
+   363→      method: "PUT",
+   364→      body: JSON.stringify(payload),
+   365→    }),
+   366→  // New contract — returns { config }, accepts { config: { ...partial } }
+   367→  // (deep-merged with existing config on the server). Preferred over the
+   368→  // legacy adminSettingsGet/adminSettingsPut pair.
+   369→  adminSettings: () =>
+   370→    apiFetch<{ config: Record<string, any> }>(`/admin/settings`),
+   371→  adminSettingsUpdate: (config: any) =>
+   372→    apiFetch<{ config: Record<string, any>; saved: string[]; message: string }>(
+   373→      `/admin/settings`,
+   374→      { method: "PUT", body: JSON.stringify({ config }) },
+   375→    ),
+   376→  // ===== Mobile App =====
+   377→  adminMobileBuilds: () =>
+   378→    apiFetch<{ items: any[] }>(`/admin/mobile/builds`),
+   379→  adminMobileBuildCreate: (payload: any) =>
+   380→    apiFetch<{ build: any }>(`/admin/mobile/builds`, {
+   381→      method: "POST",
+   382→      body: JSON.stringify(payload),
+   383→    }),
+   384→  adminMobileBuildUpdate: (id: string, payload: any) =>
+   385→    apiFetch<{ build: any }>(`/admin/mobile/builds/${id}`, {
+   386→      method: "PATCH",
+   387→      body: JSON.stringify(payload),
+   388→    }),
+   389→  adminMobileBuildDelete: (id: string) =>
+   390→    apiFetch<{ success: boolean }>(`/admin/mobile/builds/${id}`, {
+   391→      method: "DELETE",
+   392→    }),
+   393→  adminMobilePush: (payload: {
+   394→    title: string;
+   395→    message: string;
+   396→    audience: string;
+   397→  }) =>
+   398→    apiFetch<{ success: boolean; id: string; note?: string }>(
+   399→      `/admin/mobile/push`,
+   400→      { method: "POST", body: JSON.stringify(payload) },
+   401→    ),
+   402→  adminMobilePushList: () =>
+   403→    apiFetch<{ items: any[] }>(`/admin/mobile/push`),
+   404→  adminMobileConfig: () =>
+   405→    apiFetch<{ config: any }>(`/admin/mobile/config`),
+   406→  adminMobileConfigUpdate: (config: any) =>
+   407→    apiFetch<{ config: any }>(`/admin/mobile/config`, {
+   408→      method: "PUT",
+   409→      body: JSON.stringify({ config }),
+   410→    }),
+   411→  // ===== IPTV =====
+   412→  adminIptvChannels: (params?: { status?: string; category?: string; search?: string }) => {
+   413→    const qs = new URLSearchParams();
+   414→    if (params?.status) qs.set("status", params.status);
+   415→    if (params?.category) qs.set("category", params.category);
+   416→    if (params?.search) qs.set("search", params.search);
+   417→    return apiFetch<{ items: any[] }>(`/admin/iptv/channels${qs.toString() ? `?${qs}` : ""}`);
+   418→  },
+   419→  adminIptvChannelCreate: (payload: any) =>
+   420→    apiFetch<{ channel: any; message: string }>(`/admin/iptv/channels/create`, { method: "POST", body: JSON.stringify(payload) }),
+   421→  adminIptvChannelUpdate: (payload: any) =>
+   422→    apiFetch<{ channel: any; message: string }>(`/admin/iptv/channels/update`, { method: "POST", body: JSON.stringify(payload) }),
+   423→  adminIptvChannelDelete: (id: string) =>
+   424→    apiFetch<{ deleted: boolean; message: string }>(`/admin/iptv/channels/delete`, { method: "POST", body: JSON.stringify({ id }) }),
+   425→  adminIptvSubscribers: (params?: { status?: string; search?: string }) => {
+   426→    const qs = new URLSearchParams();
+   427→    if (params?.status) qs.set("status", params.status);
+   428→    if (params?.search) qs.set("search", params.search);
+   429→    return apiFetch<{ items: any[] }>(`/admin/iptv/subscribers${qs.toString() ? `?${qs}` : ""}`);
+   430→  },
+   431→  adminIptvSubscriberCreate: (payload: any) =>
+   432→    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/create`, { method: "POST", body: JSON.stringify(payload) }),
+   433→  adminIptvSubscriberUpdate: (payload: { id: string; status: string }) =>
+   434→    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/update`, { method: "POST", body: JSON.stringify(payload) }),
+   435→  adminIptvStats: () =>
+   436→    apiFetch<{ totalChannels: number; activeChannels: number; errorChannels: number; totalSubscribers: number; activeSubscribers: number }>(`/admin/iptv/stats`),
+   437→  adminIptvImportM3U: (payload: { url?: string; category?: string }) =>
+   438→    apiFetch<{ imported: number; skipped: number; total: number; message: string }>(`/admin/iptv/import-m3u`, { method: "POST", body: JSON.stringify(payload) }),
+   439→  // IPTV credentials — admin manage per-customer portal logins
+   440→  adminIptvCredentials: () =>
+   441→    apiFetch<{ items: any[] }>(`/admin/iptv/credentials`),
+   442→  adminIptvCredentialGet: (id: string) =>
+   443→    apiFetch<{ subscriber: any }>(`/admin/iptv/credentials/${id}`),
+   444→  adminIptvCredentialSet: (payload: {
+   445→    subscriberId: string;
+   446→    username?: string | null;
+   447→    password?: string | null;
+   448→    portalUrl?: string | null;
+   449→    m3uUrl?: string | null;
+   450→    notes?: string | null;
+   451→  }) =>
+   452→    apiFetch<{ subscriber: any }>(`/admin/iptv/credentials`, {
+   453→      method: "POST",
+   454→      body: JSON.stringify(payload),
+   455→    }),
+   456→  adminIptvCredentialPatch: (
+   457→    id: string,
+   458→    payload: {
+   459→      username?: string | null;
+   460→      password?: string | null;
+   461→      portalUrl?: string | null;
+   462→      m3uUrl?: string | null;
+   463→      notes?: string | null;
+   464→    },
+   465→  ) =>
+   466→    apiFetch<{ subscriber: any }>(`/admin/iptv/credentials/${id}`, {
+   467→      method: "PATCH",
+   468→      body: JSON.stringify(payload),
+   469→    }),
+   470→  adminIptvCredentialClear: (id: string) =>
+   471→    apiFetch<{ subscriber: any }>(`/admin/iptv/credentials/${id}`, {
+   472→      method: "DELETE",
+   473→    }),
+   474→  // Public customer-facing credentials lookup (no auth)
+   475→  publicIptvCredentials: (token: string) =>
+   476→    apiFetch<{
+   477→      name: string;
+   478→      plan: string;
+   479→      expiresAt: string;
+   480→      username: string | null;
+   481→      password: string | null;
+   482→      portalUrl: string | null;
+   483→      m3uUrl: string | null;
+   484→      notes: string | null;
+   485→    }>(`/iptv/credentials/${token}`),
+   486→
+   487→  validateCoupon: (code: string, subtotal: number) =>
+   488→    apiFetch<CouponValidation>(`/coupons/validate`, {
+   489→      method: "POST",
+   490→      body: JSON.stringify({ code, subtotal }),
+   491→    }),
+   492→  placeOrder: (payload: {
+   493→    items: Array<{ productId: string }>;
+   494→    customerName: string;
+   495→    customerEmail: string;
+   496→    couponCode?: string;
+   497→    provider?: string;
+   498→    affiliateCode?: string;
+   499→  }) =>
+   500→    apiFetch<{ order: Order; message: string }>(`/orders`, {
+   501→      method: "POST",
+   502→      body: JSON.stringify(payload),
+   503→    }),
+   504→  checkoutLemonSqueezy: (payload: {
+   505→    items: Array<{ productId: string }>;
+   506→    customerName: string;
+   507→    customerEmail: string;
+   508→    couponCode?: string;
+   509→    affiliateCode?: string;
+   510→  }) =>
+   511→    apiFetch<LemonSqueezyCheckout>(`/checkout/lemon-squeezy`, {
+   512→      method: "POST",
+   513→      body: JSON.stringify(payload),
+   514→    }),
+   515→  submitReview: (payload: {
+   516→    productId: string;
+   517→    rating: number;
+   518→    title?: string;
+   519→    comment: string;
+   520→  }) =>
+   521→    apiFetch<{ review: Review; message: string }>(`/reviews`, {
+   522→      method: "POST",
+   523→      body: JSON.stringify(payload),
+   524→    }),
+   525→  login: (email: string, password: string) =>
+   526→    apiFetch<{ user: { id: string; name: string; email: string; role: string }; token: string }>(
+   527→      `/auth/login`,
+   528→      { method: "POST", body: JSON.stringify({ email, password }) }
+   529→    ),
+   530→  register: (name: string, email: string, password: string) =>
+   531→    apiFetch<{ user: { id: string; name: string; email: string }; token: string }>(
+   532→      `/auth/register`,
+   533→      { method: "POST", body: JSON.stringify({ name, email, password }) }
+   534→    ),
+   535→  // ===== WooCommerce =====
+   536→  woocommerceProducts: () =>
+   537→    apiFetch<{
+   538→      configured: boolean;
+   539→      items: Array<{
+   540→        id: number;
+   541→        name: string;
+   542→        price: string;
+   543→        regular_price: string;
+   544→        sale_price: string;
+   545→        status: string;
+   546→        type: string;
+   547→        stock_status: string;
+   548→        stock_quantity: number | null;
+   549→        images: Array<{ src: string }>;
+   550→        categories: Array<{ id: number; name: string }>;
+   551→        permalink: string;
+   552→        short_description: string;
+   553→      }>;
+   554→      error?: string;
+   555→    }>(`/woocommerce/products`),
+   556→  woocommerceTest: (payload: {
+   557→    storeUrl: string;
+   558→    consumerKey: string;
+   559→    consumerSecret: string;
+   560→  }) =>
+   561→    apiFetch<{
+   562→      success: boolean;
+   563→      storeUrl: string;
+   564→      productCount: number;
+   565→      sampleProducts: Array<{
+   566→        id: number;
+   567→        name: string;
+   568→        price: string;
+   569→        status: string;
+   570→        stock_status: string;
+   571→        permalink: string;
+   572→      }>;
+   573→      storeInfo: {
+   574→        version: string;
+   575→        wordpressVersion: string;
+   576→        theme: string;
+   577→        currency: string;
+   578→        country: string;
+   579→      } | null;
+   580→      message: string;
+   581→    }>(`/woocommerce/test`, {
+   582→      method: "POST",
+   583→      body: JSON.stringify(payload),
+   584→    }),
+   585→  woocommerceOrders: () =>
+   586→    apiFetch<{
+   587→      configured: boolean;
+   588→      items: Array<{
+   589→        id: number;
+   590→        number: string;
+   591→        status: string;
+   592→        total: string;
+   593→        currency: string;
+   594→        payment_method_title: string;
+   595→        date_created: string;
+   596→        billing: { first_name: string; last_name: string; email: string };
+   597→        line_items: Array<{ name: string; quantity: number; total: string }>;
+   598→      }>;
+   599→      error?: string;
+   600→    }>(`/woocommerce/orders`),
+   601→  woocommerceAccountStatus: () =>
+   602→    apiFetch<{
+   603→      available: boolean;
+   604→      storeUrl: string;
+   605→      signupEnabled: boolean;
+   606→      restFallbackAvailable?: boolean;
+   607→      message?: string;
+   608→    }>(`/woocommerce/account`),
+   609→  woocommerceAccountCreate: (payload: {
+   610→    email: string;
+   611→    password: string;
+   612→    firstName?: string;
+   613→    lastName?: string;
+   614→  }) =>
+   615→    apiFetch<{
+   616→      success: boolean;
+   617→      customer: {
+   618→        id: number;
+   619→        email: string;
+   620→        firstName: string;
+   621→        lastName: string;
+   622→        username?: string;
+   623→        source?: "store-api" | "rest-api";
+   624→      };
+   625→    }>(`/woocommerce/account`, {
+   626→      method: "POST",
+   627→      body: JSON.stringify(payload),
+   628→    }),
+   629→  woocommerceAccountLogin: (payload: { email: string; password: string }) =>
+   630→    apiFetch<{
+   631→      success: boolean;
+   632→      customer: {
+   633→        id: number;
+   634→        email: string;
+   635→        firstName?: string;
+   636→        lastName?: string;
+   637→      };
+   638→    }>(`/woocommerce/account/login`, {
+   639→      method: "POST",
+   640→      body: JSON.stringify(payload),
+   641→    }),
+   642→  // ===== WordPress =====
+   643→  wordpressPlugins: (search?: string, browse?: string) =>
+   644→    apiFetch<{
+   645→      items: Array<{
+   646→        slug: string;
+   647→        name: string;
+   648→        version: string;
+   649→        author: string;
+   650→        rating: number;
+   651→        num_ratings: number;
+   652→        downloads: number;
+   653→        active_installs: number;
+   654→        last_updated: string;
+   655→        short_description: string;
+   656→        homepage: string;
+   657→        download_link: string;
+   658→        icons: { svg: string | null; "1x": string | null; "2x": string | null };
+   659→        banner: { low: string | null; high: string | null };
+   660→        requires: string;
+   661→        tested: string;
+   662→        requires_php: string;
+   663→      }>;
+   664→      total: number;
+   665→      pages: number;
+   666→      browse: string;
+   667→      search: string;
+   668→      wordpressOrgUrl: string;
+   669→    }>(`/wordpress/plugins${search ? `?search=${encodeURIComponent(search)}` : browse ? `?browse=${browse}` : ""}`),
+   670→  wordpressPosts: () =>
+   671→    apiFetch<{
+   672→      configured: boolean;
+   673→      items: Array<{
+   674→        id: number;
+   675→        date: string;
+   676→        title: { rendered: string };
+   677→        excerpt: { rendered: string };
+   678→        link: string;
+   679→        status: string;
+   680→      }>;
+   681→      error?: string;
+   682→    }>(`/wordpress/posts`),
+   683→  // ===== JazzCash =====
+   684→  jazzcashCreate: (payload: {
+   685→    amount: number;
+   686→    description: string;
+   687→    billReference: string;
+   688→    customerEmail?: string;
+   689→    customerMobile?: string;
+   690→  }) =>
+   691→    apiFetch<{
+   692→      gatewayUrl: string;
+   693→      params: Record<string, string>;
+   694→      txnRefNo: string;
+   695→      sandbox: boolean;
+   696→      message: string;
+   697→    }>(`/payments/jazzcash/create`, {
+   698→      method: "POST",
+   699→      body: JSON.stringify(payload),
+   700→    }),
+   701→  // ===== Payment Gateways =====
+   702→  paymentGateways: () =>
+   703→    apiFetch<{
+   704→      gateways: Array<{
+   705→        id: string;
+   706→        name: string;
+   707→        description: string;
+   708→        fees: string;
+   709→        settlement: string;
+   710→        active: boolean;
+   711→        mode: string;
+   712→        configKeys: string[];
+   713→        color: string;
+   714→        icon: string;
+   715→      }>;
+   716→      summary: {
+   717→        total: number;
+   718→        active: number;
+   719→        inactive: number;
+   720→        live: number;
+   721→        sandbox: number;
+   722→      };
+   723→    }>(`/payments/gateways`),
+   724→  // ===== Media Library =====
+   725→  mediaList: () =>
+   726→    apiFetch<{
+   727→      files: Array<{
+   728→        name: string;
+   729→        url: string;
+   730→        size: number;
+   731→        folder: string;
+   732→        type: string;
+   733→        modified: string;
+   734→      }>;
+   735→      total: number;
+   736→      totalSize: number;
+   737→      totalSizeFormatted: string;
+   738→      folders: Array<{ name: string; count: number }>;
+   739→    }>(`/media/list`),
+   740→  // ===== Admin Products (CRUD) =====
+   741→  adminProducts: (params?: {
+   742→    search?: string;
+   743→    page?: number;
+   744→    limit?: number;
+   745→    sort?: string;
+   746→  }) => {
+   747→    const qs = new URLSearchParams();
+   748→    if (params?.search) qs.set("search", params.search);
+   749→    if (params?.page) qs.set("page", String(params.page));
+   750→    if (params?.limit) qs.set("limit", String(params.limit));
+   751→    if (params?.sort) qs.set("sort", params.sort);
+   752→    const q = qs.toString();
+   753→    return apiFetch<{
+   754→      items: any[];
+   755→      total: number;
+   756→      page: number;
+   757→      totalPages: number;
+   758→    }>(`/admin/products${q ? `?${q}` : ""}`);
+   759→  },
+   760→  adminProductCreate: (payload: {
+   761→    title: string;
+   762→    description?: string;
+   763→    shortDescription?: string;
+   764→    type?: string;
+   765→    price: number;
+   766→    discountPrice?: number;
+   767→    currency?: string;
+   768→    sku?: string;
+   769→    stock?: number;
+   770→    cover?: string;
+   771→    images?: string;
+   772→    tags?: string;
+   773→    licenseType?: string;
+   774→    featured?: boolean;
+   775→    categoryId?: string;
+   776→  }) =>
+   777→    apiFetch<{ product: any }>(`/admin/products`, {
+   778→      method: "POST",
+   779→      body: JSON.stringify(payload),
+   780→    }),
+   781→  adminProductUpdate: (payload: {
+   782→    id: string;
+   783→    title?: string;
+   784→    description?: string;
+   785→    shortDescription?: string;
+   786→    type?: string;
+   787→    price?: number;
+   788→    discountPrice?: number | null;
+   789→    currency?: string;
+   790→    sku?: string;
+   791→    stock?: number;
+   792→    cover?: string;
+   793→    images?: string;
+   794→    tags?: string;
+   795→    licenseType?: string;
+   796→    featured?: boolean;
+   797→    status?: string;
+   798→    categoryId?: string;
+   799→  }) =>
+   800→    apiFetch<{ product: any }>(`/admin/products/${payload.id}`, {
+   801→      method: "PATCH",
+   802→      body: JSON.stringify(payload),
+   803→    }),
+   804→  adminProductDelete: (id: string) =>
+   805→    apiFetch<{ success: boolean; id: string }>(`/admin/products/${id}`, {
+   806→      method: "DELETE",
+   807→    }),
+   808→  adminProductImageUpload: (file: File) => {
+   809→    const formData = new FormData();
+   810→    formData.append("file", file);
+   811→    // Pass `headers: {}` to override the default JSON content-type so the
+   812→    // browser can set the proper multipart/form-data boundary automatically.
+   813→    return apiFetch<{ url: string }>(`/admin/products/upload-image`, {
+   814→      method: "POST",
+   815→      body: formData,
+   816→      headers: {},
+   817→    });
+   818→  },
+   819→
+   820→  // ===== CMS — Pages =====
+   821→  adminPages: () => apiFetch<{ items: any[] }>(`/admin/cms/pages`),
+   822→  adminPageCreate: (payload: any) =>
+   823→    apiFetch<{ page: any }>(`/admin/cms/pages`, {
+   824→      method: "POST",
+   825→      body: JSON.stringify(payload),
+   826→    }),
+   827→  adminPageUpdate: (id: string, payload: any) =>
+   828→    apiFetch<{ page: any }>(`/admin/cms/pages/${id}`, {
+   829→      method: "PATCH",
+   830→      body: JSON.stringify(payload),
+   831→    }),
+   832→  adminPageDelete: (id: string) =>
+   833→    apiFetch<{ success: boolean; id: string }>(`/admin/cms/pages/${id}`, {
+   834→      method: "DELETE",
+   835→    }),
+   836→
+   837→  // ===== CMS — Blog =====
+   838→  adminBlogPosts: () => apiFetch<{ items: any[] }>(`/admin/cms/blog`),
+   839→  adminBlogCreate: (payload: any) =>
+   840→    apiFetch<{ post: any }>(`/admin/cms/blog`, {
+   841→      method: "POST",
+   842→      body: JSON.stringify(payload),
+   843→    }),
+   844→  adminBlogUpdate: (id: string, payload: any) =>
+   845→    apiFetch<{ post: any }>(`/admin/cms/blog/${id}`, {
+   846→      method: "PATCH",
+   847→      body: JSON.stringify(payload),
+   848→    }),
+   849→  adminBlogDelete: (id: string) =>
+   850→    apiFetch<{ success: boolean; id: string }>(`/admin/cms/blog/${id}`, {
+   851→      method: "DELETE",
+   852→    }),
+   853→
+   854→  // ===== CMS — FAQs =====
+   855→  adminFaqs: () => apiFetch<{ items: any[] }>(`/admin/cms/faqs`),
+   856→  adminFaqCreate: (payload: any) =>
+   857→    apiFetch<{ faq: any }>(`/admin/cms/faqs`, {
+   858→      method: "POST",
+   859→      body: JSON.stringify(payload),
+   860→    }),
+   861→  adminFaqUpdate: (id: string, payload: any) =>
+   862→    apiFetch<{ faq: any }>(`/admin/cms/faqs/${id}`, {
+   863→      method: "PATCH",
+   864→      body: JSON.stringify(payload),
+   865→    }),
+   866→  adminFaqDelete: (id: string) =>
+   867→    apiFetch<{ success: boolean; id: string }>(`/admin/cms/faqs/${id}`, {
+   868→      method: "DELETE",
+   869→    }),
+   870→
+   871→  // ===== CMS — Sliders =====
+   872→  adminSliders: () => apiFetch<{ items: any[] }>(`/admin/cms/sliders`),
+   873→  adminSliderCreate: (payload: any) =>
+   874→    apiFetch<{ slider: any }>(`/admin/cms/sliders`, {
+   875→      method: "POST",
+   876→      body: JSON.stringify(payload),
+   877→    }),
+   878→  adminSliderUpdate: (id: string, payload: any) =>
+   879→    apiFetch<{ slider: any }>(`/admin/cms/sliders/${id}`, {
+   880→      method: "PATCH",
+   881→      body: JSON.stringify(payload),
+   882→    }),
+   883→  adminSliderDelete: (id: string) =>
+   884→    apiFetch<{ success: boolean; id: string }>(`/admin/cms/sliders/${id}`, {
+   885→      method: "DELETE",
+   886→    }),
+   887→
+   888→  // ===== CMS — Seed =====
+   889→  adminCmsSeed: () =>
+   890→    apiFetch<{ success: boolean; pagesCreated: number; faqsCreated: number; message: string }>(
+   891→      `/admin/cms/seed`,
+   892→      { method: "POST" },
+   893→    ),
+   894→
+   895→  // ===== WordPress — Accounts =====
+   896→  adminWpAccounts: () =>
+   897→    apiFetch<{ items: any[] }>(`/admin/wordpress/accounts`),
+   898→  adminWpAccountCreate: (payload: {
+   899→    email: string;
+   900→    password: string;
+   901→    firstName?: string;
+   902→    lastName?: string;
+   903→  }) =>
+   904→    apiFetch<{ account: any }>(`/admin/wordpress/accounts`, {
+   905→      method: "POST",
+   906→      body: JSON.stringify(payload),
+   907→    }),
+   908→  adminWpAccountUpdate: (
+   909→    id: string,
+   910→    payload: {
+   911→      firstName?: string;
+   912→      lastName?: string;
+   913→      status?: string;
+   914→      password?: string;
+   915→      storeUrl?: string;
+   916→      wpCustomerId?: string;
+   917→    },
+   918→  ) =>
+   919→    apiFetch<{ account: any }>(`/admin/wordpress/accounts/${id}`, {
+   920→      method: "PATCH",
+   921→      body: JSON.stringify(payload),
+   922→    }),
+   923→  adminWpAccountDelete: (id: string) =>
+   924→    apiFetch<{ success: boolean }>(`/admin/wordpress/accounts/${id}`, {
+   925→      method: "DELETE",
+   926→    }),
+   927→
+   928→  // ===== WordPress — Media Library =====
+   929→  adminWpMedia: (params?: { search?: string; page?: number; limit?: number }) => {
+   930→    const qs = new URLSearchParams();
+   931→    if (params?.search) qs.set("search", params.search);
+   932→    if (params?.page) qs.set("page", String(params.page));
+   933→    if (params?.limit) qs.set("limit", String(params.limit));
+   934→    const q = qs.toString();
+   935→    return apiFetch<{ items: any[]; total: number; page: number; limit: number }>(
+   936→      `/admin/wordpress/media${q ? `?${q}` : ""}`,
+   937→    );
+   938→  },
+   939→  adminWpMediaUpload: (file: File) => {
+   940→    const form = new FormData();
+   941→    form.append("file", file);
+   942→    return apiFetch<{ file: any }>(`/admin/wordpress/media`, {
+   943→      method: "POST",
+   944→      body: form,
+   945→      headers: {}, // Let the browser set the multipart Content-Type + boundary
+   946→    });
+   947→  },
+   948→  adminWpMediaDelete: (id: string) =>
+   949→    apiFetch<{ success: boolean }>(`/admin/wordpress/media/${id}`, {
+   950→      method: "DELETE",
+   951→    }),
+   952→
+   953→  // ===== AI Tools =====
+   954→  adminAiTools: () => apiFetch<{ tools: any[] }>(`/admin/ai-tools`),
+   955→  adminAiToolRun: (tool: string, payload: any) =>
+   956→    // Different tools return different shapes ({ text } | { content } | { imageUrl } | { audioUrl } | { description }).
+   957→    apiFetch<any>(`/admin/ai-tools/${encodeURIComponent(tool)}`, {
+   958→      method: "POST",
+   959→      body: JSON.stringify(payload),
+   960→    }),
+   961→
+   962→  // ===== Developer module =====
+   963→  adminApiKeys: () => apiFetch<{ items: any[] }>(`/admin/api-keys`),
+   964→  adminApiKeyCreate: (payload: { name: string; scopes?: string[] | string }) =>
+   965→    apiFetch<{ apiKey: any; fullKey: string }>(`/admin/api-keys`, {
+   966→      method: "POST",
+   967→      body: JSON.stringify(payload),
+   968→    }),
+   969→  adminApiKeyUpdate: (
+   970→    id: string,
+   971→    payload: { name?: string; scopes?: string[] | string; status?: string },
+   972→  ) =>
+   973→    apiFetch<{ apiKey: any }>(`/admin/api-keys/${id}`, {
+   974→      method: "PATCH",
+   975→      body: JSON.stringify(payload),
+   976→    }),
+   977→  adminApiKeyDelete: (id: string) =>
+   978→    apiFetch<{ success: boolean }>(`/admin/api-keys/${id}`, {
+   979→      method: "DELETE",
+   980→    }),
+   981→  adminWebhooks: () => apiFetch<{ items: any[] }>(`/admin/webhooks`),
+   982→  adminWebhookCreate: (payload: {
+   983→    name: string;
+   984→    url: string;
+   985→    events?: string[] | string;
+   986→    secret?: string;
+   987→  }) =>
+   988→    apiFetch<{ webhook: any }>(`/admin/webhooks`, {
+   989→      method: "POST",
+   990→      body: JSON.stringify(payload),
+   991→    }),
+   992→  adminWebhookUpdate: (
+   993→    id: string,
+   994→    payload: {
+   995→      name?: string;
+   996→      url?: string;
+   997→      events?: string[] | string;
+   998→      status?: string;
+   999→      rotateSecret?: boolean;
+  1000→    },
+  1001→  ) =>
+  1002→    apiFetch<{ webhook: any }>(`/admin/webhooks/${id}`, {
+  1003→      method: "PATCH",
+  1004→      body: JSON.stringify(payload),
+  1005→    }),
+  1006→  adminWebhookDelete: (id: string) =>
+  1007→    apiFetch<{ success: boolean }>(`/admin/webhooks/${id}`, {
+  1008→      method: "DELETE",
+  1009→    }),
+  1010→  adminWebhookTest: (id: string) =>
+  1011→    apiFetch<{ success: boolean; message: string; deliveredAt?: string }>(
+  1012→      `/admin/webhooks/${id}`,
+  1013→      { method: "POST" },
+  1014→    ),
+  1015→  adminAuditLogs: (params?: Record<string, string | number>) =>
+  1016→    apiFetch<{ items: any[]; total: number; page?: number; limit?: number; totalPages?: number }>(
+  1017→      `/admin/audit-logs${params ? `?${new URLSearchParams(params as any)}` : ""}`,
+  1018→    ),
+  1019→
+  1020→  // ===== Integrations module =====
+  1021→  adminIntegrations: () => apiFetch<{ items: any[] }>(`/admin/integrations`),
+  1022→  adminIntegrationUpdate: (
+  1023→    id: string,
+  1024→    payload: {
+  1025→      connected?: boolean;
+  1026→      config?: Record<string, any>;
+  1027→      name?: string;
+  1028→      description?: string;
+  1029→    },
+  1030→  ) =>
+  1031→    apiFetch<{ integration: any }>(`/admin/integrations/${id}`, {
+  1032→      method: "PATCH",
+  1033→      body: JSON.stringify(payload),
+  1034→    }),
+  1035→  adminIntegrationDelete: (id: string) =>
+  1036→    apiFetch<{ success: boolean }>(`/admin/integrations/${id}`, {
+  1037→      method: "DELETE",
+  1038→    }),
+  1039→  adminIntegrationTest: (id: string) =>
+  1040→    apiFetch<{ success: boolean; message: string }>(
+  1041→      `/admin/integrations/${id}/test`,
+  1042→      { method: "POST" },
+  1043→    ),
+  1044→
+  1045→  // ===== Security module =====
+  1046→  adminSecurity: () => apiFetch<{ settings: any }>(`/admin/security`),
+  1047→  adminSecurityUpdate: (payload: {
+  1048→    twoFactorEnabled?: boolean;
+  1049→    ipWhitelist?: string[];
+  1050→    firewallRules?: Array<{
+  1051→      action: string;
+  1052→      ip: string;
+  1053→      port: string | number;
+  1054→      protocol: string;
+  1055→      note?: string;
+  1056→    }>;
+  1057→    sessionTimeout?: number;
+  1058→    passwordPolicy?: string;
+  1059→  }) =>
+  1060→    apiFetch<{ settings: any }>(`/admin/security`, {
+  1061→      method: "PUT",
+  1062→      body: JSON.stringify(payload),
+  1063→    }),
+  1064→  adminSecurity2faEnable: () =>
+  1065→    apiFetch<{ secret: string; otpauth: string; qrUrl: string; enabled: boolean }>(
+  1066→      `/admin/security/2fa`,
+  1067→      { method: "POST" },
+  1068→    ),
+  1069→  adminSecurity2faDisable: () =>
+  1070→    apiFetch<{ success: boolean; enabled: boolean }>(`/admin/security/2fa`, {
+  1071→      method: "DELETE",
+  1072→    }),
+  1073→  adminSecurityAuditLogs: (params?: Record<string, string | number>) =>
+  1074→    apiFetch<{ items: any[]; total: number; page?: number; limit?: number; totalPages?: number }>(
+  1075→      `/admin/security/audit-logs${params ? `?${new URLSearchParams(params as any)}` : ""}`,
+  1076→    ),
+  1077→};
+  1078→
+  1079→// ===== Utilities =====
+  1080→
+  1081→export const moneyFormatter = new Intl.NumberFormat("en-US", {
+  1082→  style: "currency",
+  1083→  currency: "USD",
+  1084→});
+  1085→
+  1086→export function formatMoney(n: number): string {
+  1087→  return moneyFormatter.format(n);
+  1088→}
+  1089→
+  1090→// ===== Currency system (PKR for Pakistan, USD elsewhere) =====
+  1091→
+  1092→export type Currency = "USD" | "PKR";
+  1093→
+  1094→// Conversion rate: 1 USD = 280 PKR. Only used when a product is priced in USD
+  1095→// and the customer wants to see PKR. NEVER used when the product is already
+  1096→// priced in PKR (DB products have currency="PKR" and price already in rupees).
+  1097→export const PKR_RATE = Number(process.env.NEXT_PUBLIC_PKR_RATE || 280);
+  1098→
+  1099→export const CURRENCY_META: Record<
+  1100→  Currency,
+  1101→  { code: Currency; symbol: string; locale: string; rate: number; label: string }
+  1102→> = {
+  1103→  USD: { code: "USD", symbol: "$", locale: "en-US", rate: 1, label: "USD" },
+  1104→  PKR: { code: "PKR", symbol: "Rs", locale: "en-PK", rate: PKR_RATE, label: "PKR" },
+  1105→};
+  1106→
+  1107→/**
+  1108→ * Format an amount that is ALREADY in the target currency.
+  1109→ *
+  1110→ * Use this for DB products where `price` is stored in PKR (currency="PKR")
+  1111→ * and we just want to render it as "Rs 2,232" — NO multiplication by 280.
+  1112→ *
+  1113→ * If the amount is in a DIFFERENT currency than the target, use
+  1114→ * `convertAndFormat()` below instead.
+  1115→ */
+  1116→export function formatInCurrency(
+  1117→  amount: number,
+  1118→  currency: Currency = "PKR",
+  1119→): string {
+  1120→  if (currency === "PKR") {
+  1121→    return `Rs ${Math.round(amount).toLocaleString("en-PK")}`;
+  1122→  }
+  1123→  return new Intl.NumberFormat("en-US", {
+  1124→    style: "currency",
+  1125→    currency: "USD",
+  1126→  }).format(amount);
+  1127→}
+  1128→
+  1129→/**
+  1130→ * Convert a USD amount to the target currency and format it.
+  1131→ *
+  1132→ * WARNING: This multiplies by 280 for PKR. Only use when the input is
+  1133→ * genuinely in USD. For DB products (already in PKR), use formatInCurrency().
+  1134→ *
+  1135→ * @deprecated Prefer formatInCurrency() + product.currency awareness.
+  1136→ */
+  1137→export function formatPrice(
+  1138→  usdAmount: number,
+  1139→  currency: Currency = "USD",
+  1140→): string {
+  1141→  const meta = CURRENCY_META[currency];
+  1142→  const converted = usdAmount * meta.rate;
+  1143→  if (currency === "PKR") {
+  1144→    return `Rs ${Math.round(converted).toLocaleString("en-PK")}`;
+  1145→  }
+  1146→  return new Intl.NumberFormat("en-US", {
+  1147→    style: "currency",
+  1148→    currency: "USD",
+  1149→  }).format(usdAmount);
+  1150→}
+  1151→
+  1152→/**
+  1153→ * Auto-detect the preferred currency from the browser timezone.
+  1154→ * Pakistan (Asia/Karachi) → PKR, everything else → USD.
+  1155→ */
+  1156→export function detectCurrency(): Currency {
+  1157→  if (typeof Intl === "undefined") return "USD";
+  1158→  try {
+  1159→    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  1160→    return tz === "Asia/Karachi" ? "PKR" : "USD";
+  1161→  } catch {
+  1162→    return "USD";
+  1163→  }
+  1164→}
+  1165→
+  1166→/**
+  1167→ * Display a product's price correctly.
+  1168→ *
+  1169→ * CRITICAL: DB products have `currency` field ("PKR" or "USD") and their
+  1170→ * `effectivePrice` is ALREADY in that currency. We must NOT multiply by 280.
+  1171→ *
+  1172→ * Lemon Squeezy products may have a `priceFormatted` string from the LS API
+  1173→ * (e.g. "PKR480/month") — use that directly if present.
+  1174→ *
+  1175→ * Only when a product is priced in USD AND the customer wants PKR do we
+  1176→ * convert (×280). Otherwise just format in the product's own currency.
+  1177→ */
+  1178→export function displayProductPrice(
+  1179→  product: {
+  1180→    priceFormatted?: string | null;
+  1181→    effectivePrice: number;
+  1182→    currency?: string | null;
+  1183→  },
+  1184→  displayCurrency: Currency = "PKR",
+  1185→): string {
+  1186→  // LS pre-formatted string — use as-is
+  1187→  if (product.priceFormatted) return product.priceFormatted;
+  1188→
+  1189→  const productCurrency: Currency =
+  1190→    product.currency === "USD" ? "USD" : "PKR";
+  1191→
+  1192→  // Product already in the customer's display currency — no conversion
+  1193→  if (productCurrency === displayCurrency) {
+  1194→    return formatInCurrency(product.effectivePrice, displayCurrency);
+  1195→  }
+  1196→
+  1197→  // Product is USD, customer wants PKR — convert (×280)
+  1198→  if (productCurrency === "USD" && displayCurrency === "PKR") {
+  1199→    return formatPrice(product.effectivePrice, "PKR");
+  1200→  }
+  1201→
+  1202→  // Product is PKR, customer wants USD — convert (÷280)
+  1203→  if (productCurrency === "PKR" && displayCurrency === "USD") {
+  1204→    return formatInCurrency(product.effectivePrice / PKR_RATE, "USD");
+  1205→  }
+  1206→
+  1207→  // Fallback: format in product's own currency
+  1208→  return formatInCurrency(product.effectivePrice, productCurrency);
+  1209→}
+  1210→
+  1211→export function formatDate(iso: string): string {
+  1212→  try {
+  1213→    return new Intl.DateTimeFormat("en-US", {
+  1214→      month: "short",
+  1215→      day: "numeric",
+  1216→      year: "numeric",
+  1217→    }).format(new Date(iso));
+  1218→  } catch {
+  1219→    return iso;
+  1220→  }
+  1221→}
+  1222→
+  1223→export function formatShortDate(iso: string): string {
+  1224→  try {
+  1225→    return new Intl.DateTimeFormat("en-US", {
+  1226→      month: "short",
+  1227→      day: "numeric",
+  1228→    }).format(new Date(iso));
+  1229→  } catch {
+  1230→    return iso;
+  1231→  }
+  1232→}
+  1233→
+  1234→export function formatNumber(n: number): string {
+  1235→  return new Intl.NumberFormat("en-US").format(n);
+  1236→}
+  1237→

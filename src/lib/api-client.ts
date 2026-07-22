@@ -492,6 +492,34 @@ export const api = {
     apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/update`, { method: "POST", body: JSON.stringify(payload) }),
   adminIptvSubscriberAction: (id: string, action: "activate" | "suspend" | "delete") =>
     apiFetch<{ subscriber?: any; success?: boolean; message?: string }>(`/admin/iptv/subscribers/${id}/action`, { method: "PATCH", body: JSON.stringify({ action }) }),
+  /** Set Xtream Codes credentials (profile name, host URL, username, password) for a subscriber. */
+  adminIptvSubscriberCredentials: (
+    id: string,
+    payload: { profileName: string; hostUrl: string; username: string; password: string; notes?: string },
+  ) =>
+    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/${id}/credentials`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  /** Clear the Xtream Codes credentials for a subscriber. */
+  adminIptvSubscriberCredentialsClear: (id: string) =>
+    apiFetch<{ subscriber: any; message: string }>(`/admin/iptv/subscribers/${id}/credentials`, {
+      method: "POST",
+      body: JSON.stringify({ clear: true }),
+    }),
+  /** Import channels from an Xtream Codes server (server-side proxy — bypasses CORS). */
+  adminIptvXtreamImport: (payload: {
+    hostUrl: string;
+    username: string;
+    password: string;
+    profileName?: string;
+    limit?: number;
+    types?: ("live" | "vod" | "series")[];
+  }) =>
+    apiFetch<{ imported: number; skipped: number; live: number; vod: number; series: number; profileName: string; message: string }>(
+      `/admin/iptv/xtream/import`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
   adminIptvChannelToggle: (id: string) =>
     apiFetch<{ channel: any; message?: string }>(`/admin/iptv/channels/${id}/toggle`, { method: "PATCH" }),
   adminIptvStats: () =>
@@ -521,6 +549,9 @@ export const api = {
     apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/toggle`, { method: "POST", body: JSON.stringify(payload) }),
   adminGatewayTestMode: (payload: { id: string; testMode: boolean }) =>
     apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/test-mode`, { method: "POST", body: JSON.stringify(payload) }),
+  /** Update a gateway's editable fields: name, config, supportedCurrencies. */
+  adminGatewayUpdate: (payload: { id: string; name?: string; config?: Record<string, unknown>; supportedCurrencies?: string[] }) =>
+    apiFetch<{ gateway: any; message: string }>(`/admin/finance/gateways/update`, { method: "POST", body: JSON.stringify(payload) }),
 
   // ===== Developer =====
   adminApiKeys: () =>
@@ -843,11 +874,204 @@ export const api = {
     apiFetch<{ items: any[]; total: number }>(
       `/admin/payments/submissions${status ? `?status=${status}` : ""}`,
     ),
-  adminPaymentSubmissionAction: (id: string, status: "confirmed" | "rejected") =>
-    apiFetch<{ submission: any }>(`/admin/payments/submissions/${id}`, {
+  adminPaymentSubmissionAction: (id: string, status: "confirmed" | "rejected", adminNote?: string) =>
+    apiFetch<{ submission: any; message?: string }>(`/admin/payments/submissions/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, adminNote }),
     }),
+
+  // ===== Social Media Posts =====
+  socialPostsList: () =>
+    apiFetch<{ posts: any[] }>(`/admin/social-media/posts`),
+  socialPostCreate: (payload: {
+    content: string;
+    platforms?: string[];
+    status?: "draft" | "published";
+    link?: string;
+  }) =>
+    apiFetch<{ post: any; posts: any[]; message: string }>(
+      `/admin/social-media/posts`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+  socialPostDelete: (id: string) =>
+    apiFetch<{ posts: any[]; message: string }>(`/admin/social-media/posts`, {
+      method: "DELETE",
+      body: JSON.stringify({ id }),
+    }),
+
+  // ===== WooCommerce Accounts =====
+  woocommerceAccountStatus: () =>
+    apiFetch<{
+      available: boolean;
+      storeUrl: string;
+      customers: Array<{
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        createdAt: string;
+        source: string;
+        wcCustomerId?: number;
+      }>;
+    }>(`/woocommerce/account`),
+  woocommerceAccountCreate: (payload: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+  }) =>
+    apiFetch<{ customer: any; message: string }>(`/woocommerce/account`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  woocommerceAccountLogin: (payload: { email: string; password: string }) =>
+    apiFetch<{ customer: any; message: string }>(`/woocommerce/account/login`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // ===== WordPress Accounts =====
+  wordpressAccountStatus: () =>
+    apiFetch<{
+      available: boolean;
+      apiUrl: string;
+      accounts: Array<{
+        id: string;
+        email: string;
+        name: string;
+        createdAt: string;
+        source: string;
+        wpUserId?: number;
+      }>;
+    }>(`/wordpress/account`),
+  wordpressAccountCreate: (payload: {
+    name: string;
+    email: string;
+    password: string;
+  }) =>
+    apiFetch<{ account: any; message: string }>(`/wordpress/account`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  wordpressAccountLogin: (payload: { email: string; password: string }) =>
+    apiFetch<{ account: any; message: string }>(`/wordpress/account/login`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+
+  // ===== Admin Marketing Campaigns =====
+  adminCampaigns: () =>
+    apiFetch<{
+      items: Array<{
+        id: string;
+        name: string;
+        type: string;
+        status: string;
+        sentCount: number;
+        openRate: number;
+        clickCount: number;
+        content: string | null;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>(`/admin/campaigns`),
+  adminCampaignCreate: (payload: {
+    name: string;
+    type: "email" | "push" | "social" | "sms";
+    content?: string;
+    status?: "draft" | "active" | "paused" | "completed";
+  }) =>
+    apiFetch<{ campaign: any; message: string }>(`/admin/campaigns`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  adminCampaignUpdate: (id: string, payload: Record<string, any>) =>
+    apiFetch<{ campaign: any; message: string }>(
+      `/admin/campaigns/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    ),
+  adminCampaignDelete: (id: string) =>
+    apiFetch<{ deleted: boolean; id: string; message: string }>(
+      `/admin/campaigns/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    ),
+
+  // ===== Admin CMS Blog =====
+  adminBlogPosts: () =>
+    apiFetch<{
+      items: Array<{
+        id: string;
+        title: string;
+        slug: string;
+        excerpt: string | null;
+        content: string;
+        tags: string[];
+        coverImage: string | null;
+        status: string;
+        authorName: string | null;
+        publishedAt: string | null;
+        createdAt: string;
+        updatedAt: string;
+      }>;
+    }>(`/admin/cms/blog`),
+  adminBlogCreate: (payload: {
+    title: string;
+    content?: string;
+    excerpt?: string;
+    tags?: string[];
+    coverImage?: string;
+    status?: "draft" | "published";
+    authorName?: string;
+  }) =>
+    apiFetch<{ post: any; message: string }>(`/admin/cms/blog`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  adminBlogUpdate: (id: string, payload: Record<string, any>) =>
+    apiFetch<{ post: any; message: string }>(
+      `/admin/cms/blog/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    ),
+  adminBlogDelete: (id: string) =>
+    apiFetch<{ deleted: boolean; id: string; message: string }>(
+      `/admin/cms/blog/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    ),
+
+  // ===== AI Gateway (Vercel AI Gateway — OpenAI-compatible) =====
+  /** Whether an AI Gateway API key is configured (never returns the key). */
+  aiKeyStatus: () => apiFetch<{ configured: boolean }>(`/ai/key`),
+  /** Save the AI Gateway API key to the DB. */
+  aiKeySet: (apiKey: string) =>
+    apiFetch<{ configured: boolean; message: string }>(`/ai/key`, {
+      method: "POST",
+      body: JSON.stringify({ apiKey }),
+    }),
+  /** Clear the stored AI Gateway API key. */
+  aiKeyClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/ai/key`, {
+      method: "POST",
+      body: JSON.stringify({ clear: true }),
+    }),
+  /** List models available through the AI Gateway. */
+  aiModels: () =>
+    apiFetch<{ configured: boolean; baseUrl: string; models: any[]; error?: string }>(`/ai/models`),
+
+  // ===== WordPress connection (DB-backed, runtime-configurable) =====
+  /** Get the current WordPress connection status (never returns the password). */
+  wordpressConnection: () =>
+    apiFetch<{ configured: boolean; apiUrl?: string; username?: string; label?: string; isWpCom?: boolean; updatedAt?: string }>(
+      `/wordpress/connection`,
+    ),
+  /** Save + test a WordPress connection. */
+  wordpressConnectionSave: (payload: { apiUrl: string; username: string; appPassword: string; label?: string; test?: boolean }) =>
+    apiFetch<{ configured: boolean; apiUrl: string; username: string; label?: string; isWpCom: boolean; updatedAt: string; test?: { ok: boolean; message: string; user?: any }; message: string }>(
+      `/wordpress/connection`,
+      { method: "POST", body: JSON.stringify(payload) },
+    ),
+  /** Clear the stored WordPress connection. */
+  wordpressConnectionClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/wordpress/connection`, { method: "DELETE" }),
 };
 
 // ===== Utilities =====
@@ -878,12 +1102,14 @@ export const CURRENCY_META: Record<
 };
 
 /**
- * Format a price for display.
+ * Format a PKR price for display.
  *
- * IMPORTANT: Prices in the database are ALREADY in PKR.
- * Do NOT multiply by any exchange rate — just format the number.
+ * All product prices in the DB are stored in PKR. When the display currency is
+ * PKR, the amount is shown as-is ("Rs 3,348"). When the user switches to USD,
+ * the PKR amount is converted at ~280 PKR/USD so 3348 PKR → "$12.00".
  *
- * Example: formatPrice(1674, "PKR") → "Rs 1,674"
+ * Example: formatPrice(3348, "PKR") → "Rs 3,348"
+ * Example: formatPrice(3348, "USD") → "$12.00"
  */
 export function formatPrice(
   amount: number,
@@ -892,10 +1118,13 @@ export function formatPrice(
   if (currency === "PKR") {
     return `Rs ${Math.round(amount).toLocaleString("en-PK")}`;
   }
+  // USD — convert from PKR (all prices are stored in PKR)
+  const usdAmount = amount / 280;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-  }).format(amount);
+    maximumFractionDigits: 2,
+  }).format(usdAmount);
 }
 
 /**
@@ -910,17 +1139,14 @@ export function formatInCurrency(
 }
 
 /**
- * Auto-detect the preferred currency from the browser timezone.
- * Pakistan (Asia/Karachi) → PKR, everything else → USD.
+ * Auto-detect the preferred display currency.
+ *
+ * PlayBeat is a Pakistani store — all prices are stored in PKR — so we
+ * default to PKR everywhere. Users can still switch to USD via the header
+ * toggle if they want converted prices.
  */
 export function detectCurrency(): Currency {
-  if (typeof Intl === "undefined") return "USD";
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-    return tz === "Asia/Karachi" ? "PKR" : "USD";
-  } catch {
-    return "USD";
-  }
+  return "PKR";
 }
 
 /**
@@ -936,7 +1162,7 @@ export function detectCurrency(): Currency {
  */
 export function displayProductPrice(
   product: { priceFormatted?: string | null; effectivePrice: number },
-  currency: Currency = "USD",
+  currency: Currency = "PKR",
 ): string {
   if (product.priceFormatted) return product.priceFormatted;
   return formatPrice(product.effectivePrice, currency);

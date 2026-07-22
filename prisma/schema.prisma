@@ -338,6 +338,15 @@ model IptvSubscriber {
   status             String   @default("active") // active | expired | suspended
   maxConnections     Int      @default(1)
   activeConnections  Int      @default(0)
+  // Xtream Codes integration — per-subscriber credentials.
+  // Admins set these so each subscriber gets a real portal + M3U link.
+  profileName        String?  // e.g. "Main Server", "Backup Provider"
+  hostUrl            String?  // Xtream Codes server URL (with port), e.g. http://server.com:8080
+  xtreamUsername     String?
+  xtreamPassword     String?
+  portalUrl          String?  // derived: hostUrl (the Xtream player portal)
+  m3uUrl             String?  // derived: ${hostUrl}/get.php?username=...&password=...&type=m3u_plus
+  notes              String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }
@@ -474,4 +483,40 @@ model PaymentSubmission {
   adminNote       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// Marketing Campaigns
+// ----------------------------------------------------------------------------
+
+model MarketingCampaign {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        String   // email | push | social | sms
+  status      String   @default("draft") // draft | active | paused | completed
+  sentCount   Int      @default(0)
+  openRate    Float    @default(0)
+  clickCount  Int      @default(0)
+  content     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ----------------------------------------------------------------------------
+// Blog Posts (CMS)
+// ----------------------------------------------------------------------------
+
+model BlogPost {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String   @default("")
+  tags        String   @default("[]") // JSON array of strings
+  coverImage  String?
+  status      String   @default("draft") // draft | published
+  authorName  String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
