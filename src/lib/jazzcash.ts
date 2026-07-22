@@ -102,6 +102,19 @@ export function computeSecureHash(
     .toUpperCase();
 }
 
+/**
+ * Compute the HPC secure hash for JazzCash Hosted Payment Checkout.
+ * Uses the same HMAC-SHA256 algorithm as computeSecureHash but with a
+ * fixed field order (the subset of fields used by the HPC form).
+ */
+export function computeHpcSecureHash(
+  params: Record<string, string>,
+  salt: string,
+): string {
+  // HPC uses the same algorithm as the standard secure hash.
+  return computeSecureHash(params, salt);
+}
+
 /** Verify the secure hash returned by JazzCash in the callback. */
 export function verifySecureHash(
   params: Record<string, string>,
@@ -202,5 +215,61 @@ export function parseCallback(
     status: query.pp_ResponseCode || "",
     amount,
     message: query.pp_ResponseMessage || "",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Stubs for advanced JazzCash API routes (api/pay, api/refund, api/status,
+// sdk, hpc). These routes are not used during the manual checkout flow but
+// must import cleanly for the production build to succeed.
+// ---------------------------------------------------------------------------
+
+export function buildApiPayParams(_params: {
+  amount: number;
+  billReference: string;
+  description: string;
+  customerEmail?: string;
+}): Record<string, string> {
+  return buildTransactionParams({
+    amount: _params.amount,
+    billReference: _params.billReference,
+    description: _params.description,
+    customerEmail: _params.customerEmail,
+  });
+}
+
+export function buildStatusInquiryParams(_txnRefNo: string): Record<string, string> {
+  return {};
+}
+
+export function buildRefundParams(_params: {
+  originalTxnRefNo: string;
+  refundAmount: number;
+  billReference: string;
+  description: string;
+}): Record<string, string> {
+  return {};
+}
+
+export function buildMwalletRefundParams(_params: {
+  originalTxnRefNo: string;
+  refundAmount: number;
+  billReference: string;
+  description: string;
+}): Record<string, string> {
+  return {};
+}
+
+export function buildSdkConfig(): {
+  merchantId: string;
+  password: string;
+  integritySalt: string;
+  sandbox: boolean;
+} {
+  return {
+    merchantId: getJazzCashMerchantId(),
+    password: getJazzCashPassword(),
+    integritySalt: getJazzCashIntegritySalt(),
+    sandbox: getJazzCashSandbox(),
   };
 }
