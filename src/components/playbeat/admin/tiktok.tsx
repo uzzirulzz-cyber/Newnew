@@ -66,7 +66,7 @@ const WEBHOOK_URL = typeof window !== "undefined"
 
 export function TikTokModule() {
   const qc = useQueryClient();
-  const [tab, setTab] = React.useState<"leads" | "advertising">("leads");
+  const [tab, setTab] = React.useState<"leads" | "advertising" | "mcp">("leads");
   const [form, setForm] = React.useState({
     accessToken: "",
     advertiserId: "",
@@ -229,9 +229,18 @@ export function TikTokModule() {
         >
           Advertising
         </button>
+        <button
+          onClick={() => setTab("mcp")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "mcp" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          MCP Console
+        </button>
       </div>
 
       {tab === "advertising" && <AdvertisingTab configured={configured} />}
+      {tab === "mcp" && <McpConsoleTab configured={configured} />}
 
       {tab === "leads" && (
       <>
@@ -848,6 +857,181 @@ function AdvertisingTab({ configured }: { configured: boolean }) {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// McpConsoleTab — call TikTok's hosted MCP server directly from PlayBeat
+// ---------------------------------------------------------------------------
+
+const MCP_SERVER_URL = "https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat";
+
+function McpConsoleTab({ configured }: { configured: boolean }) {
+  const [response, setResponse] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [selectedTool, setSelectedTool] = React.useState("");
+  const [toolArgs, setToolArgs] = React.useState("{}");
+  const [toolsList, setToolsList] = React.useState<any[]>([]);
+  const [loadingTools, setLoadingTools] = React.useState(false);
+
+  // Fetch the MCP tools list when configured.
+  const fetchTools = async () => {
+    setLoadingTools(true);
+    try {
+      const res = await api.tiktokMcp({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/list",
+        params: {},
+      });
+      const tools = res.mcpResponse?.result?.tools || [];
+      setToolsList(tools);
+      if (tools.length > 0 && !selectedTool) setSelectedTool(tools[0].name);
+    } catch (e: any) {
+      setResponse({ error: e?.message || "Failed to list MCP tools" });
+    } finally {
+      setLoadingTools(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (configured && toolsList.length === 0) {
+      fetchTools();
+    }
+  }, [configured]);
+
+  const callTool = async () => {
+    if (!selectedTool) return;
+    let args: any = {};
+    try {
+      args = JSON.parse(toolArgs);
+    } catch {
+      setResponse({ error: "Invalid JSON in arguments field" });
+      return;
+    }
+    setLoading(true);
+    setResponse(null);
+    try {
+      const res = await api.tiktokMcp({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: selectedTool, arguments: args },
+      });
+      setResponse(res.mcpResponse);
+    } catch (e: any) {
+      setResponse({ error: e?.message || "MCP call failed" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!configured) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Share2 size={36} className="mx-auto mb-3 text-muted-foreground opacity-40" />
+          <p className="text-sm text-muted-foreground">
+            Connect TikTok in the Leads &amp; Postbacks tab to use the MCP Console.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-pink-500/20">
+        <CardHeader className="border-b bg-pink-50/50 dark:bg-pink-950/20">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Share2 size={16} className="text-pink-500" />
+            TikTok MCP Console
+            <Badge variant="outline" className="text-[10px]">Hosted MCP Server</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          <div className="rounded-lg border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/10 p-3 text-xs text-muted-foreground">
+            <strong className="text-foreground">MCP Server:</strong>{" "}
+            <span className="font-mono break-all">{MCP_SERVER_URL}</span>
+            <p className="mt-1">
+              This is TikTok&apos;s official hosted MCP server. It exposes the same advertising tools as the
+              Marketing API through the Model Context Protocol (JSON-RPC). Your access token is sent as the
+              Authorization header — no separate MCP client needed.
+            </p>
+          </div>
+
+          {/* Tools list */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Available MCP Tools ({toolsList.length})</Label>
+              <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={fetchTools} disabled={loadingTools}>
+                {loadingTools ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                Refresh
+              </Button>
+            </div>
+            {loadingTools ? (
+              <Skeleton className="h-16" />
+            ) : toolsList.length === 0 ? (
+              <p className="text-xs text-muted-foreground bg-muted/40 rounded p-3">
+                No tools returned. Make sure your access token has Marketing API permissions.
+              </p>
+            ) : (
+              <div className="max-h-48 overflow-y-auto rounded border p-2 space-y-1">
+                {toolsList.map((tool: any) => (
+                  <button
+                    key={tool.name}
+                    onClick={() => setSelectedTool(tool.name)}
+                    className={`w-full text-left rounded px-2 py-1.5 text-xs transition-colors ${
+                      selectedTool === tool.name
+                        ? "bg-pink-600 text-white"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    <span className="font-mono font-medium">{tool.name}</span>
+                    {tool.description && (
+                      <span className={`block text-[10px] mt-0.5 ${selectedTool === tool.name ? "text-white/70" : "text-muted-foreground"}`}>
+                        {tool.description.slice(0, 100)}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tool call */}
+          {selectedTool && (
+            <div className="space-y-2">
+              <Label className="text-xs">Call: <span className="font-mono text-pink-600">{selectedTool}</span></Label>
+              <div>
+                <Label className="text-xs text-muted-foreground">Arguments (JSON)</Label>
+                <Textarea
+                  value={toolArgs}
+                  onChange={(e) => setToolArgs(e.target.value)}
+                  rows={4}
+                  className="text-xs font-mono"
+                  placeholder='{}'
+                />
+              </div>
+              <Button onClick={callTool} disabled={loading} className="gap-1.5">
+                {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                {loading ? "Calling..." : "Call MCP Tool"}
+              </Button>
+            </div>
+          )}
+
+          {/* Response */}
+          {response && (
+            <div className="space-y-1">
+              <Label className="text-xs">Response</Label>
+              <pre className="text-[11px] bg-muted rounded p-3 overflow-x-auto max-h-80 overflow-y-auto">
+                {JSON.stringify(response, null, 2)}
+              </pre>
             </div>
           )}
         </CardContent>

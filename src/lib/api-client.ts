@@ -1125,6 +1125,13 @@ export const api = {
     return apiFetch<any>(`/tiktok/ads/pixels${qs.toString() ? `?${qs}` : ""}`);
   },
   tiktokAdvertiser: () => apiFetch<any>(`/tiktok/ads/advertiser`),
+  /** Proxy a JSON-RPC request to TikTok's hosted MCP server. */
+  tiktokMcp: (payload: { jsonrpc: string; id: number; method: string; params?: any }) =>
+    apiFetch<{ mcpResponse: any; httpStatus: number }>(`/tiktok/mcp`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  tiktokMcpStatus: () => apiFetch<{ mcpServerUrl: string; configured: boolean }>(`/tiktok/mcp`),
 };
 
 // ===== Utilities =====
