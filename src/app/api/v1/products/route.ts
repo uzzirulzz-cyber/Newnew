@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   let dbProducts: any[] = [];
   try {
     dbProducts = await db.product.findMany({
-      where: { status: "PUBLISHED" },
+      where: { status: { in: ["PUBLISHED", "APPROVED"] } },
       include: { category: true, vendor: true },
       orderBy: { salesCount: "desc" },
     });
