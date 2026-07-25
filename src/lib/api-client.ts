@@ -1132,6 +1132,17 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   tiktokMcpStatus: () => apiFetch<{ mcpServerUrl: string; configured: boolean }>(`/tiktok/mcp`),
+  /** TikTok OAuth — get app config + authorize URL. */
+  tiktokOAuth: () => apiFetch<{ configured: boolean; appId?: string; redirectUri?: string; authorizeUrl?: string }>(`/tiktok/oauth`),
+  tiktokOAuthSave: (payload: { appId: string; appSecret: string; redirectUri?: string }) =>
+    apiFetch<{ configured: boolean; appId: string; redirectUri: string; authorizeUrl?: string; message: string }>(`/tiktok/oauth`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  tiktokOAuthClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/oauth`, { method: "DELETE" }),
+  /** Get the "Connect with TikTok" authorize URL (starts the OAuth flow). */
+  tiktokConnect: () => apiFetch<{ authorizeUrl: string; state: string }>(`/tiktok/connect`),
 };
 
 // ===== Utilities =====

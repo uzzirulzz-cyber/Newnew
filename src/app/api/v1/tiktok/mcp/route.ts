@@ -4,7 +4,10 @@ import { getTikTokSettings } from "@/lib/tiktok";
 
 export const dynamic = "force-dynamic";
 
-const MCP_SERVER_URL = "https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat";
+const MCP_SERVER_URLS = {
+  flat: "https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat",
+  layer: "https://business-api.tiktok.com/open_mcp/tt-ads-mcp-layer",
+} as const;
 
 /**
  * POST /api/v1/tiktok/mcp
@@ -37,17 +40,23 @@ export async function POST(request: NextRequest) {
     return error("Invalid MCP request — { jsonrpc, id, method, params } required", 422);
   }
 
+  // Allow the caller to choose which MCP endpoint to hit (flat or layer).
+  const endpoint = body._mcpEndpoint === "layer" ? "layer" : "flat";
+  const mcpUrl = MCP_SERVER_URLS[endpoint];
+  // Strip the internal _mcpEndpoint flag before forwarding.
+  const { _mcpEndpoint, ...rpcBody } = body;
+
   try {
     // Forward the JSON-RPC request to TikTok's MCP server with auth.
     // Try both common auth header formats — Bearer and Access-Token.
-    const res = await fetch(MCP_SERVER_URL, {
+    const res = await fetch(mcpUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${settings.accessToken}`,
         "Access-Token": settings.accessToken,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(rpcBody),
       signal: AbortSignal.timeout(30_000),
     });
 
@@ -84,7 +93,7 @@ export async function GET(request: NextRequest) {
   if (limited) return limited;
   const settings = await getTikTokSettings();
   return ok({
-    mcpServerUrl: MCP_SERVER_URL,
+    mcpServerUrls: MCP_SERVER_URLS,
     configured: Boolean(settings),
   });
 }

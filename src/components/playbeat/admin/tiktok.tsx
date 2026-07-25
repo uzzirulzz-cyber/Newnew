@@ -81,6 +81,92 @@ export function TikTokModule() {
   const [search, setSearch] = React.useState("");
   const [viewLead, setViewLead] = React.useState<any | null>(null);
 
+  // OAuth state
+  const [oauthForm, setOauthForm] = React.useState({ appId: "", appSecret: "", redirectUri: "" });
+  const [oauthSaving, setOauthSaving] = React.useState(false);
+  const [connecting, setConnecting] = React.useState(false);
+
+  // Check URL for OAuth callback success/error params
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get("tiktok_success");
+      const err = params.get("tiktok_error");
+      if (success) {
+        toast.success(success);
+        setTab("leads");
+        qc.invalidateQueries({ queryKey: ["tiktok-settings"] });
+        // Clean the URL
+        window.history.replaceState({}, "", "/wp-admin?tiktok=tiktok");
+      }
+      if (err) {
+        toast.error(`TikTok connection failed: ${err}`);
+        window.history.replaceState({}, "", "/wp-admin?tiktok=tiktok");
+      }
+    }
+  }, [qc]);
+
+  const { data: oauthData, isLoading: oauthLoading } = useQuery({
+    queryKey: ["tiktok-oauth"],
+    queryFn: () => api.tiktokOAuth(),
+    staleTime: 30_000,
+  });
+  const oauthConfigured = oauthData?.configured === true;
+
+  React.useEffect(() => {
+    if (oauthData?.configured) {
+      setOauthForm((f) => ({
+        ...f,
+        appId: oauthData.appId || "",
+        redirectUri: oauthData.redirectUri || "",
+        appSecret: "", // never echo back
+      }));
+    } else {
+      // Default redirect URI
+      setOauthForm((f) => ({
+        ...f,
+        redirectUri: `${window.location.origin}/api/v1/tiktok/callback`,
+      }));
+    }
+  }, [oauthData]);
+
+  const handleSaveOauth = async () => {
+    if (!oauthForm.appId || !oauthForm.appSecret) {
+      toast.error("App ID and App Secret are required");
+      return;
+    }
+    setOauthSaving(true);
+    try {
+      const res = await api.tiktokOAuthSave({
+        appId: oauthForm.appId,
+        appSecret: oauthForm.appSecret,
+        redirectUri: oauthForm.redirectUri || undefined,
+      });
+      toast.success(res.message || "OAuth config saved");
+      setOauthForm((f) => ({ ...f, appSecret: "" }));
+      qc.invalidateQueries({ queryKey: ["tiktok-oauth"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to save OAuth config");
+    } finally {
+      setOauthSaving(false);
+    }
+  };
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await api.tiktokConnect();
+      if (res.authorizeUrl) {
+        // Redirect the admin to TikTok's login + authorization page
+        window.location.href = res.authorizeUrl;
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to start OAuth flow");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ["tiktok-settings"],
     queryFn: () => api.tiktokSettings(),
@@ -244,6 +330,88 @@ export function TikTokModule() {
 
       {tab === "leads" && (
       <>
+      {/* OAuth — Connect with TikTok (one-click login) */}
+      <Card className="border-pink-500/30">
+        <CardHeader className="border-b bg-pink-50/50 dark:bg-pink-950/20">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Zap size={16} className="text-pink-500" />
+            Connect with TikTok (OAuth)
+            {oauthConfigured && (
+              <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+                <CheckCircle2 size={10} className="mr-1" /> App configured
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          {!oauthConfigured ? (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+              <p className="font-medium flex items-center gap-1.5 mb-1">
+                <AlertCircle size={12} /> Set up TikTok OAuth App
+              </p>
+              <p>Enter your TikTok developer App ID + Secret to enable one-click login. Get them from{" "}
+                <a href="https://ads.tiktok.com/marketing_api/docs?id=1733855983206401" target="_blank" rel="noopener noreferrer" className="text-pink-600 dark:text-pink-400 hover:underline inline-flex items-center gap-0.5">
+                  TikTok For Business → My Apps <ExternalLink size={10} />
+                </a>.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 p-3 flex items-center justify-between gap-2">
+              <div className="text-xs text-emerald-700 dark:text-emerald-400">
+                <p className="font-medium">OAuth app ready — App ID: <span className="font-mono">{oauthData?.appId}</span></p>
+                <p className="text-muted-foreground">Redirect URI: <span className="font-mono">{oauthData?.redirectUri}</span></p>
+              </div>
+              <Button onClick={handleConnect} disabled={connecting} className="gap-1.5 bg-pink-600 hover:bg-pink-700">
+                {connecting ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                Connect with TikTok
+              </Button>
+            </div>
+          )}
+
+          {/* OAuth app config form (always visible so admin can update) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">App ID *</Label>
+              <Input
+                value={oauthForm.appId}
+                onChange={(e) => setOauthForm({ ...oauthForm, appId: e.target.value })}
+                placeholder="e.g. 7123456789012345678"
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">App Secret {oauthConfigured ? "(leave blank to keep)" : "*"}</Label>
+              <Input
+                type="password"
+                value={oauthForm.appSecret}
+                onChange={(e) => setOauthForm({ ...oauthForm, appSecret: e.target.value })}
+                placeholder={oauthConfigured ? "•••••••• (saved)" : "Your app secret"}
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs">Redirect URI</Label>
+              <Input
+                value={oauthForm.redirectUri}
+                onChange={(e) => setOauthForm({ ...oauthForm, redirectUri: e.target.value })}
+                placeholder="https://playbeat.digital/api/v1/tiktok/callback"
+                className="text-xs font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                This must match the Redirect URL configured in your TikTok developer app settings.
+              </p>
+            </div>
+          </div>
+          <Button onClick={handleSaveOauth} disabled={oauthSaving} variant="outline" className="gap-1.5">
+            {oauthSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            {oauthConfigured ? "Update OAuth Config" : "Save OAuth Config"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Manual connection (fallback) — label it as alternative */}
+      <div className="text-xs text-center text-muted-foreground">— or connect manually with an access token —</div>
+
       {/* Connection / Settings card */}
       <Card className="border-pink-500/30">
         <CardHeader className="border-b bg-pink-50/50 dark:bg-pink-950/20">
