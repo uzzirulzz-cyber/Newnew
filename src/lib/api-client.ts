@@ -1143,6 +1143,18 @@ export const api = {
     apiFetch<{ configured: boolean; message: string }>(`/tiktok/oauth`, { method: "DELETE" }),
   /** Get the "Connect with TikTok" authorize URL (starts the OAuth flow). */
   tiktokConnect: () => apiFetch<{ authorizeUrl: string; state: string }>(`/tiktok/connect`),
+
+  // ===== TikTok Login Kit (user content API — "Login with TikTok") =====
+  tiktokLoginKitConfig: () => apiFetch<{ configured: boolean; connected: boolean; clientKey?: string; redirectUri?: string; scopes?: string[]; token?: any }>(`/tiktok/loginkit/config`),
+  tiktokLoginKitSave: (payload: { clientKey: string; clientSecret: string; redirectUri?: string; scopes?: string[] }) =>
+    apiFetch<{ configured: boolean; clientKey: string; redirectUri: string; scopes: string[]; message: string }>(`/tiktok/loginkit/config`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  tiktokLoginKitClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/loginkit/config`, { method: "DELETE" }),
+  tiktokLoginKitConnect: () => apiFetch<{ authorizeUrl: string; state: string }>(`/tiktok/loginkit/connect`),
+  tiktokLoginKitUser: () => apiFetch<{ user: any; openId: string }>(`/tiktok/loginkit/user`),
 };
 
 // ===== Utilities =====

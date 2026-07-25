@@ -66,7 +66,7 @@ const WEBHOOK_URL = typeof window !== "undefined"
 
 export function TikTokModule() {
   const qc = useQueryClient();
-  const [tab, setTab] = React.useState<"leads" | "advertising" | "mcp">("leads");
+  const [tab, setTab] = React.useState<"leads" | "advertising" | "mcp" | "loginkit">("leads");
   const [form, setForm] = React.useState({
     accessToken: "",
     advertiserId: "",
@@ -323,10 +323,19 @@ export function TikTokModule() {
         >
           MCP Console
         </button>
+        <button
+          onClick={() => setTab("loginkit")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "loginkit" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Login Kit
+        </button>
       </div>
 
       {tab === "advertising" && <AdvertisingTab configured={configured} />}
       {tab === "mcp" && <McpConsoleTab configured={configured} />}
+      {tab === "loginkit" && <LoginKitTab />}
 
       {tab === "leads" && (
       <>
@@ -1202,6 +1211,291 @@ function McpConsoleTab({ configured }: { configured: boolean }) {
               </pre>
             </div>
           )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LoginKitTab — TikTok Login Kit ("Login with TikTok" for user content APIs)
+// Implements: https://developers.tiktok.com/doc/oauth-user-access-token-management
+// ---------------------------------------------------------------------------
+
+const AVAILABLE_SCOPES = [
+  { value: "user.info.basic", label: "user.info.basic — Basic profile" },
+  { value: "user.info.profile", label: "user.info.profile — Full profile" },
+  { value: "user.info.stats", label: "user.info.stats — Follower/like stats" },
+  { value: "video.list", label: "video.list — List user's videos" },
+  { value: "video.publish", label: "video.publish — Publish videos" },
+  { value: "video.upload", label: "video.upload — Upload videos" },
+  { value: "comment.list", label: "comment.list — List comments" },
+];
+
+function LoginKitTab() {
+  const qc = useQueryClient();
+  const [lkForm, setLkForm] = React.useState({
+    clientKey: "",
+    clientSecret: "",
+    redirectUri: "",
+    scopes: ["user.info.basic", "user.info.profile", "user.info.stats", "video.list"],
+  });
+  const [lkSaving, setLkSaving] = React.useState(false);
+  const [lkConnecting, setLkConnecting] = React.useState(false);
+
+  const { data: lkConfig, isLoading: lkLoading } = useQuery({
+    queryKey: ["tiktok-loginkit"],
+    queryFn: () => api.tiktokLoginKitConfig(),
+    staleTime: 30_000,
+  });
+  const lkConfigured = lkConfig?.configured === true;
+  const lkConnected = lkConfig?.connected === true;
+
+  const { data: userData, isLoading: userLoading } = useQuery({
+    queryKey: ["tiktok-loginkit-user"],
+    queryFn: () => api.tiktokLoginKitUser(),
+    enabled: lkConnected,
+    staleTime: 60_000,
+  });
+
+  React.useEffect(() => {
+    if (lkConfig?.configured) {
+      setLkForm((f) => ({
+        ...f,
+        clientKey: lkConfig.clientKey || "",
+        redirectUri: lkConfig.redirectUri || "",
+        scopes: lkConfig.scopes || f.scopes,
+        clientSecret: "", // never echo back
+      }));
+    } else if (typeof window !== "undefined") {
+      setLkForm((f) => ({
+        ...f,
+        redirectUri: `${window.location.origin}/api/v1/tiktok/loginkit/callback`,
+      }));
+    }
+  }, [lkConfig]);
+
+  // Check URL for Login Kit callback params
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get("tiktok_loginkit_success");
+      const err = params.get("tiktok_loginkit_error");
+      if (success) {
+        toast.success(success);
+        qc.invalidateQueries({ queryKey: ["tiktok-loginkit"] });
+        window.history.replaceState({}, "", "/wp-admin?tiktok=tiktok");
+      }
+      if (err) {
+        toast.error(`Login Kit: ${err}`);
+        window.history.replaceState({}, "", "/wp-admin?tiktok=tiktok");
+      }
+    }
+  }, [qc]);
+
+  const handleSaveLk = async () => {
+    if (!lkForm.clientKey || !lkForm.clientSecret) {
+      toast.error("Client Key and Client Secret are required");
+      return;
+    }
+    setLkSaving(true);
+    try {
+      const res = await api.tiktokLoginKitSave({
+        clientKey: lkForm.clientKey,
+        clientSecret: lkForm.clientSecret,
+        redirectUri: lkForm.redirectUri || undefined,
+        scopes: lkForm.scopes,
+      });
+      toast.success(res.message || "Login Kit config saved");
+      setLkForm((f) => ({ ...f, clientSecret: "" }));
+      qc.invalidateQueries({ queryKey: ["tiktok-loginkit"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to save");
+    } finally {
+      setLkSaving(false);
+    }
+  };
+
+  const handleLkConnect = async () => {
+    setLkConnecting(true);
+    try {
+      const res = await api.tiktokLoginKitConnect();
+      if (res.authorizeUrl) {
+        window.location.href = res.authorizeUrl;
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to start Login Kit flow");
+    } finally {
+      setLkConnecting(false);
+    }
+  };
+
+  const handleLkDisconnect = async () => {
+    if (!confirm("Disconnect TikTok Login Kit?")) return;
+    try {
+      await api.tiktokLoginKitClear();
+      toast.success("Login Kit disconnected");
+      qc.invalidateQueries({ queryKey: ["tiktok-loginkit"] });
+      qc.invalidateQueries({ queryKey: ["tiktok-loginkit-user"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to disconnect");
+    }
+  };
+
+  const toggleScope = (scope: string) => {
+    setLkForm((f) => ({
+      ...f,
+      scopes: f.scopes.includes(scope)
+        ? f.scopes.filter((s) => s !== scope)
+        : [...f.scopes, scope],
+    }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-pink-500/30">
+        <CardHeader className="border-b bg-pink-50/50 dark:bg-pink-950/20">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Share2 size={16} className="text-pink-500" />
+            TikTok Login Kit
+            {lkConnected && (
+              <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+                <CheckCircle2 size={10} className="mr-1" /> Connected
+              </Badge>
+            )}
+            {lkConfigured && !lkConnected && (
+              <Badge className="bg-amber-100 text-amber-700 text-[10px]">
+                Configured — not authorized
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          <div className="rounded-lg border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/10 p-3 text-xs text-muted-foreground">
+            <strong className="text-foreground">Login Kit vs Marketing API:</strong>{" "}
+            Login Kit uses <span className="font-mono">open.tiktokapis.com</span> endpoints with
+            <span className="font-mono"> client_key</span> + <span className="font-mono">client_secret</span> from
+            <a href="https://developers.tiktok.com" target="_blank" rel="noopener noreferrer" className="text-pink-600 dark:text-pink-400 hover:underline inline-flex items-center gap-0.5">
+              {" "}developers.tiktok.com <ExternalLink size={10} />
+            </a>.
+            It returns an <span className="font-mono">open_id</span> (user identity) + 24h access token + 365d refresh token.
+            Use this for "Login with TikTok", user profiles, and video content APIs.
+          </div>
+
+          {/* Connected user info */}
+          {lkConnected && (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-2">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> Logged in as TikTok user
+              </p>
+              {userLoading ? (
+                <Skeleton className="h-16" />
+              ) : userData?.user ? (
+                <div className="flex items-center gap-3">
+                  {userData.user.avatar_url && (
+                    <img
+                      src={userData.user.avatar_url}
+                      alt="avatar"
+                      className="size-12 rounded-full border"
+                    />
+                  )}
+                  <div className="text-xs space-y-0.5">
+                    <p className="font-semibold text-sm">{userData.user.display_name || userData.user.username || "TikTok User"}</p>
+                    {userData.user.username && <p className="text-muted-foreground">@{userData.user.username}</p>}
+                    <div className="flex gap-3 text-muted-foreground">
+                      {userData.user.follower_count != null && <span>{Number(userData.user.follower_count).toLocaleString()} followers</span>}
+                      {userData.user.following_count != null && <span>{Number(userData.user.following_count).toLocaleString()} following</span>}
+                      {userData.user.likes_count != null && <span>{Number(userData.user.likes_count).toLocaleString()} likes</span>}
+                    </div>
+                    <p className="text-muted-foreground font-mono text-[10px] mt-1">open_id: {userData.openId}</p>
+                  </div>
+                </div>
+              ) : null}
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" size="sm" className="text-xs" onClick={() => qc.invalidateQueries({ queryKey: ["tiktok-loginkit-user"] })}>
+                  Refresh Profile
+                </Button>
+                <Button variant="ghost" size="sm" className="text-xs text-destructive" onClick={handleLkDisconnect}>
+                  Disconnect
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Config form */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Client Key *</Label>
+              <Input
+                value={lkForm.clientKey}
+                onChange={(e) => setLkForm({ ...lkForm, clientKey: e.target.value })}
+                placeholder="e.g. aw1234567890abcdef"
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Client Secret {lkConfigured ? "(leave blank to keep)" : "*"}</Label>
+              <Input
+                type="password"
+                value={lkForm.clientSecret}
+                onChange={(e) => setLkForm({ ...lkForm, clientSecret: e.target.value })}
+                placeholder={lkConfigured ? "•••••••• (saved)" : "Your client secret"}
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs">Redirect URI</Label>
+              <Input
+                value={lkForm.redirectUri}
+                onChange={(e) => setLkForm({ ...lkForm, redirectUri: e.target.value })}
+                placeholder="https://playbeat.digital/api/v1/tiktok/loginkit/callback"
+                className="text-xs font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Must match the redirect URI configured in your TikTok app at developers.tiktok.com.
+              </p>
+            </div>
+          </div>
+
+          {/* Scopes */}
+          <div className="space-y-2">
+            <Label className="text-xs">Scopes (permissions to request)</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {AVAILABLE_SCOPES.map((scope) => (
+                <button
+                  key={scope.value}
+                  onClick={() => toggleScope(scope.value)}
+                  title={scope.label}
+                  className={`rounded-lg px-2.5 py-1 text-[10px] font-mono border transition-colors ${
+                    lkForm.scopes.includes(scope.value)
+                      ? "bg-pink-600 text-white border-pink-600"
+                      : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                  }`}
+                >
+                  {scope.value}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleSaveLk} disabled={lkSaving} variant="outline" className="gap-1.5">
+              {lkSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {lkConfigured ? "Update Config" : "Save Config"}
+            </Button>
+            {lkConfigured && !lkConnected && (
+              <Button onClick={handleLkConnect} disabled={lkConnecting} className="gap-1.5 bg-pink-600 hover:bg-pink-700">
+                {lkConnecting ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                Login with TikTok
+              </Button>
+            )}
+            {lkConnected && (
+              <Button onClick={handleLkConnect} disabled={lkConnecting} variant="outline" className="gap-1.5">
+                {lkConnecting ? <Loader2 size={14} className="animate-spin" /> : <Share2 size={14} />}
+                Re-authorize
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
