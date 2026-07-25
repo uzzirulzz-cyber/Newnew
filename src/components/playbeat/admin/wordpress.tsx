@@ -166,7 +166,7 @@ export function AdminWordPress() {
 function WordPressConnectionCard() {
   const qc = useQueryClient();
   const [form, setForm] = React.useState({
-    apiUrl: "https://playbeatdotdigital.wordpress.com/wp-json/wp/v2",
+    apiUrl: "https://playbeat.digital/wp-json/wp/v2",
     username: "",
     appPassword: "",
     label: "PlayBeat WP.com",
@@ -302,7 +302,7 @@ function WordPressConnectionCard() {
               <AlertCircle size={12} /> No live WordPress site connected
             </p>
             <p className="text-amber-700/80 dark:text-amber-400/80">
-              Connect your real WordPress.com site (e.g. <span className="font-mono">playbeatdotdigital.wordpress.com</span>) so posts,
+              Connect your WordPress site at <span className="font-mono">playbeat.digital</span> so posts,
               pages and users sync to the live site instead of the local Studio instance.
             </p>
           </div>
@@ -319,7 +319,7 @@ function WordPressConnectionCard() {
               <Input
                 value={form.apiUrl}
                 onChange={(e) => setForm({ ...form, apiUrl: e.target.value })}
-                placeholder="https://playbeatdotdigital.wordpress.com/wp-json/wp/v2"
+                placeholder="https://playbeat.digital/wp-json/wp/v2"
                 className="text-xs font-mono"
               />
               <p className="text-[10px] text-muted-foreground">
