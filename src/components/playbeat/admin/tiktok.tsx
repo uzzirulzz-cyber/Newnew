@@ -66,6 +66,7 @@ const WEBHOOK_URL = typeof window !== "undefined"
 
 export function TikTokModule() {
   const qc = useQueryClient();
+  const [tab, setTab] = React.useState<"leads" | "advertising">("leads");
   const [form, setForm] = React.useState({
     accessToken: "",
     advertiserId: "",
@@ -210,6 +211,30 @@ export function TikTokModule() {
         )}
       </div>
 
+      {/* Tab switcher */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setTab("leads")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "leads" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Leads &amp; Postbacks
+        </button>
+        <button
+          onClick={() => setTab("advertising")}
+          className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+            tab === "advertising" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Advertising
+        </button>
+      </div>
+
+      {tab === "advertising" && <AdvertisingTab configured={configured} />}
+
+      {tab === "leads" && (
+      <>
       {/* Connection / Settings card */}
       <Card className="border-pink-500/30">
         <CardHeader className="border-b bg-pink-50/50 dark:bg-pink-950/20">
@@ -607,6 +632,226 @@ export function TikTokModule() {
           )}
         </DialogContent>
       </Dialog>
+      </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AdvertisingTab — TikTok Marketing API dashboard (campaigns, performance, audit)
+// ---------------------------------------------------------------------------
+
+function AdvertisingTab({ configured }: { configured: boolean }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+  const [perfLevel, setPerfLevel] = React.useState<"CAMPAIGN" | "ADGROUP" | "AD">("CAMPAIGN");
+
+  const { data: advertiserData, isLoading: advLoading } = useQuery({
+    queryKey: ["tiktok-advertiser"],
+    queryFn: () => api.tiktokAdvertiser(),
+    enabled: configured,
+    staleTime: 60_000,
+  });
+  const { data: perfData, isLoading: perfLoading } = useQuery({
+    queryKey: ["tiktok-performance", perfLevel],
+    queryFn: () => api.tiktokPerformance({ level: perfLevel, startDate: weekAgo, endDate: today }),
+    enabled: configured,
+    staleTime: 60_000,
+  });
+  const { data: auditData, isLoading: auditLoading } = useQuery({
+    queryKey: ["tiktok-audit"],
+    queryFn: () => api.tiktokAudit(),
+    enabled: configured,
+    staleTime: 120_000,
+  });
+
+  if (!configured) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <Share2 size={36} className="mx-auto mb-3 text-muted-foreground opacity-40" />
+          <p className="text-sm text-muted-foreground">
+            Connect TikTok in the Leads &amp; Postbacks tab to view advertising data.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const perfRows = perfData?.list || [];
+  const totalSpend = perfRows.reduce((s: number, r: any) => s + Number(r?.stat?.spend ?? 0), 0);
+  const totalImpressions = perfRows.reduce((s: number, r: any) => s + Number(r?.stat?.impressions ?? 0), 0);
+  const totalClicks = perfRows.reduce((s: number, r: any) => s + Number(r?.stat?.clicks ?? 0), 0);
+  const totalConversions = perfRows.reduce((s: number, r: any) => s + Number(r?.stat?.conversion ?? 0), 0);
+  const ctr = totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : "0";
+  const cpc = totalClicks > 0 ? (totalSpend / totalClicks).toFixed(2) : "0";
+
+  const audit = auditData;
+  const wastedCount = audit?.wastedCampaigns?.length ?? 0;
+
+  return (
+    <div className="space-y-4">
+      {/* Advertiser info */}
+      {advLoading ? (
+        <Skeleton className="h-20" />
+      ) : advertiserData ? (
+        <Card className="border-pink-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <p className="text-sm font-semibold">{advertiserData.name || "TikTok Advertiser"}</p>
+                <p className="text-xs text-muted-foreground">
+                  ID: {advertiserData.id} · {advertiserData.currency || "USD"} · {advertiserData.country || "—"}
+                  {advertiserData.industry ? ` · ${advertiserData.industry}` : ""}
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs capitalize">
+                {advertiserData.status === "STATUS_ENABLE" ? "Active" : advertiserData.status || "—"}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {/* Performance stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Spend (7d)</p>
+            <p className="text-xl font-bold mt-1">${totalSpend.toFixed(2)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Impressions</p>
+            <p className="text-xl font-bold mt-1">{totalImpressions.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Clicks</p>
+            <p className="text-xl font-bold mt-1">{totalClicks.toLocaleString()}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">CTR / CPC</p>
+            <p className="text-xl font-bold mt-1">{ctr}% / ${cpc}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs text-muted-foreground">Conversions</p>
+            <p className="text-xl font-bold mt-1 text-green-600">{totalConversions}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Wasted spend audit */}
+      <Card className={wastedCount > 0 ? "border-red-500/30" : "border-green-500/30"}>
+        <CardHeader className="border-b">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <AlertCircle size={16} className={wastedCount > 0 ? "text-red-500" : "text-green-500"} />
+            Wasted Spend Audit (30 days)
+            {auditLoading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          {audit ? (
+            <div className="space-y-3">
+              <div className="flex gap-4 text-sm">
+                <span>Total spend: <strong>${audit.totalSpend?.toFixed(2) || "0"}</strong></span>
+                <span>Conversions: <strong>{audit.totalConversions || 0}</strong></span>
+                <span className={wastedCount > 0 ? "text-red-600" : "text-green-600"}>
+                  Wasted campaigns: <strong>{wastedCount}</strong>
+                </span>
+              </div>
+              {wastedCount > 0 ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Campaigns with spend &gt; $5 but 0 conversions:</p>
+                  {audit.wastedCampaigns?.slice(0, 10).map((c: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between rounded border p-2 text-xs">
+                      <div>
+                        <p className="font-medium">{c.campaignName || c.campaignId}</p>
+                        <p className="text-muted-foreground font-mono">{c.campaignId}</p>
+                      </div>
+                      <span className="font-semibold text-red-600">${c.spend.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-green-600">No wasted spend detected — all campaigns have conversions.</p>
+              )}
+            </div>
+          ) : auditLoading ? (
+            <Skeleton className="h-16" />
+          ) : (
+            <p className="text-xs text-muted-foreground">Audit data unavailable.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Performance breakdown table */}
+      <Card>
+        <CardHeader className="border-b">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Performance Breakdown (7 days)</CardTitle>
+            <Select value={perfLevel} onValueChange={(v) => setPerfLevel(v as any)}>
+              <SelectTrigger className="h-8 w-36 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CAMPAIGN" className="text-xs">Campaign</SelectItem>
+                <SelectItem value="ADGROUP" className="text-xs">Ad Group</SelectItem>
+                <SelectItem value="AD" className="text-xs">Ad</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {perfLoading ? (
+            <Skeleton className="h-48 m-4" />
+          ) : perfRows.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No performance data for the last 7 days.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Spend</TableHead>
+                    <TableHead>Impressions</TableHead>
+                    <TableHead>Clicks</TableHead>
+                    <TableHead>CTR</TableHead>
+                    <TableHead>CPC</TableHead>
+                    <TableHead>Conversions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {perfRows.map((row: any, i: number) => {
+                    const s = row?.stat || {};
+                    const id = row?.campaign_id || row?.adgroup_id || row?.ad_id || `Row ${i + 1}`;
+                    return (
+                      <TableRow key={i}>
+                        <TableCell className="font-mono text-xs">{id}</TableCell>
+                        <TableCell className="text-xs font-semibold">${Number(s.spend || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-xs">{Number(s.impressions || 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-xs">{Number(s.clicks || 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-xs">{Number(s.ctr || 0).toFixed(2)}%</TableCell>
+                        <TableCell className="text-xs">${Number(s.cpc || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-xs font-semibold text-green-600">{Number(s.conversion || 0)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

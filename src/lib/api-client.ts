@@ -1092,6 +1092,39 @@ export const api = {
     apiFetch<{ ok: boolean; message: string; response?: any }>(`/tiktok/postback`, { method: "POST", body: JSON.stringify(payload) }),
   tiktokTest: (email?: string) =>
     apiFetch<{ ok: boolean; message: string; response?: any }>(`/tiktok/test`, { method: "POST", body: JSON.stringify({ email }) }),
+
+  // ===== TikTok Marketing API (ad campaign management + analytics) =====
+  tiktokCampaigns: (params?: { type?: string; campaignId?: string; page?: number; pageSize?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.type) qs.set("type", params.type);
+    if (params?.campaignId) qs.set("campaignId", params.campaignId);
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.pageSize) qs.set("pageSize", String(params.pageSize));
+    return apiFetch<any>(`/tiktok/ads/campaigns${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokPerformance: (params?: { level?: string; startDate?: string; endDate?: string; dimension?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.level) qs.set("level", params.level);
+    if (params?.startDate) qs.set("startDate", params.startDate);
+    if (params?.endDate) qs.set("endDate", params.endDate);
+    if (params?.dimension) qs.set("dimension", params.dimension);
+    return apiFetch<any>(`/tiktok/ads/performance${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokAudit: (params?: { startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.startDate) qs.set("startDate", params.startDate);
+    if (params?.endDate) qs.set("endDate", params.endDate);
+    return apiFetch<any>(`/tiktok/ads/audit${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokAudiences: () => apiFetch<any>(`/tiktok/ads/audiences`),
+  tiktokPixels: (params?: { pixelCode?: string; startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.pixelCode) qs.set("pixelCode", params.pixelCode);
+    if (params?.startDate) qs.set("startDate", params.startDate);
+    if (params?.endDate) qs.set("endDate", params.endDate);
+    return apiFetch<any>(`/tiktok/ads/pixels${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokAdvertiser: () => apiFetch<any>(`/tiktok/ads/advertiser`),
 };
 
 // ===== Utilities =====
