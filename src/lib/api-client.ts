@@ -1083,6 +1083,14 @@ export const api = {
       body: formData,
     });
   },
+  /** Test WordPress credentials without saving (POST) or test saved connection (GET). */
+  wordpressTest: (payload: { apiUrl: string; username: string; appPassword: string }) =>
+    apiFetch<{ ok: boolean; user: any; siteInfo?: any; authHeader: string; message: string }>(`/wordpress/test`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  wordpressTestSaved: () =>
+    apiFetch<{ ok: boolean; user: any; apiUrl: string; message: string }>(`/wordpress/test`),
 
   // ===== TikTok Lead Gen + Conversion API =====
   tiktokSettings: () =>
