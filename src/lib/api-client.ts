@@ -1072,6 +1072,26 @@ export const api = {
   /** Clear the stored WordPress connection. */
   wordpressConnectionClear: () =>
     apiFetch<{ configured: boolean; message: string }>(`/wordpress/connection`, { method: "DELETE" }),
+
+  // ===== TikTok Lead Gen + Conversion API =====
+  tiktokSettings: () =>
+    apiFetch<{ configured: boolean; advertiserId?: string; pixelCode?: string; autoPostbackEvents?: string[]; testEventCode?: string; updatedAt?: string }>(`/tiktok/settings`),
+  tiktokSettingsSave: (payload: { accessToken: string; advertiserId: string; pixelCode: string; webhookSecret?: string; autoPostbackEvents?: string[]; testEventCode?: string }) =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/settings`, { method: "POST", body: JSON.stringify(payload) }),
+  tiktokSettingsClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/settings`, { method: "DELETE" }),
+  tiktokLeads: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[]; total: number }>(`/tiktok/leads${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokLeadUpdate: (id: string, status: string, orderId?: string) =>
+    apiFetch<{ lead: any; message: string }>(`/tiktok/leads`, { method: "PATCH", body: JSON.stringify({ id, status, orderId }) }),
+  tiktokPostback: (payload: { type: string; email?: string; phone?: string; value?: number; currency?: string; orderId?: string; contentId?: string }) =>
+    apiFetch<{ ok: boolean; message: string; response?: any }>(`/tiktok/postback`, { method: "POST", body: JSON.stringify(payload) }),
+  tiktokTest: (email?: string) =>
+    apiFetch<{ ok: boolean; message: string; response?: any }>(`/tiktok/test`, { method: "POST", body: JSON.stringify({ email }) }),
 };
 
 // ===== Utilities =====

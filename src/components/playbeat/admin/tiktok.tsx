@@ -1,0 +1,612 @@
+"use client";
+
+import * as React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Share2,
+  KeyRound,
+  Loader2,
+  Save,
+  Trash2,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Zap,
+  ExternalLink,
+  Copy,
+  Download,
+  Users,
+  TrendingUp,
+} from "lucide-react";
+import { api } from "@/lib/api-client";
+import { toast } from "sonner";
+
+const EVENT_TYPES = [
+  { value: "Lead", label: "Lead (form submission)" },
+  { value: "CompleteRegistration", label: "Complete Registration (order placed)" },
+  { value: "Purchase", label: "Purchase (payment confirmed)" },
+  { value: "Subscribe", label: "Subscribe" },
+  { value: "AddToCart", label: "Add to Cart" },
+  { value: "InitiateCheckout", label: "Initiate Checkout" },
+];
+
+const WEBHOOK_URL = typeof window !== "undefined"
+  ? `${window.location.origin}/api/v1/tiktok/webhook`
+  : "https://playbeat.digital/api/v1/tiktok/webhook";
+
+export function TikTokModule() {
+  const qc = useQueryClient();
+  const [form, setForm] = React.useState({
+    accessToken: "",
+    advertiserId: "",
+    pixelCode: "",
+    webhookSecret: "",
+    testEventCode: "",
+  });
+  const [autoEvents, setAutoEvents] = React.useState<string[]>(["Lead", "CompleteRegistration", "Purchase"]);
+  const [saving, setSaving] = React.useState(false);
+  const [testing, setTesting] = React.useState(false);
+  const [leadFilter, setLeadFilter] = React.useState("all");
+  const [search, setSearch] = React.useState("");
+  const [viewLead, setViewLead] = React.useState<any | null>(null);
+
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ["tiktok-settings"],
+    queryFn: () => api.tiktokSettings(),
+    staleTime: 30_000,
+  });
+  const configured = settings?.configured === true;
+
+  const { data: leadsData, isLoading: leadsLoading } = useQuery({
+    queryKey: ["tiktok-leads", leadFilter, search],
+    queryFn: () => api.tiktokLeads({ status: leadFilter, search: search || undefined }),
+    staleTime: 15_000,
+  });
+
+  const leads = leadsData?.items || [];
+  const newCount = leads.filter((l: any) => l.status === "new").length;
+  const convertedCount = leads.filter((l: any) => l.status === "converted").length;
+  const postbackCount = leads.filter((l: any) => l.postbackSent).length;
+
+  React.useEffect(() => {
+    if (settings?.configured) {
+      setForm((f) => ({
+        ...f,
+        advertiserId: settings.advertiserId || "",
+        pixelCode: settings.pixelCode || "",
+        testEventCode: settings.testEventCode || "",
+        accessToken: "", // never echo back; admin re-types to change
+        webhookSecret: "",
+      }));
+      if (settings.autoPostbackEvents) setAutoEvents(settings.autoPostbackEvents);
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    if (!form.accessToken && !configured) {
+      toast.error("Access token is required");
+      return;
+    }
+    if (!form.advertiserId) {
+      toast.error("Advertiser ID is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: any = {
+        advertiserId: form.advertiserId,
+        pixelCode: form.pixelCode,
+        autoPostbackEvents: autoEvents,
+      };
+      if (form.accessToken) payload.accessToken = form.accessToken;
+      if (form.webhookSecret) payload.webhookSecret = form.webhookSecret;
+      if (form.testEventCode) payload.testEventCode = form.testEventCode;
+      const res = await api.tiktokSettingsSave(payload);
+      toast.success(res.message || "TikTok settings saved");
+      setForm((f) => ({ ...f, accessToken: "", webhookSecret: "" }));
+      qc.invalidateQueries({ queryKey: ["tiktok-settings"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleClear = async () => {
+    if (!confirm("Remove TikTok settings?")) return;
+    try {
+      const res = await api.tiktokSettingsClear();
+      toast.success(res.message || "Settings cleared");
+      qc.invalidateQueries({ queryKey: ["tiktok-settings"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to clear");
+    }
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const res = await api.tiktokTest("test@playbeat.digital");
+      if (res.ok) {
+        toast.success(res.message || "Test event sent to TikTok");
+      } else {
+        toast.error(res.message || "Test failed");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Test failed");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleLeadStatus = async (lead: any, status: string) => {
+    try {
+      const res = await api.tiktokLeadUpdate(lead.id, status);
+      toast.success(res.message || `Lead marked as ${status}`);
+      qc.invalidateQueries({ queryKey: ["tiktok-leads"] });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to update lead");
+    }
+  };
+
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied`);
+  };
+
+  const toggleEvent = (event: string) => {
+    setAutoEvents((prev) =>
+      prev.includes(event) ? prev.filter((e) => e !== event) : [...prev, event],
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">TikTok Leads</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Real-time lead sync + conversion postbacks to TikTok
+          </p>
+        </div>
+        {configured ? (
+          <Badge className="bg-emerald-100 text-emerald-700">
+            <CheckCircle2 size={12} className="mr-1" /> Connected
+          </Badge>
+        ) : (
+          <Badge className="bg-amber-100 text-amber-700">
+            <AlertCircle size={12} className="mr-1" /> Not connected
+          </Badge>
+        )}
+      </div>
+
+      {/* Connection / Settings card */}
+      <Card className="border-pink-500/30">
+        <CardHeader className="border-b bg-pink-50/50 dark:bg-pink-950/20">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Share2 size={16} className="text-pink-500" />
+            TikTok Connection
+            {settingsLoading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+          {configured ? (
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 p-3 space-y-1">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> Connected to TikTok For Business
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Advertiser ID: <span className="font-mono">{settings?.advertiserId}</span>
+                {settings?.pixelCode && <> · Pixel: <span className="font-mono">{settings.pixelCode}</span></>}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-3 text-xs text-amber-700 dark:text-amber-400">
+              <p className="font-medium flex items-center gap-1.5 mb-1">
+                <AlertCircle size={12} /> Connect TikTok For Business
+              </p>
+              <p>Get your access token, advertiser ID, and pixel code from TikTok Ads Manager → Assets → Events.</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs">Access Token {configured ? "(leave blank to keep current)" : "*"}</Label>
+              <Input
+                type="password"
+                value={form.accessToken}
+                onChange={(e) => setForm({ ...form, accessToken: e.target.value })}
+                placeholder={configured ? "•••••••• (saved)" : "Long-term access token from TikTok"}
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Advertiser ID *</Label>
+              <Input
+                value={form.advertiserId}
+                onChange={(e) => setForm({ ...form, advertiserId: e.target.value })}
+                placeholder="e.g. 6987654321098"
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Pixel Code</Label>
+              <Input
+                value={form.pixelCode}
+                onChange={(e) => setForm({ ...form, pixelCode: e.target.value })}
+                placeholder="e.g. C5XXXXXXXXXXXXXX"
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Webhook Secret (optional)</Label>
+              <Input
+                type="password"
+                value={form.webhookSecret}
+                onChange={(e) => setForm({ ...form, webhookSecret: e.target.value })}
+                placeholder={configured ? "•••••••• (saved)" : "Secret for webhook verification"}
+                className="text-xs font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Test Event Code (optional)</Label>
+              <Input
+                value={form.testEventCode}
+                onChange={(e) => setForm({ ...form, testEventCode: e.target.value })}
+                placeholder="e.g. TEST12345"
+                className="text-xs font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Auto-postback event toggles */}
+          <div className="space-y-2">
+            <Label className="text-xs">Auto-Postback Events</Label>
+            <p className="text-[10px] text-muted-foreground">
+              When these events happen (order placed, payment confirmed), a postback is automatically sent to TikTok for ad optimization.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {EVENT_TYPES.map((evt) => (
+                <button
+                  key={evt.value}
+                  onClick={() => toggleEvent(evt.value)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-colors ${
+                    autoEvents.includes(evt.value)
+                      ? "bg-pink-600 text-white border-pink-600"
+                      : "bg-muted text-muted-foreground border-border hover:bg-muted/80"
+                  }`}
+                >
+                  {evt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Webhook URL */}
+          <div className="space-y-1.5 rounded-lg border border-blue-500/20 bg-blue-50/50 dark:bg-blue-950/10 p-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Webhook URL (for TikTok Lead Gen)</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs gap-1"
+                onClick={() => handleCopy(WEBHOOK_URL, "Webhook URL")}
+              >
+                <Copy size={11} /> Copy
+              </Button>
+            </div>
+            <p className="text-[10px] font-mono text-muted-foreground break-all">{WEBHOOK_URL}</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Add this URL in TikTok Events Manager → Webhooks to receive real-time leads.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleSave} disabled={saving} className="gap-1.5">
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {configured ? "Update Settings" : "Save & Connect"}
+            </Button>
+            {configured && (
+              <>
+                <Button variant="outline" onClick={handleTest} disabled={testing} className="gap-1.5">
+                  {testing ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                  Send Test Event
+                </Button>
+                <Button variant="ghost" onClick={handleClear} className="text-destructive gap-1.5">
+                  <Trash2 size={14} /> Disconnect
+                </Button>
+              </>
+            )}
+            <a
+              href="https://ads.tiktok.com/marketing_api/docs?id=1771105753792513"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground ml-auto self-center"
+            >
+              <ExternalLink size={11} /> TikTok API Docs
+            </a>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Total Leads</p>
+                <p className="text-xl font-bold mt-1">{leads.length}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-pink-50 dark:bg-pink-950">
+                <Users size={16} className="text-pink-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">New</p>
+                <p className="text-xl font-bold mt-1 text-amber-600">{newCount}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950">
+                <AlertCircle size={16} className="text-amber-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Converted</p>
+                <p className="text-xl font-bold mt-1 text-green-600">{convertedCount}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-green-50 dark:bg-green-950">
+                <CheckCircle2 size={16} className="text-green-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Postbacks Sent</p>
+                <p className="text-xl font-bold mt-1 text-blue-600">{postbackCount}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
+                <TrendingUp size={16} className="text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Leads table */}
+      <Card>
+        <CardHeader className="border-b">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">Leads</CardTitle>
+            <div className="flex gap-2">
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search name/email..."
+                className="h-8 w-48 text-xs"
+              />
+              <Select value={leadFilter} onValueChange={setLeadFilter}>
+                <SelectTrigger className="h-8 w-32 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-xs">All</SelectItem>
+                  <SelectItem value="new" className="text-xs">New</SelectItem>
+                  <SelectItem value="contacted" className="text-xs">Contacted</SelectItem>
+                  <SelectItem value="converted" className="text-xs">Converted</SelectItem>
+                  <SelectItem value="rejected" className="text-xs">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {leadsLoading ? (
+            <Skeleton className="h-48 m-4" />
+          ) : leads.length === 0 ? (
+            <div className="py-12 text-center">
+              <Users size={36} className="mx-auto mb-3 text-muted-foreground opacity-40" />
+              <p className="text-sm text-muted-foreground">
+                No leads yet. Connect TikTok and add the webhook URL to start receiving leads.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Campaign</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Postback</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leads.map((lead: any) => (
+                    <TableRow key={lead.id} className="cursor-pointer" onClick={() => setViewLead(lead)}>
+                      <TableCell className="font-medium text-xs">{lead.customerName || "—"}</TableCell>
+                      <TableCell className="text-xs">{lead.customerEmail || "—"}</TableCell>
+                      <TableCell className="text-xs">{lead.customerPhone || "—"}</TableCell>
+                      <TableCell className="text-xs font-mono">{lead.campaignId ? lead.campaignId.slice(0, 12) : "—"}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] capitalize ${
+                            lead.status === "new" ? "bg-amber-100 text-amber-700" :
+                            lead.status === "converted" ? "bg-green-100 text-green-700" :
+                            lead.status === "contacted" ? "bg-blue-100 text-blue-700" :
+                            "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {lead.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {lead.postbackSent ? (
+                          <Badge className="bg-blue-100 text-blue-700 text-[10px]">
+                            <Send size={9} className="mr-1" /> {lead.postbackType}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                          {lead.status === "new" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={() => handleLeadStatus(lead, "contacted")}
+                            >
+                              Contact
+                            </Button>
+                          )}
+                          {lead.status !== "converted" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs text-green-600 hover:bg-green-50"
+                              onClick={() => handleLeadStatus(lead, "converted")}
+                            >
+                              Convert
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Lead detail dialog */}
+      <Dialog open={!!viewLead} onOpenChange={(v) => !v && setViewLead(null)}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Lead Details</DialogTitle>
+          </DialogHeader>
+          {viewLead && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-muted rounded p-2">
+                  <p className="text-[10px] text-muted-foreground">Name</p>
+                  <p className="text-xs font-medium">{viewLead.customerName || "—"}</p>
+                </div>
+                <div className="bg-muted rounded p-2">
+                  <p className="text-[10px] text-muted-foreground">Email</p>
+                  <p className="text-xs font-medium">{viewLead.customerEmail || "—"}</p>
+                </div>
+                <div className="bg-muted rounded p-2">
+                  <p className="text-[10px] text-muted-foreground">Phone</p>
+                  <p className="text-xs font-medium">{viewLead.customerPhone || "—"}</p>
+                </div>
+                <div className="bg-muted rounded p-2">
+                  <p className="text-[10px] text-muted-foreground">Status</p>
+                  <p className="text-xs font-medium capitalize">{viewLead.status}</p>
+                </div>
+                <div className="bg-muted rounded p-2">
+                  <p className="text-[10px] text-muted-foreground">Campaign ID</p>
+                  <p className="text-xs font-mono">{viewLead.campaignId || "—"}</p>
+                </div>
+                <div className="bg-muted rounded p-2">
+                  <p className="text-[10px] text-muted-foreground">Ad ID</p>
+                  <p className="text-xs font-mono">{viewLead.adId || "—"}</p>
+                </div>
+                <div className="bg-muted rounded p-2 col-span-2">
+                  <p className="text-[10px] text-muted-foreground">TikTok Lead ID</p>
+                  <p className="text-xs font-mono">{viewLead.leadId}</p>
+                </div>
+              </div>
+              {viewLead.extraFields && viewLead.extraFields !== "{}" && (
+                <div>
+                  <p className="text-xs font-medium mb-1">Extra Fields</p>
+                  <pre className="text-[10px] bg-muted rounded p-2 overflow-x-auto">{viewLead.extraFields}</pre>
+                </div>
+              )}
+              <div className="flex gap-2 pt-2 border-t">
+                {viewLead.status !== "converted" && (
+                  <Button
+                    size="sm"
+                    className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      handleLeadStatus(viewLead, "converted");
+                      setViewLead(null);
+                    }}
+                  >
+                    <CheckCircle2 size={14} /> Mark Converted
+                  </Button>
+                )}
+                {viewLead.status === "new" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5"
+                    onClick={() => {
+                      handleLeadStatus(viewLead, "contacted");
+                      setViewLead(null);
+                    }}
+                  >
+                    Mark Contacted
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

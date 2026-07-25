@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { ok, error, applyRateLimit } from "@/lib/api";
 import { db } from "@/lib/db";
+import { autoPostbackForOrder } from "@/lib/tiktok";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +39,23 @@ export async function PATCH(
     if (submission.orderId) {
       const order = await db.order.findUnique({
         where: { id: submission.orderId },
-        include: { payment: true },
+        include: { payment: true, items: { include: { product: true } } },
       });
       if (order?.paymentId) {
         await db.payment.update({
           where: { id: order.paymentId },
           data: { status: "COMPLETED", provider: submission.method.toUpperCase() },
+        }).catch(() => {});
+      }
+      // Fire TikTok "Purchase" postback (payment confirmed) for ad attribution.
+      if (order) {
+        autoPostbackForOrder({
+          id: order.id,
+          customerEmail: submission.customerEmail,
+          total: submission.amount,
+          currency: submission.currency || "PKR",
+          status: "COMPLETED",
+          items: order.items.map((it) => ({ productId: it.productId })),
         }).catch(() => {});
       }
     }

@@ -58,6 +58,7 @@ import { AdminJazzCash } from "./jazzcash";
 import { AdminPayments } from "./payments";
 import { PaymentSubmissions } from "./payment-submissions";
 import { SocialMediaModule } from "./social-media";
+import { TikTokModule } from "./tiktok";
 import { AdminReports } from "./reports";
 import { AdminMarketing } from "./marketing";
 import { AdminMedia } from "./media";
@@ -92,6 +93,7 @@ type ModuleKey =
   | "iptv"
   | "finance"
   | "payments" | "payment-submissions" | "social-media"
+  | "tiktok"
   | "reports"
   | "marketing"
   | "media"
@@ -150,6 +152,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "payments", label: "Payment Gateways", icon: CreditCard },
       { key: "payment-submissions", label: "Payment Proof", icon: FileCheck },
       { key: "social-media", label: "Social Media", icon: Share2 },
+      { key: "tiktok", label: "TikTok Leads", icon: Share2 },
       { key: "jazzcash", label: "JazzCash", icon: CreditCard },
       { key: "reports", label: "Reports", icon: FileText },
     ],
@@ -484,6 +487,8 @@ export function AdminConsole() {
         return <PaymentSubmissions />;
       case "social-media":
         return <SocialMediaModule />;
+      case "tiktok":
+        return <TikTokModule />;
       case "reports":
         return <AdminReports />;
       case "marketing":
