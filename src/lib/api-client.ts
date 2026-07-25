@@ -1072,6 +1072,17 @@ export const api = {
   /** Clear the stored WordPress connection. */
   wordpressConnectionClear: () =>
     apiFetch<{ configured: boolean; message: string }>(`/wordpress/connection`, { method: "DELETE" }),
+  /** List media from the connected WordPress site. */
+  wordpressMedia: () => apiFetch<{ items: any[] }>(`/wordpress/media`),
+  /** Upload a file to the connected WordPress site. */
+  wordpressMediaUpload: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFetch<{ media: any; message: string }>(`/wordpress/media`, {
+      method: "POST",
+      body: formData,
+    });
+  },
 
   // ===== TikTok Lead Gen + Conversion API =====
   tiktokSettings: () =>
