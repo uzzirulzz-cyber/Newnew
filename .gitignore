@@ -58,3 +58,4 @@ server.log
 !tsconfig.json
 tool-results/
 *.bundle
+.zscripts/
