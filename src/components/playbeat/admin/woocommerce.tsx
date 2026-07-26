@@ -19,7 +19,7 @@ import {
   Settings,
   ExternalLink,
 } from "lucide-react";
-import { api } from "@/lib/api-client";
+import { api, formatPrice } from "@/lib/api-client";
 import { toast } from "sonner";
 import { WooCommerceAccount } from "./woocommerce-account";
 
@@ -42,6 +42,7 @@ export function AdminWooCommerce() {
   const wcOrders = ordersData?.items || [];
   const connected = productsData?.configured ?? false;
   const error = productsData?.error || ordersData?.error;
+  const storeUrl = productsData?.storeUrl || ordersData?.storeUrl || (connected ? "Connected" : "Not connected");
 
   // Real revenue from WC orders
   const wcRevenue = wcOrders
@@ -99,8 +100,8 @@ export function AdminWooCommerce() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Store URL</span>
-                    <span className="font-mono text-xs">
-                      {process.env.NEXT_PUBLIC_WC_STORE_URL || "Connected store"}
+                    <span className="font-mono text-xs truncate max-w-[200px]">
+                      {storeUrl}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -171,7 +172,7 @@ WOOCOMMERCE_CONSUMER_SECRET=cs_xxxxx`}
               <div className="bg-muted rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">Revenue</p>
                 <p className="text-lg font-bold">
-                  {wcRevenue > 0 ? `$${wcRevenue.toFixed(2)}` : "—"}
+                  {wcRevenue > 0 ? formatPrice(wcRevenue) : "—"}
                 </p>
               </div>
               <div className="bg-muted rounded-lg p-3">
@@ -237,7 +238,7 @@ WOOCOMMERCE_CONSUMER_SECRET=cs_xxxxx`}
                       <p className="text-xs text-muted-foreground">{p.status}</p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold">${p.price || "0"}</span>
+                  <span className="text-sm font-bold">{formatPrice(Number(p.price) || 0)}</span>
                 </div>
               ))}
             </div>

@@ -520,3 +520,30 @@ model BlogPost {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ----------------------------------------------------------------------------
+// TikTok Lead Generation + Conversion API
+// ----------------------------------------------------------------------------
+
+model TikTokLead {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  leadId        String   @unique // TikTok's lead_id
+  advertiserId  String?
+  campaignId    String?
+  adgroupId     String?
+  adId          String?
+  formId        String? // Instant Form / Smart Form ID
+  customerName  String?
+  customerEmail String?
+  customerPhone String?
+  // Extra fields captured by the form (custom questions etc.) — JSON string.
+  extraFields   String   @default("{}")
+  // CRM side
+  status        String   @default("new") // new | contacted | converted | rejected
+  orderId       String?  @db.ObjectId // linked PlayBeat order (if converted)
+  postbackSent  Boolean  @default(false) // was a postback sent to TikTok for this lead?
+  postbackType  String?  // e.g. "Lead", "CompleteRegistration", "Purchase"
+  rawPayload    String   @default("{}") // full webhook payload for auditing
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

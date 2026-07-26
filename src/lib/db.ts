@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 
 // MongoDB Atlas connection — hardcoded to prevent the container's
 // DATABASE_URL env var (file:./dev.db SQLite) from overriding .env
-const MONGODB_URL = "mongodb+srv://max11:NciH9bevWbkDz5IT@playbeat.umqpdyx.mongodb.net/playbeat?retryWrites=true&w=majority&appName=playbeat"
+const MONGODB_URL = "mongodb+srv://bixby:fiBm353cmCyZhSyS@cluster0.5piuwvi.mongodb.net/playbeat?retryWrites=true&w=majority&appName=Cluster0"
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

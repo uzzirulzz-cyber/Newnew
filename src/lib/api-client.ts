@@ -1072,6 +1072,108 @@ export const api = {
   /** Clear the stored WordPress connection. */
   wordpressConnectionClear: () =>
     apiFetch<{ configured: boolean; message: string }>(`/wordpress/connection`, { method: "DELETE" }),
+  /** List media from the connected WordPress site. */
+  wordpressMedia: () => apiFetch<{ items: any[] }>(`/wordpress/media`),
+  /** Upload a file to the connected WordPress site. */
+  wordpressMediaUpload: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFetch<{ media: any; message: string }>(`/wordpress/media`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+  /** Test WordPress credentials without saving (POST) or test saved connection (GET). */
+  wordpressTest: (payload: { apiUrl: string; username: string; appPassword: string }) =>
+    apiFetch<{ ok: boolean; user: any; siteInfo?: any; authHeader: string; message: string }>(`/wordpress/test`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  wordpressTestSaved: () =>
+    apiFetch<{ ok: boolean; user: any; apiUrl: string; message: string }>(`/wordpress/test`),
+
+  // ===== TikTok Lead Gen + Conversion API =====
+  tiktokSettings: () =>
+    apiFetch<{ configured: boolean; advertiserId?: string; pixelCode?: string; autoPostbackEvents?: string[]; testEventCode?: string; updatedAt?: string }>(`/tiktok/settings`),
+  tiktokSettingsSave: (payload: { accessToken: string; advertiserId: string; pixelCode: string; webhookSecret?: string; autoPostbackEvents?: string[]; testEventCode?: string }) =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/settings`, { method: "POST", body: JSON.stringify(payload) }),
+  tiktokSettingsClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/settings`, { method: "DELETE" }),
+  tiktokLeads: (params?: { status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.search) qs.set("search", params.search);
+    return apiFetch<{ items: any[]; total: number }>(`/tiktok/leads${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokLeadUpdate: (id: string, status: string, orderId?: string) =>
+    apiFetch<{ lead: any; message: string }>(`/tiktok/leads`, { method: "PATCH", body: JSON.stringify({ id, status, orderId }) }),
+  tiktokPostback: (payload: { type: string; email?: string; phone?: string; value?: number; currency?: string; orderId?: string; contentId?: string }) =>
+    apiFetch<{ ok: boolean; message: string; response?: any }>(`/tiktok/postback`, { method: "POST", body: JSON.stringify(payload) }),
+  tiktokTest: (email?: string) =>
+    apiFetch<{ ok: boolean; message: string; response?: any }>(`/tiktok/test`, { method: "POST", body: JSON.stringify({ email }) }),
+
+  // ===== TikTok Marketing API (ad campaign management + analytics) =====
+  tiktokCampaigns: (params?: { type?: string; campaignId?: string; page?: number; pageSize?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.type) qs.set("type", params.type);
+    if (params?.campaignId) qs.set("campaignId", params.campaignId);
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.pageSize) qs.set("pageSize", String(params.pageSize));
+    return apiFetch<any>(`/tiktok/ads/campaigns${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokPerformance: (params?: { level?: string; startDate?: string; endDate?: string; dimension?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.level) qs.set("level", params.level);
+    if (params?.startDate) qs.set("startDate", params.startDate);
+    if (params?.endDate) qs.set("endDate", params.endDate);
+    if (params?.dimension) qs.set("dimension", params.dimension);
+    return apiFetch<any>(`/tiktok/ads/performance${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokAudit: (params?: { startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.startDate) qs.set("startDate", params.startDate);
+    if (params?.endDate) qs.set("endDate", params.endDate);
+    return apiFetch<any>(`/tiktok/ads/audit${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokAudiences: () => apiFetch<any>(`/tiktok/ads/audiences`),
+  tiktokPixels: (params?: { pixelCode?: string; startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.pixelCode) qs.set("pixelCode", params.pixelCode);
+    if (params?.startDate) qs.set("startDate", params.startDate);
+    if (params?.endDate) qs.set("endDate", params.endDate);
+    return apiFetch<any>(`/tiktok/ads/pixels${qs.toString() ? `?${qs}` : ""}`);
+  },
+  tiktokAdvertiser: () => apiFetch<any>(`/tiktok/ads/advertiser`),
+  /** Proxy a JSON-RPC request to TikTok's hosted MCP server. */
+  tiktokMcp: (payload: { jsonrpc: string; id: number; method: string; params?: any }) =>
+    apiFetch<{ mcpResponse: any; httpStatus: number }>(`/tiktok/mcp`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  tiktokMcpStatus: () => apiFetch<{ mcpServerUrl: string; configured: boolean }>(`/tiktok/mcp`),
+  /** TikTok OAuth — get app config + authorize URL. */
+  tiktokOAuth: () => apiFetch<{ configured: boolean; appId?: string; redirectUri?: string; authorizeUrl?: string }>(`/tiktok/oauth`),
+  tiktokOAuthSave: (payload: { appId: string; appSecret: string; redirectUri?: string }) =>
+    apiFetch<{ configured: boolean; appId: string; redirectUri: string; authorizeUrl?: string; message: string }>(`/tiktok/oauth`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  tiktokOAuthClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/oauth`, { method: "DELETE" }),
+  /** Get the "Connect with TikTok" authorize URL (starts the OAuth flow). */
+  tiktokConnect: () => apiFetch<{ authorizeUrl: string; state: string }>(`/tiktok/connect`),
+
+  // ===== TikTok Login Kit (user content API — "Login with TikTok") =====
+  tiktokLoginKitConfig: () => apiFetch<{ configured: boolean; connected: boolean; clientKey?: string; redirectUri?: string; scopes?: string[]; token?: any }>(`/tiktok/loginkit/config`),
+  tiktokLoginKitSave: (payload: { clientKey: string; clientSecret: string; redirectUri?: string; scopes?: string[] }) =>
+    apiFetch<{ configured: boolean; clientKey: string; redirectUri: string; scopes: string[]; message: string }>(`/tiktok/loginkit/config`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  tiktokLoginKitClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/tiktok/loginkit/config`, { method: "DELETE" }),
+  tiktokLoginKitConnect: () => apiFetch<{ authorizeUrl: string; state: string }>(`/tiktok/loginkit/connect`),
+  tiktokLoginKitUser: () => apiFetch<{ user: any; openId: string }>(`/tiktok/loginkit/user`),
 };
 
 // ===== Utilities =====

@@ -96,6 +96,7 @@ export interface WCOrder {
 export async function getWooCommerceProducts(): Promise<{
   configured: boolean;
   items: WCProduct[];
+  storeUrl?: string;
   error?: string;
 }> {
   if (!isWooCommerceConfigured()) {
@@ -110,11 +111,12 @@ export async function getWooCommerceProducts(): Promise<{
       return {
         configured: true,
         items: [],
+        storeUrl: process.env.WOOCOMMERCE_STORE_URL,
         error: `WooCommerce API error: ${res.status}`,
       };
     }
     const items = (await res.json()) as WCProduct[];
-    return { configured: true, items };
+    return { configured: true, items, storeUrl: process.env.WOOCOMMERCE_STORE_URL };
   } catch (e) {
     return {
       configured: true,
@@ -128,6 +130,7 @@ export async function getWooCommerceProducts(): Promise<{
 export async function getWooCommerceOrders(): Promise<{
   configured: boolean;
   items: WCOrder[];
+  storeUrl?: string;
   error?: string;
 }> {
   if (!isWooCommerceConfigured()) {
@@ -142,11 +145,12 @@ export async function getWooCommerceOrders(): Promise<{
       return {
         configured: true,
         items: [],
+        storeUrl: process.env.WOOCOMMERCE_STORE_URL,
         error: `WooCommerce API error: ${res.status}`,
       };
     }
     const items = (await res.json()) as WCOrder[];
-    return { configured: true, items };
+    return { configured: true, items, storeUrl: process.env.WOOCOMMERCE_STORE_URL };
   } catch (e) {
     return {
       configured: true,

@@ -7,6 +7,7 @@ import {
   generateLicenseKey,
 } from "@/lib/auth";
 import { ensureSeeded } from "@/lib/ensure-seed";
+import { autoPostbackForOrder } from "@/lib/tiktok";
 
 // GET /api/v1/orders  — current user's order history
 export async function GET(request: NextRequest) {
@@ -191,6 +192,17 @@ export async function POST(request: NextRequest) {
       });
     }
   }
+
+  // Fire TikTok postback (CompleteRegistration) for ad attribution.
+  // Runs in the background — never blocks the order response.
+  autoPostbackForOrder({
+    id: order.id,
+    customerEmail: body.customerEmail,
+    total,
+    currency: "PKR",
+    status: order.status,
+    items: order.items.map((it) => ({ productId: it.productId })),
+  }).catch(() => {});
 
   return ok(
     {

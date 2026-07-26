@@ -10,6 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -93,7 +101,7 @@ export function AdminWordPress() {
           </div>
         </div>
         <a
-          href="http://localhost:8881/wp-admin"
+          href="https://wordpress.com/wp-admin"
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -127,6 +135,10 @@ export function AdminWordPress() {
             <ImageIcon className="size-3.5 mr-1.5" />
             Media Library
           </TabsTrigger>
+          <TabsTrigger value="plugins" className="flex-1">
+            <Plus className="size-3.5 mr-1.5" />
+            Plugins
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="blog">
@@ -140,6 +152,10 @@ export function AdminWordPress() {
         <TabsContent value="media">
           <MediaLibraryTab />
         </TabsContent>
+
+        <TabsContent value="plugins">
+          <PluginsTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -150,7 +166,7 @@ export function AdminWordPress() {
 function WordPressConnectionCard() {
   const qc = useQueryClient();
   const [form, setForm] = React.useState({
-    apiUrl: "https://playbeatdotdigital.wordpress.com/wp-json/wp/v2",
+    apiUrl: "https://playbeat.digital/wp-json/wp/v2",
     username: "",
     appPassword: "",
     label: "PlayBeat WP.com",
@@ -286,7 +302,7 @@ function WordPressConnectionCard() {
               <AlertCircle size={12} /> No live WordPress site connected
             </p>
             <p className="text-amber-700/80 dark:text-amber-400/80">
-              Connect your real WordPress.com site (e.g. <span className="font-mono">playbeatdotdigital.wordpress.com</span>) so posts,
+              Connect your WordPress site at <span className="font-mono">playbeat.digital</span> so posts,
               pages and users sync to the live site instead of the local Studio instance.
             </p>
           </div>
@@ -303,7 +319,7 @@ function WordPressConnectionCard() {
               <Input
                 value={form.apiUrl}
                 onChange={(e) => setForm({ ...form, apiUrl: e.target.value })}
-                placeholder="https://playbeatdotdigital.wordpress.com/wp-json/wp/v2"
+                placeholder="https://playbeat.digital/wp-json/wp/v2"
                 className="text-xs font-mono"
               />
               <p className="text-[10px] text-muted-foreground">
@@ -383,8 +399,22 @@ function WordPressStudioCard() {
     queryFn: () => api.wordpressAccountStatus(),
     staleTime: 30_000,
   });
+  const { data: connData } = useQuery({
+    queryKey: ["wordpress-connection"],
+    queryFn: () => api.wordpressConnection(),
+    staleTime: 30_000,
+  });
 
   const wpAvailable = accountData?.available ?? false;
+  // Derive the WP admin URL from the configured connection (if any).
+  // Falls back to the account-data API URL, then to wordpress.com.
+  const wpApiUrl = connData?.configured
+    ? connData.apiUrl || ""
+    : accountData?.apiUrl || "";
+  const wpSiteUrl = wpApiUrl
+    ? wpApiUrl.replace(/\/wp-json\/wp\/v2\/?$/, "")
+    : "https://wordpress.com";
+  const wpAdminUrl = wpAvailable ? `${wpSiteUrl}/wp-admin` : "https://wordpress.com/wp-admin";
 
   return (
     <Card className="border-blue-500/30 bg-blue-500/5">
@@ -397,24 +427,26 @@ function WordPressStudioCard() {
             <div>
               <h3 className="text-lg font-bold">WordPress + WooCommerce</h3>
               <p className="text-sm text-muted-foreground">
-                Real WordPress with WooCommerce plugin — manage your store on the official platform
+                {connData?.configured
+                  ? `Connected to ${wpSiteUrl}`
+                  : "Connect your WordPress site to manage posts, pages, and WooCommerce"}
               </p>
               <div className="mt-1 flex flex-wrap gap-2">
                 <span className="rounded bg-green-500/15 px-2 py-0.5 text-[10px] font-medium text-green-500">
-                  WordPress 7.0.2
+                  WordPress
                 </span>
                 <span className="rounded bg-purple-500/15 px-2 py-0.5 text-[10px] font-medium text-purple-500">
-                  WooCommerce 10.9.4
+                  WooCommerce
                 </span>
                 <span className="rounded bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium text-blue-500">
-                  {wpAvailable ? "API Connected" : "Local Mode"}
+                  {wpAvailable ? "API Connected" : "Not connected"}
                 </span>
               </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <a
-              href="http://localhost:8881/wp-admin"
+              href={wpAdminUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -424,7 +456,7 @@ function WordPressStudioCard() {
               </Button>
             </a>
             <a
-              href="http://localhost:8881/wp-admin/admin.php?page=wc-settings"
+              href={wpAvailable ? `${wpSiteUrl}/wp-admin/admin.php?page=wc-settings` : "https://woocommerce.com/settings/"}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -434,7 +466,7 @@ function WordPressStudioCard() {
               </Button>
             </a>
             <a
-              href="http://localhost:8881/wp-admin/post-new.php?post_type=product"
+              href={wpAvailable ? `${wpSiteUrl}/wp-admin/post-new.php?post_type=product` : "https://woocommerce.com/products/"}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -444,7 +476,7 @@ function WordPressStudioCard() {
               </Button>
             </a>
             <a
-              href="http://localhost:8881/wp-json/wc/v3/products"
+              href={wpAvailable ? `${wpSiteUrl}/wp-json/wc/v3/products` : "https://woocommerce.com/woocommerce-rest-api/"}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -1496,6 +1528,128 @@ function WpCreateForm({
         )}
         Create Account
       </Button>
+    </div>
+  );
+}
+
+// ============== Plugins Tab — WordPress.org Plugin Directory ==============
+
+function PluginsTab() {
+  const [search, setSearch] = React.useState("");
+  const [browse, setBrowse] = React.useState("popular");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["wordpress-plugins", search, browse],
+    queryFn: () => api.wordpressPlugins(search || undefined, browse),
+    staleTime: 60_000,
+  });
+
+  const plugins = data?.items || [];
+
+  return (
+    <div className="space-y-4">
+      {/* Search + browse mode */}
+      <div className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search WordPress.org plugins…"
+            className="pl-9"
+          />
+        </div>
+        {!search && (
+          <Select value={browse} onValueChange={setBrowse}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="popular">Popular</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="updated">Recently Updated</SelectItem>
+              <SelectItem value="top-rated">Top Rated</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* Results */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      ) : plugins.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Plus className="mx-auto mb-3 size-8 text-muted-foreground opacity-40" />
+            <p className="text-sm text-muted-foreground">
+              No plugins found. Try a different search term.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {plugins.map((p: any) => (
+            <Card key={p.slug} className="overflow-hidden">
+              <CardContent className="p-4 flex gap-3">
+                {/* Icon */}
+                <div className="shrink-0">
+                  {p.icons?.svg || p.icons?.["1x"] || p.icons?.["2x"] ? (
+                    <img
+                      src={p.icons.svg || p.icons["1x"] || p.icons["2x"]}
+                      alt={p.name}
+                      className="size-12 rounded-lg border"
+                    />
+                  ) : (
+                    <div className="size-12 rounded-lg border grid place-items-center bg-muted">
+                      <Plus className="size-5 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Details */}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-semibold truncate">{p.name}</h4>
+                      <p className="text-[10px] text-muted-foreground">
+                        v{p.version} by {p.author || "Unknown"}
+                      </p>
+                    </div>
+                    {p.rating > 0 && (
+                      <Badge variant="outline" className="text-[9px] shrink-0">
+                        ★ {p.rating}%
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                    {p.short_description}
+                  </p>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t">
+                    <span className="text-[10px] text-muted-foreground">
+                      {p.active_installs > 0
+                        ? `${(p.active_installs / 1000).toFixed(0)}K+ installs`
+                        : `${p.downloads.toLocaleString()} downloads`}
+                      {p.tested && ` · WP ${p.tested}`}
+                    </span>
+                    <a
+                      href={p.homepage}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-blue-600 hover:underline inline-flex items-center gap-0.5"
+                    >
+                      Details <ExternalLink size={9} />
+                    </a>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

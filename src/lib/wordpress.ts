@@ -90,13 +90,26 @@ export async function isWordPressConfigured(): Promise<boolean> {
 }
 
 /**
- * Build the Basic-auth header value for a given connection.
- * Application passwords may contain spaces — WP accepts them either way, but
- * we strip them for safety since some HTTP clients are picky.
+ * Build the Basic-auth header value for a WordPress connection.
+ *
+ * WordPress Application Passwords are in the format `xxxx xxxx xxxx xxxx`
+ * (groups of 4 chars separated by spaces). WordPress accepts both the spaced
+ * and unspaced versions, but we strip ALL spaces for maximum compatibility
+ * with HTTP clients and proxies.
+ *
+ * The header value is: `Basic ` + base64(`username:password`)
+ * Example: `Authorization: Basic am9lOnNlY3JldA==` (base64 of "joe:secret")
+ *
+ * Docs: https://developer.wordpress.org/rest-api/using-the-rest-api/authentication/
  */
 export function wpAuthHeader(conn: WordPressConnection): string {
-  const cleanPass = conn.appPassword.replace(/\s+/g, " ").trim();
-  return `Basic ${Buffer.from(`${conn.username}:${cleanPass}`).toString("base64")}`;
+  // Strip ALL whitespace from the application password.
+  // WordPress generates them with spaces for readability but accepts the
+  // unspaced version. Some HTTP clients/proxies choke on spaces in Basic
+  // auth credentials, so removing them is the safe choice.
+  const cleanPass = conn.appPassword.replace(/\s+/g, "");
+  const credentials = `${conn.username}:${cleanPass}`;
+  return `Basic ${Buffer.from(credentials).toString("base64")}`;
 }
 
 /** Persist a WordPress connection to the DB (upserts the settings row). */
