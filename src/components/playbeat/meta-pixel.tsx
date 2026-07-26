@@ -6,8 +6,8 @@ const META_PIXEL_ID = "489762161686775";
 
 // Facebook App ID — used by the Facebook JavaScript SDK for Login,
 // Share, Like, and other social plugins.
-// Replace with your actual Facebook App ID from developers.facebook.com
-const FACEBOOK_APP_ID = "489762161686775"; // same as Pixel ID for now
+// From developers.facebook.com → My Apps → playbeat.digital
+const FACEBOOK_APP_ID = "1768887737439036";
 
 /**
  * Meta (Facebook) Pixel + JavaScript SDK.
