@@ -163,7 +163,7 @@ export async function getMetaInsights(adAccountId: string, opts?: {
   const url = new URL(`${GRAPH_API_BASE}/${adAccountId}/insights`);
   url.searchParams.set("access_token", config.accessToken);
   url.searchParams.set("level", opts?.level || "campaign");
-  url.searchParams.set("fields", "spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,conversion_rate_rank,purchase_roas");
+  url.searchParams.set("fields", "spend,impressions,clicks,ctr,cpc,cpm,reach,frequency,actions,purchase_roas,conversions,conversion_values,cost_per_action_type");
 
   if (opts?.timeRange) {
     url.searchParams.set("time_range", JSON.stringify(opts.timeRange));
