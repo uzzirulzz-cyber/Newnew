@@ -15,12 +15,19 @@ interface FbUser {
 }
 
 /**
- * Facebook Login Button.
+ * Facebook Login Button (Login for Business).
  *
- * Uses the Facebook JavaScript SDK to provide "Login with Facebook".
+ * Uses the Facebook JavaScript SDK with a Configuration ID (config_id)
+ * instead of manually specifying scopes. The scopes are configured in the
+ * Facebook App Dashboard → Facebook Login → Settings → Configuration.
+ *
+ * Config ID: 1768887737439036
+ * App ID: 1768887737439036
+ *
  * After login, the user's name + avatar are displayed with a logout button.
+ * The login status is checked on page load via FB.getLoginStatus().
  *
- * The login status is persisted in localStorage so it survives page refreshes.
+ * Docs: https://developers.facebook.com/documentation/facebook-login/facebook-login-for-business
  */
 export function FacebookLogin() {
   const [user, setUser] = React.useState<FbUser | null>(null);
@@ -70,7 +77,7 @@ export function FacebookLogin() {
             toast.error("Facebook login cancelled");
           }
         },
-        { scope: "email,public_profile" },
+        { config_id: "1768887737439036" },
       );
     });
   };
