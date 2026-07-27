@@ -70,7 +70,6 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Logo as PlaybeatLogo, LogoMark } from "./logo";
-import { FacebookLogin } from "./facebook-login";
 
 const TABS: Array<{ key: TabKey; label: string; icon: typeof Store }> = [
   { key: "marketplace", label: "Marketplace", icon: Store },
@@ -605,7 +604,6 @@ export function Header() {
         {tabs.length <= 1 && <div className="mx-auto hidden md:block" />}
 
         <div className="ml-auto flex items-center gap-1">
-          <FacebookLogin />
           <CurrencyToggle />
           <ThemeToggle />
           <NotificationsBell />
