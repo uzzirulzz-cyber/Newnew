@@ -106,6 +106,9 @@ export default function RootLayout({
         <link rel="wlwmanifest" type="application/wlwmanifest+xml" href="https://playbeat.digital/wp-includes/wlwmanifest.xml" />
         <meta name="generator" content="WordPress 6.5.2" />
         <meta name="generator" content="WooCommerce 8.6.1" />
+
+        {/* Facebook Domain Verification */}
+        <meta name="facebook-domain-verification" content="9paszo04ndkkwx0b8sh24qgso6uchy" />
       </head>
       <body
         className={`${spaceGrotesk.variable} ${inter.variable} ${manrope.variable} antialiased bg-background text-foreground`}

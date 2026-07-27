@@ -1175,6 +1175,7 @@ export const api = {
   tiktokLoginKitConnect: () => apiFetch<{ authorizeUrl: string; state: string }>(`/tiktok/loginkit/connect`),
   tiktokLoginKitUser: () => apiFetch<{ user: any; openId: string }>(`/tiktok/loginkit/user`),
 
+<<<<<<< HEAD
   // ===== Email (SMTP: support@playbeat.digital) =====
   emailSettings: () => apiFetch<{ configured: boolean; smtpHost?: string; smtpPort?: number; smtpUser?: string; fromName?: string; fromEmail?: string; updatedAt?: string }>(`/email/settings`),
   emailSettingsSave: (payload: { smtpHost: string; smtpPort: number; smtpUser: string; smtpPassword: string; fromName?: string; fromEmail?: string }) =>
@@ -1187,6 +1188,27 @@ export const api = {
     apiFetch<{ ok: boolean; message: string; messageId?: string }>(`/email/test`, { method: "POST", body: JSON.stringify({ to }) }),
   emailTestConnection: () =>
     apiFetch<{ ok: boolean; message: string }>(`/email/test`),
+=======
+  // ===== Meta (Facebook) Business — Graph API =====
+  metaSettings: () => apiFetch<{ configured: boolean; appId?: string; updatedAt?: string }>(`/meta/settings`),
+  metaSettingsSave: (accessToken: string) =>
+    apiFetch<{ configured: boolean; message: string; verified?: boolean; tokenInfo?: any }>(`/meta/settings`, {
+      method: "POST",
+      body: JSON.stringify({ accessToken }),
+    }),
+  metaSettingsClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/meta/settings`, { method: "DELETE" }),
+  metaAccounts: () => apiFetch<any>(`/meta/accounts`),
+  metaCampaigns: (accountId: string) => apiFetch<any>(`/meta/campaigns?accountId=${encodeURIComponent(accountId)}`),
+  metaInsights: (accountId: string, params?: { level?: string; datePreset?: string; since?: string; until?: string }) => {
+    const qs = new URLSearchParams({ accountId });
+    if (params?.level) qs.set("level", params.level);
+    if (params?.datePreset) qs.set("datePreset", params.datePreset);
+    if (params?.since) qs.set("since", params.since);
+    if (params?.until) qs.set("until", params.until);
+    return apiFetch<any>(`/meta/insights?${qs}`);
+  },
+>>>>>>> 8877868ae34b3dd919684120538033c73094e6d0
 };
 
 // ===== Utilities =====
