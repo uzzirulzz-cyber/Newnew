@@ -21,6 +21,7 @@ import {
   Megaphone,
   RotateCcw,
   Share2,
+  Mail,
   Image as ImageIcon,
   Layout,
   Search,
@@ -59,6 +60,7 @@ import { AdminPayments } from "./payments";
 import { PaymentSubmissions } from "./payment-submissions";
 import { SocialMediaModule } from "./social-media";
 import { TikTokModule } from "./tiktok";
+import { AdminEmail } from "./email";
 import { AdminReports } from "./reports";
 import { AdminMarketing } from "./marketing";
 import { AdminMedia } from "./media";
@@ -94,6 +96,7 @@ type ModuleKey =
   | "finance"
   | "payments" | "payment-submissions" | "social-media"
   | "tiktok"
+  | "email"
   | "reports"
   | "marketing"
   | "media"
@@ -153,6 +156,7 @@ const NAV_GROUPS: NavGroup[] = [
       { key: "payment-submissions", label: "Payment Proof", icon: FileCheck },
       { key: "social-media", label: "Social Media", icon: Share2 },
       { key: "tiktok", label: "TikTok Leads", icon: Share2 },
+      { key: "email", label: "Email", icon: Mail },
       { key: "jazzcash", label: "JazzCash", icon: CreditCard },
       { key: "reports", label: "Reports", icon: FileText },
     ],
@@ -489,6 +493,8 @@ export function AdminConsole() {
         return <SocialMediaModule />;
       case "tiktok":
         return <TikTokModule />;
+      case "email":
+        return <AdminEmail />;
       case "reports":
         return <AdminReports />;
       case "marketing":

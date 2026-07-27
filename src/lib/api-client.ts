@@ -1174,6 +1174,19 @@ export const api = {
     apiFetch<{ configured: boolean; message: string }>(`/tiktok/loginkit/config`, { method: "DELETE" }),
   tiktokLoginKitConnect: () => apiFetch<{ authorizeUrl: string; state: string }>(`/tiktok/loginkit/connect`),
   tiktokLoginKitUser: () => apiFetch<{ user: any; openId: string }>(`/tiktok/loginkit/user`),
+
+  // ===== Email (SMTP: support@playbeat.digital) =====
+  emailSettings: () => apiFetch<{ configured: boolean; smtpHost?: string; smtpPort?: number; smtpUser?: string; fromName?: string; fromEmail?: string; updatedAt?: string }>(`/email/settings`),
+  emailSettingsSave: (payload: { smtpHost: string; smtpPort: number; smtpUser: string; smtpPassword: string; fromName?: string; fromEmail?: string }) =>
+    apiFetch<{ configured: boolean; message: string }>(`/email/settings`, { method: "POST", body: JSON.stringify(payload) }),
+  emailSettingsClear: () =>
+    apiFetch<{ configured: boolean; message: string }>(`/email/settings`, { method: "DELETE" }),
+  emailSend: (payload: { to: string; subject: string; html: string; text?: string; replyTo?: string }) =>
+    apiFetch<{ ok: boolean; message: string; messageId?: string }>(`/email/send`, { method: "POST", body: JSON.stringify(payload) }),
+  emailTest: (to?: string) =>
+    apiFetch<{ ok: boolean; message: string; messageId?: string }>(`/email/test`, { method: "POST", body: JSON.stringify({ to }) }),
+  emailTestConnection: () =>
+    apiFetch<{ ok: boolean; message: string }>(`/email/test`),
 };
 
 // ===== Utilities =====
