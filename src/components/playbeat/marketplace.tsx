@@ -544,6 +544,51 @@ function FilterBar({
   );
 }
 
+// ─── Featured Products — Smart Projectors pinned to top ────────────────
+function FeaturedProjectorsSection() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["featured-projectors"],
+    queryFn: () => api.products({ category: "smart-projectors", limit: 8, sort: "popular" } as any),
+    staleTime: 60_000,
+  });
+
+  const items = data?.items ?? [];
+
+  if (items.length === 0) return null;
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight pb-text-gradient">
+            ✨ Featured Products
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Smart Projectors — premium home cinema experience
+          </p>
+        </div>
+        <Badge variant="secondary" className="gap-1 pb-badge">
+          <Star className="size-3" />
+          {items.length} products
+        </Badge>
+      </div>
+
+      {/* Horizontal scroll on mobile, grid on desktop */}
+      <div className="flex gap-4 overflow-x-auto pb-4 pb-scrollbar sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:overflow-visible">
+        {items.map((p, i) => (
+          <div
+            key={p.id}
+            className="min-w-[240px] shrink-0 sm:min-w-0 pb-fade-in"
+            style={{ animationDelay: `${i * 50}ms` }}
+          >
+            <ProductCard product={p} index={i} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ─── Popular Section — featured products carousel ───────────────────────
 function PopularSection() {
   const { data, isLoading } = useQuery({
@@ -637,6 +682,9 @@ export function Marketplace() {
   return (
     <div>
       <Hero />
+
+      {/* Featured Products — Smart Projectors pinned to top */}
+      <FeaturedProjectorsSection />
 
       {/* Popular section — featured products */}
       <PopularSection />
