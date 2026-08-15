@@ -547,12 +547,16 @@ function FilterBar({
 // ─── Featured Products — Smart Projectors pinned to top ────────────────
 function FeaturedProjectorsSection() {
   const { data, isLoading } = useQuery({
-    queryKey: ["featured-projectors"],
-    queryFn: () => api.products({ category: "smart-projectors", limit: 8, sort: "popular" }),
+    queryKey: ["featured-projectors-v2"],
+    queryFn: async () => {
+      const res = await fetch("/api/v1/products?category=smart-projectors&limit=8&sort=popular");
+      const json = await res.json();
+      return json.data?.items || [];
+    },
     staleTime: 60_000,
   });
 
-  const items = data?.items ?? [];
+  const items = data || [];
 
   // Show skeleton while loading, hide only if we loaded and got 0
   if (!isLoading && items.length === 0) return null;
