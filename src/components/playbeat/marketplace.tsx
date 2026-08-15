@@ -548,13 +548,14 @@ function FilterBar({
 function FeaturedProjectorsSection() {
   const { data, isLoading } = useQuery({
     queryKey: ["featured-projectors"],
-    queryFn: () => api.products({ category: "smart-projectors", limit: 8, sort: "popular" } as any),
+    queryFn: () => api.products({ category: "smart-projectors", limit: 8, sort: "popular" }),
     staleTime: 60_000,
   });
 
   const items = data?.items ?? [];
 
-  if (items.length === 0) return null;
+  // Show skeleton while loading, hide only if we loaded and got 0
+  if (!isLoading && items.length === 0) return null;
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
@@ -569,21 +570,29 @@ function FeaturedProjectorsSection() {
         </div>
         <Badge variant="secondary" className="gap-1 pb-badge">
           <Star className="size-3" />
-          {items.length} products
+          {items.length || "—"} products
         </Badge>
       </div>
 
       {/* Horizontal scroll on mobile, grid on desktop */}
       <div className="flex gap-4 overflow-x-auto pb-4 pb-scrollbar sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:overflow-visible">
-        {items.map((p, i) => (
-          <div
-            key={p.id}
-            className="min-w-[240px] shrink-0 sm:min-w-0 pb-fade-in"
-            style={{ animationDelay: `${i * 50}ms` }}
-          >
-            <ProductCard product={p} index={i} />
-          </div>
-        ))}
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="min-w-[240px] shrink-0 sm:min-w-0">
+                <div className="aspect-[4/3] rounded-xl bg-muted animate-pulse" />
+                <div className="mt-2 h-4 rounded bg-muted animate-pulse" />
+                <div className="mt-1 h-3 w-2/3 rounded bg-muted animate-pulse" />
+              </div>
+            ))
+          : items.map((p, i) => (
+              <div
+                key={p.id}
+                className="min-w-[240px] shrink-0 sm:min-w-0 pb-fade-in"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
+                <ProductCard product={p} index={i} />
+              </div>
+            ))}
       </div>
     </section>
   );
