@@ -29,6 +29,9 @@ import {
   Sparkles,
   Tag,
   TrendingUp,
+  Clock,
+  Award,
+  Package,
   Mail,
   Lock,
   ArrowRight,
@@ -452,12 +455,15 @@ const NAV_LINKS: Array<{
 }> = [
   { label: "Home", icon: Home },
   { label: "Games", category: "games", icon: Gamepad2 },
-  { label: "Gift Cards", category: "gift-cards", icon: Gift },
-  { label: "Software", category: "software-licenses", icon: KeyRound },
+  { label: "Software", category: "software", icon: Package },
   { label: "AI Tools", category: "ai-tools", icon: Sparkles },
-  { label: "Subscriptions", category: "saas-subscriptions", icon: RefreshCw },
-  { label: "Best Value", sort: "price_asc", icon: Tag },
-  { label: "Trending", sort: "popular", icon: TrendingUp },
+  { label: "Subscriptions", category: "subscriptions", icon: RefreshCw },
+  { label: "Gift Cards", category: "gift-cards", icon: Gift },
+  { label: "Smart Projectors", category: "smart-projectors", icon: Zap },
+  { label: "Limited-Time Offers", category: "limited-time-offers", icon: Clock },
+  { label: "Flash Deals", category: "flash-deals", icon: Zap },
+  { label: "Trending This Week", category: "trending-this-week", icon: TrendingUp },
+  { label: "Best Sellers", category: "best-sellers", icon: Award },
 ];
 
 export function Header() {
